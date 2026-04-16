@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Factory | georg.miami</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #08080A; --surface: #111115; --border: #1E1E26;
+            --warm: #F0845C; --teal: #00D2C8; --green: #10B981; --indigo: #6366F1;
+            --pm: #4A9EFF; --coder: #10B981; --reviewer: #8B5CF6; --deployer: #F0845C;
+        }
+        body { background: var(--bg); color: #ccc; font-family: 'DM Sans', sans-serif; height: 100vh; overflow: hidden; }
+
+        /* Layout */
+        .layout { display: grid; grid-template-rows: 56px 1fr 220px; height: 100vh; }
+        .layout.present-mode { grid-template-rows: 56px 1fr 160px; }
+        .main { display: grid; grid-template-columns: 1fr 260px; overflow: hidden; border-top: 1px solid var(--border); }
+        .main.present-mode { grid-template-columns: 1fr 280px; }
+
+        /* Header */
+        .header { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: var(--surface); border-bottom: 1px solid var(--border); gap: 12px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-center { flex: 1; display: flex; align-items: center; justify-content: center; }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .logo { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; color: #fff; white-space: nowrap; }
+        .logo span { color: var(--warm); }
+        .logo.present { font-size: 20px; }
+        .badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .badge.present { font-size: 14px; padding: 6px 18px; }
+        .build-timer-header { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 400; color: var(--warm); letter-spacing: 2px; display: none; }
+        .build-timer-header.visible { display: block; }
+        .claude-badge { font-family: 'DM Sans', sans-serif; font-size: 12px; color: #888; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3); border-radius: 20px; padding: 4px 12px; white-space: nowrap; }
+        .spectator-count { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #888; white-space: nowrap; }
+
+        /* Office Scene */
+        .office-wrap { overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; background: #0a0a14; }
+        .office-scene { width: 800px; height: 380px; position: relative; transform-origin: center center; flex-shrink: 0; }
+
+        /* Wall */
+        .wall { position: absolute; top: 0; left: 0; right: 0; height: 200px; background: linear-gradient(180deg, #0e0e1c 0%, #14142a 100%); border-bottom: 2px solid #222244; }
+        .whiteboard { position: absolute; left: 325px; top: 22px; width: 150px; height: 90px; background: #e8e8e0; border: 3px solid #888; border-radius: 3px; }
+        .whiteboard-title { font-family: 'Press Start 2P', monospace; font-size: 5px; color: #333; text-align: center; padding-top: 6px; }
+        .whiteboard-content { font-family: 'JetBrains Mono', monospace; font-size: 6px; color: #555; padding: 4px 6px; line-height: 1.6; word-break: break-all; }
+        .clock { position: absolute; right: 60px; top: 40px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #4a4a6a; background: #0d0d1a; padding: 4px 8px; border: 1px solid #2a2a44; border-radius: 3px; }
+        .poster { position: absolute; left: 60px; top: 35px; width: 50px; height: 60px; background: linear-gradient(135deg, var(--warm) 0%, var(--indigo) 100%); border: 2px solid #444; border-radius: 2px; opacity: 0.5; }
+
+        /* Floor */
+        .floor { position: absolute; bottom: 0; left: 0; right: 0; height: 180px; background: repeating-conic-gradient(#151528 0% 25%, #121222 0% 50%) 0 0 / 40px 40px; }
+
+        /* Desks */
+        .desk { position: absolute; top: 230px; width: 90px; height: 30px; background: linear-gradient(180deg, #3a2a1a 0%, #2a1e12 100%); border-radius: 3px; border: 1px solid #4a3a2a; }
+        .monitor { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); width: 36px; height: 26px; background: #0a0a14; border: 2px solid #333; border-radius: 3px 3px 0 0; overflow: hidden; transition: border-color 0.5s, box-shadow 0.5s; }
+        .monitor::after { content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 8px; height: 6px; background: #333; }
+        .monitor .screen { width: 100%; height: 100%; opacity: 0; transition: opacity 0.5s; }
+        .monitor.active { box-shadow: 0 0 25px 4px var(--glow), 0 0 50px 8px color-mix(in srgb, var(--glow) 30%, transparent); border-color: var(--glow); }
+        .monitor.active .screen { opacity: 1; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px); animation: screen-scroll 3s linear infinite; }
+        @keyframes screen-scroll { 0% { background-position: 0 0; } 100% { background-position: 0 -40px; } }
+        .chair { position: absolute; top: 268px; width: 30px; height: 20px; background: #1a1a2e; border-radius: 4px 4px 0 0; border: 1px solid #2a2a44; border-bottom: none; }
+        .plant { position: absolute; font-size: 20px; filter: saturate(0.7); }
+
+        /* Agents */
+        .agent { position: absolute; text-align: center; z-index: 10; cursor: pointer; transition: left 1.4s cubic-bezier(0.25, 0.1, 0.25, 1), top 1.4s cubic-bezier(0.25, 0.1, 0.25, 1); }
+        .agent:hover { filter: brightness(1.2); }
+        .agent-sprite { position: relative; width: 28px; margin: 0 auto; }
+        .agent-hair { width: 24px; height: 5px; margin: 0 auto; border-radius: 4px 4px 0 0; background: #333; }
+        .agent-head { width: 22px; height: 18px; margin: 0 auto; background: #FFDAB9; border-radius: 3px; position: relative; }
+        .agent-head::before, .agent-head::after { content: ''; position: absolute; width: 3px; height: 3px; background: #333; border-radius: 50%; top: 6px; }
+        .agent-head::before { left: 5px; } .agent-head::after { right: 5px; }
+        .agent-mouth { position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 6px; height: 2px; border-radius: 0 0 3px 3px; background: #c9967a; }
+        .agent-body { width: 24px; height: 16px; margin: 0 auto; border-radius: 2px; }
+        .agent-legs { display: flex; justify-content: center; gap: 4px; }
+        .agent-leg { width: 7px; height: 10px; background: #2a2a3e; border-radius: 0 0 2px 2px; }
+        .agent-name { font-family: 'Press Start 2P', monospace; font-size: 8px; margin-top: 4px; color: #888; letter-spacing: 0.5px; }
+
+        .agent.idle .agent-sprite { animation: idle-bob 3s ease-in-out infinite; }
+        .agent.working .agent-sprite { animation: typing 0.3s ease-in-out infinite; }
+        .agent.celebrating .agent-sprite { animation: celebrate 0.35s ease-in-out infinite; }
+        .agent.done .agent-sprite { animation: none; }
+        @keyframes idle-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+        @keyframes typing { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-1px) rotate(1deg); } }
+        @keyframes celebrate { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+
+        .speech-bubble { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #fff; color: #111; font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 7px 10px; border-radius: 8px; pointer-events: none; opacity: 0; transform: translateX(-50%) translateY(5px) scale(0.9); transition: opacity 0.3s, transform 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.4); max-width: 200px; white-space: normal; text-align: center; line-height: 1.3; z-index: 20; }
+        .speech-bubble::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #fff; }
+        .speech-bubble.visible { opacity: 1; transform: translateX(-50%) translateY(-6px) scale(1); }
+
+        .agent-status-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: #333; border: 1px solid #0a0a14; transition: background 0.3s; }
+        .agent.working .agent-status-dot { background: var(--warm); animation: pulse-dot 1s infinite; }
+        .agent.done .agent-status-dot { background: var(--green); }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .confetti { position: absolute; width: 6px; height: 6px; top: -10px; border-radius: 1px; z-index: 100; pointer-events: none; animation: confetti-fall linear forwards; }
+        @keyframes confetti-fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(400px) rotate(720deg); opacity: 0; } }
+
+        /* Sidebar — Normal Mode: Activity Feed */
+        .sidebar { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .sidebar-title { font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; padding: 12px 14px; border-bottom: 1px solid var(--border); color: #fff; }
+        .activity-feed { flex: 1; overflow-y: auto; padding: 8px 0; scrollbar-width: thin; scrollbar-color: #2a2a3e transparent; }
+        .activity-item { display: flex; align-items: flex-start; gap: 8px; padding: 5px 14px; font-size: 11px; line-height: 1.4; }
+        .activity-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+        .activity-time { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #555; flex-shrink: 0; width: 55px; }
+        .activity-text { color: #999; }
+
+        /* Sidebar — Present Mode: Build Stats */
+        .build-stats { flex: 1; overflow-y: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 20px; }
+        .stat-block { display: flex; flex-direction: column; gap: 6px; }
+        .stat-label { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-timer { font-family: 'JetBrains Mono', monospace; font-size: 36px; color: var(--warm); letter-spacing: 2px; line-height: 1; }
+        .stat-timer.idle { color: #444; font-size: 22px; }
+        .stat-stage { display: flex; align-items: center; gap: 8px; font-size: 20px; font-family: 'DM Sans', sans-serif; color: #ccc; }
+        .stage-dots { display: flex; gap: 4px; align-items: center; margin-left: 4px; }
+        .stage-dot { width: 5px; height: 5px; border-radius: 50%; background: #333; }
+        .stage-dot.active { background: var(--warm); animation: pulse-dot 0.8s infinite; }
+
+        /* Pipeline Stepper */
+        .pipeline { display: flex; flex-direction: column; gap: 0; }
+        .pipeline-step { display: flex; align-items: center; gap: 10px; padding: 8px 0; position: relative; }
+        .pipeline-step:not(:last-child)::after { content: ''; position: absolute; left: 11px; top: 32px; width: 2px; height: 16px; background: #2a2a3e; }
+        .pipeline-step.done::after { background: var(--green); }
+        .pipeline-step.active::after { background: linear-gradient(180deg, var(--warm) 0%, #2a2a3e 100%); }
+        .step-icon { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #2a2a3e; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; background: var(--bg); color: #555; transition: all 0.4s; }
+        .pipeline-step.done .step-icon { border-color: var(--green); background: rgba(16,185,129,0.15); color: var(--green); }
+        .pipeline-step.active .step-icon { border-color: var(--warm); background: rgba(240,132,92,0.15); color: var(--warm); animation: pulse-dot 1s infinite; }
+        .step-label { font-family: 'DM Sans', sans-serif; font-size: 14px; color: #555; transition: color 0.4s; }
+        .pipeline-step.done .step-label { color: var(--green); }
+        .pipeline-step.active .step-label { color: #fff; font-weight: 500; }
+
+        /* Review Score */
+        .review-score-block { display: none; }
+        .review-score-block.visible { display: flex; flex-direction: column; gap: 4px; }
+        .score-display { display: flex; align-items: baseline; gap: 4px; }
+        .score-num { font-family: 'JetBrains Mono', monospace; font-size: 48px; line-height: 1; font-weight: 400; }
+        .score-denom { font-family: 'JetBrains Mono', monospace; font-size: 20px; color: #555; }
+        .score-label { font-size: 12px; color: #666; }
+
+        /* Spectator block */
+        .spectator-block { display: flex; align-items: center; gap: 10px; }
+        .spectator-num { font-family: 'JetBrains Mono', monospace; font-size: 28px; color: var(--teal); }
+        .spectator-info { display: flex; flex-direction: column; }
+        .spectator-info span:first-child { font-size: 20px; }
+        .spectator-info span:last-child { font-size: 11px; color: #555; font-family: 'DM Sans', sans-serif; }
+
+        /* Bottom Panel */
+        .bottom-panel { background: var(--surface); border-top: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tab { background: none; border: none; color: #666; font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
+        .panel-tab:hover { color: #aaa; }
+        .panel-tab.active { color: #fff; border-bottom-color: var(--warm); }
+        .tab-content { flex: 1; overflow: hidden; display: none; }
+        .tab-content.active { display: flex; flex-direction: column; }
+
+        /* Chat tab — bubble style */
+        .chat-log { flex: 1; overflow-y: auto; padding: 10px 16px; scrollbar-width: thin; scrollbar-color: #2a2a3e transparent; display: flex; flex-direction: column; gap: 6px; }
+        .chat-bubble-row { display: flex; align-items: flex-end; gap: 8px; animation: slide-in 0.25s ease-out; }
+        .chat-bubble-row.user { flex-direction: row-reverse; text-align: right; }
+        .chat-bubble-row.user .chat-bubble { background: rgba(0,210,200,0.15); border-color: rgba(0,210,200,0.35); color: #fff; font-weight: 500; }
+        @keyframes slide-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .chat-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+        .chat-bubble { max-width: 80%; padding: 8px 12px; border-radius: 14px; font-size: 15px; line-height: 1.5; background: rgba(255,255,255,0.05); color: #ddd; border: 1px solid var(--border); }
+        /* user bubble styles in .chat-bubble-row.user above */
+        .chat-bubble a { color: var(--teal); text-decoration: none; }
+        .chat-bubble a:hover { text-decoration: underline; }
+        .chat-sender-name { font-size: 11px; color: #555; margin-bottom: 2px; }
+
+        /* Legacy msg support (inline-btn) */
+        .chat-msg { display: none; }
+
+        .chat-input-row { display: flex; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+        .chat-input-row.hidden { display: none; }
+        .chat-input-row input { flex: 1; background: #0a0a14; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; }
+        .chat-input-row input:focus { border-color: var(--warm); }
+        .chat-input-row input::placeholder { color: #444; }
+        .btn-build { background: linear-gradient(135deg, var(--warm), #e06a3c); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; cursor: pointer; transition: transform 0.15s, opacity 0.15s; white-space: nowrap; }
+        .btn-build:hover { transform: translateY(-1px); }
+        .btn-build:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        /* Telegram notice */
+        .telegram-notice { padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; text-align: center; font-size: 14px; color: #555; font-family: 'DM Sans', sans-serif; }
+
+        /* Timeline (present mode tab) */
+        .timeline-bar { display: flex; align-items: center; padding: 10px 16px; gap: 0; flex-shrink: 0; }
+        .timeline-pill { flex: 1; padding: 5px 8px; text-align: center; font-family: 'DM Sans', sans-serif; font-size: 12px; color: #444; background: rgba(255,255,255,0.02); border: 1px solid #1a1a26; border-radius: 20px; transition: all 0.4s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .timeline-pill.done { color: var(--green); background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); }
+        .timeline-pill.active { color: var(--warm); background: rgba(240,132,92,0.1); border-color: rgba(240,132,92,0.4); font-weight: 600; }
+        .timeline-connector { width: 20px; height: 2px; background: #1a1a26; flex-shrink: 0; transition: background 0.4s; }
+        .timeline-connector.done { background: var(--green); }
+
+        /* Console tab */
+        .console-log { flex: 1; overflow-y: auto; padding: 10px 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; scrollbar-width: thin; scrollbar-color: #2a2a3e transparent; }
+        .console-entry { margin-bottom: 2px; white-space: pre-wrap; word-break: break-all; }
+        .console-prefix { font-weight: 500; }
+
+        .inline-btn { background: var(--surface); border: 1px solid var(--border); color: #fff; padding: 4px 10px; border-radius: 5px; font-size: 11px; cursor: pointer; margin: 2px; font-family: 'DM Sans', sans-serif; transition: background 0.15s; }
+        .inline-btn:hover { background: #1a1a24; }
+
+        /* Live URL banner */
+        .live-url-banner { display: none; padding: 8px 16px; background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(0,210,200,0.1)); border-top: 1px solid rgba(16,185,129,0.2); text-align: center; font-size: 12px; flex-shrink: 0; }
+        .live-url-banner a { color: var(--teal); font-weight: 600; text-decoration: none; }
+        .live-url-banner a:hover { text-decoration: underline; }
+        .live-url-banner.visible { display: block; }
+
+        /* Countdown Overlay (present mode) */
+        .countdown-overlay { position: fixed; inset: 0; background: rgba(8,8,10,0.92); z-index: 1200; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+        .countdown-overlay.visible { display: flex; }
+        .countdown-num { font-family: 'Space Grotesk', sans-serif; font-size: 120px; font-weight: 700; color: var(--warm); line-height: 1; transition: opacity 0.3s, transform 0.3s; }
+        .countdown-label { font-family: 'DM Sans', sans-serif; font-size: 20px; color: #666; }
+
+        /* Fullscreen iframe reveal (present mode) */
+        .site-reveal { position: fixed; inset: 0; z-index: 1100; display: none; flex-direction: column; background: #fff; }
+        .site-reveal.visible { display: flex; }
+        .site-reveal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .site-reveal-title { font-family: 'Space Grotesk', sans-serif; font-size: 16px; color: #fff; }
+        .site-reveal-meta { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--green); }
+        .site-reveal-close { background: none; border: 1px solid var(--border); color: #888; padding: 6px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: 'DM Sans', sans-serif; }
+        .site-reveal-close:hover { color: #fff; border-color: #555; }
+        .site-reveal iframe { flex: 1; border: none; }
+
+        /* QR Code (present mode) */
+        .qr-card { position: fixed; bottom: 20px; right: 20px; background: #fff; border-radius: 12px; padding: 14px 16px; z-index: 200; display: none; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); min-width: 140px; }
+        .qr-card.visible { display: flex; }
+        .qr-scan-label { font-family: 'DM Sans', sans-serif; font-size: 10px; color: #888; text-align: center; white-space: nowrap; }
+        .qr-url-box { border: 3px solid #111; border-radius: 8px; padding: 10px 14px; width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; background: #fff; }
+        .qr-url-text { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #111; text-align: center; line-height: 1.5; word-break: break-all; font-weight: 600; letter-spacing: 0.3px; }
+        .qr-corner { position: absolute; width: 18px; height: 18px; border: 3px solid #111; }
+        .qr-tl { top: 10px; left: 10px; border-right: none; border-bottom: none; }
+        .qr-tr { top: 10px; right: 10px; border-left: none; border-bottom: none; }
+        .qr-bl { bottom: 10px; left: 10px; border-right: none; border-top: none; }
+
+        /* Preview Modal */
+        .preview-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; display: none; flex-direction: column; }
+        .preview-modal.visible { display: flex; }
+        .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); }
+        .modal-header h3 { font-family: 'Space Grotesk', sans-serif; font-size: 15px; color: #fff; }
+        .modal-actions { display: flex; gap: 8px; }
+        .modal-actions button { background: var(--bg); border: 1px solid var(--border); color: #ccc; padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+        .modal-actions button:hover { background: #1a1a24; }
+        .modal-actions .btn-primary { background: var(--warm); border-color: var(--warm); color: #fff; }
+        .preview-frame { flex: 1; border: none; background: #fff; }
+
+        /* Agent Info Modal */
+        .agent-info-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 900; display: none; align-items: center; justify-content: center; }
+        .agent-info-modal.visible { display: flex; }
+        .agent-info-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .agent-info-card h2 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; color: #fff; margin-bottom: 4px; }
+        .agent-info-card .agent-role { color: #888; font-size: 13px; margin-bottom: 16px; }
+        .agent-info-card h4 { font-family: 'Space Grotesk', sans-serif; font-size: 13px; color: #999; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 1px; }
+        .agent-info-card ul { list-style: none; padding: 0; }
+        .agent-info-card li { padding: 3px 0; font-size: 13px; color: #bbb; }
+        .agent-info-card li::before { content: '→ '; color: #555; }
+        .agent-info-card .prompt-preview { background: #0a0a14; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #888; line-height: 1.5; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+        .agent-info-card .meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #555; margin-top: 12px; }
+        .agent-info-close { background: none; border: 1px solid var(--border); color: #888; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; float: right; }
+        .agent-info-close:hover { color: #fff; border-color: #444; }
+
+        /* Footer link (present mode) */
+        .footer-link { position: fixed; bottom: 20px; left: 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #444; display: none; }
+        .footer-link a { color: #555; text-decoration: none; }
+        .footer-link a:hover { color: #888; }
+        .footer-link.visible { display: block; }
+    </style>
+</head>
+<body>
+    <div class="layout" id="layout">
+        <header class="header">
+            <div class="header-left">
+                <div class="logo" id="header-logo">⚙ Agent <span>Factory</span></div>
+                <div class="claude-badge" id="claude-badge" style="display:none">Built with Claude</div>
+            </div>
+            <div class="header-center">
+                <div class="build-timer-header" id="build-timer-header">0:00</div>
+            </div>
+            <div class="header-right">
+                <div class="spectator-count" id="spectator-count" style="display:none"></div>
+                <div class="badge" id="status-badge">IDLE</div>
+            </div>
+        </header>
+
+        <div class="main" id="main-grid">
+            <div class="office-wrap">
+                <div class="office-scene" id="office">
+                    <div class="wall">
+                        <div class="poster"></div>
+                        <div class="whiteboard">
+                            <div class="whiteboard-title">PROJECT PLAN</div>
+                            <div class="whiteboard-content" id="wb-content">Waiting for brief...</div>
+                        </div>
+                        <div class="clock" id="clock">00:00</div>
+                    </div>
+                    <div class="floor"></div>
+                    <div class="plant" style="left:12px;top:195px;">🌿</div>
+                    <div class="plant" style="left:758px;top:195px;">🌿</div>
+                    <div class="plant" style="left:12px;top:330px;">🪴</div>
+                    <div class="plant" style="left:758px;top:330px;">🪴</div>
+
+                    <div class="desk" style="left:68px;"><div class="monitor" id="monitor-pm" style="--glow:var(--pm)"><div class="screen"></div></div></div>
+                    <div class="chair" style="left:98px;"></div>
+                    <div class="desk" style="left:248px;"><div class="monitor" id="monitor-coder" style="--glow:var(--coder)"><div class="screen"></div></div></div>
+                    <div class="chair" style="left:278px;"></div>
+                    <div class="desk" style="left:428px;"><div class="monitor" id="monitor-reviewer" style="--glow:var(--reviewer)"><div class="screen"></div></div></div>
+                    <div class="chair" style="left:458px;"></div>
+                    <div class="desk" style="left:608px;"><div class="monitor" id="monitor-deployer" style="--glow:var(--deployer)"><div class="screen"></div></div></div>
+                    <div class="chair" style="left:638px;"></div>
+
+                    <div class="agent idle" id="agent-pm" style="left:98px;top:268px;" onclick="showAgentInfo('pm')">
+                        <div class="speech-bubble" id="bubble-pm"></div>
+                        <div class="agent-sprite"><div class="agent-status-dot"></div><div class="agent-hair" style="background:#2a1a0a;"></div><div class="agent-head"><div class="agent-mouth"></div></div><div class="agent-body" style="background:var(--pm);"></div><div class="agent-legs"><div class="agent-leg"></div><div class="agent-leg"></div></div></div>
+                        <div class="agent-name" style="color:var(--pm);">PLAN</div>
+                    </div>
+                    <div class="agent idle" id="agent-coder" style="left:278px;top:268px;" onclick="showAgentInfo('coder')">
+                        <div class="speech-bubble" id="bubble-coder"></div>
+                        <div class="agent-sprite"><div class="agent-status-dot"></div><div class="agent-hair" style="background:#1a3320;"></div><div class="agent-head"><div class="agent-mouth"></div></div><div class="agent-body" style="background:var(--coder);"></div><div class="agent-legs"><div class="agent-leg"></div><div class="agent-leg"></div></div></div>
+                        <div class="agent-name" style="color:var(--coder);">CODE</div>
+                    </div>
+                    <div class="agent idle" id="agent-reviewer" style="left:458px;top:268px;" onclick="showAgentInfo('reviewer')">
+                        <div class="speech-bubble" id="bubble-reviewer"></div>
+                        <div class="agent-sprite"><div class="agent-status-dot"></div><div class="agent-hair" style="background:#2a1a3a;"></div><div class="agent-head"><div class="agent-mouth"></div></div><div class="agent-body" style="background:var(--reviewer);"></div><div class="agent-legs"><div class="agent-leg"></div><div class="agent-leg"></div></div></div>
+                        <div class="agent-name" style="color:var(--reviewer);">REVIEW</div>
+                    </div>
+                    <div class="agent idle" id="agent-deployer" style="left:638px;top:268px;" onclick="showAgentInfo('deployer')">
+                        <div class="speech-bubble" id="bubble-deployer"></div>
+                        <div class="agent-sprite"><div class="agent-status-dot"></div><div class="agent-hair" style="background:#3a2010;"></div><div class="agent-head"><div class="agent-mouth"></div></div><div class="agent-body" style="background:var(--deployer);"></div><div class="agent-legs"><div class="agent-leg"></div><div class="agent-leg"></div></div></div>
+                        <div class="agent-name" style="color:var(--deployer);">DEPLOY</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar: activity feed (normal) or build stats (present) -->
+            <div class="sidebar" id="sidebar">
+                <!-- Normal mode: activity feed -->
+                <div id="sidebar-normal">
+                    <div class="sidebar-title">Activity</div>
+                    <div class="activity-feed" id="activity-feed"></div>
+                </div>
+                <!-- Present mode: build stats -->
+                <div id="sidebar-present" style="display:none; flex-direction:column; height:100%; overflow:hidden;">
+                    <div class="sidebar-title" style="font-size:15px;">Build Stats</div>
+                    <div class="build-stats">
+                        <div class="stat-block">
+                            <div class="stat-label">Build Time</div>
+                            <div class="stat-timer idle" id="stat-timer">Idle</div>
+                        </div>
+                        <div class="stat-block">
+                            <div class="stat-label">Current Stage</div>
+                            <div class="stat-stage" id="stat-stage">
+                                <span id="stat-stage-icon">💤</span>
+                                <span id="stat-stage-label">Waiting</span>
+                                <div class="stage-dots" id="stage-dots" style="display:none">
+                                    <div class="stage-dot active"></div>
+                                    <div class="stage-dot active" style="animation-delay:0.2s"></div>
+                                    <div class="stage-dot active" style="animation-delay:0.4s"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-block">
+                            <div class="stat-label">Pipeline</div>
+                            <div class="pipeline" id="pipeline">
+                                <div class="pipeline-step" id="step-planning" data-stage="planning">
+                                    <div class="step-icon">📋</div>
+                                    <div class="step-label">Planning</div>
+                                </div>
+                                <div class="pipeline-step" id="step-coding" data-stage="coding">
+                                    <div class="step-icon">💻</div>
+                                    <div class="step-label">Coding</div>
+                                </div>
+                                <div class="pipeline-step" id="step-review" data-stage="review">
+                                    <div class="step-icon">🔍</div>
+                                    <div class="step-label">Review</div>
+                                </div>
+                                <div class="pipeline-step" id="step-deploy" data-stage="deploy">
+                                    <div class="step-icon">🚀</div>
+                                    <div class="step-label">Deploy</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-block review-score-block" id="review-score-block">
+                            <div class="stat-label">Review Score</div>
+                            <div class="score-display">
+                                <div class="score-num" id="score-num">0</div>
+                                <div class="score-denom">/10</div>
+                            </div>
+                            <div class="score-label" id="score-label">Awaiting review</div>
+                        </div>
+                        <div class="stat-block">
+                            <div class="stat-label">Spectators</div>
+                            <div class="spectator-block">
+                                <div class="spectator-num" id="spectator-num">—</div>
+                                <div class="spectator-info">
+                                    <span>👥</span>
+                                    <span>Watching Live</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Panel -->
+        <div class="bottom-panel" id="bottom-panel">
+            <div class="panel-tabs" id="panel-tabs">
+                <button class="panel-tab active" data-tab="chat" onclick="switchTab('chat')">💬 Chat</button>
+                <button class="panel-tab" id="tab-btn-console" data-tab="console" onclick="switchTab('console')">🖥 Console</button>
+                <button class="panel-tab" id="tab-btn-timeline" data-tab="timeline" onclick="switchTab('timeline')" style="display:none">📊 Timeline</button>
+            </div>
+            <div class="live-url-banner" id="live-url-banner"></div>
+            <div class="tab-content active" id="tab-chat">
+                <div class="chat-log" id="chat-log">
+                    <!-- Initial system message -->
+                </div>
+            </div>
+            <div class="tab-content" id="tab-console">
+                <div class="console-log" id="console-log"></div>
+            </div>
+            <div class="tab-content" id="tab-timeline">
+                <div class="timeline-bar" id="timeline-bar">
+                    <div class="timeline-pill" id="tl-brief">📝 Brief</div>
+                    <div class="timeline-connector" id="tlc-1"></div>
+                    <div class="timeline-pill" id="tl-planning">📋 Planning</div>
+                    <div class="timeline-connector" id="tlc-2"></div>
+                    <div class="timeline-pill" id="tl-coding">💻 Coding</div>
+                    <div class="timeline-connector" id="tlc-3"></div>
+                    <div class="timeline-pill" id="tl-review">🔍 Review</div>
+                    <div class="timeline-connector" id="tlc-4"></div>
+                    <div class="timeline-pill" id="tl-deploy">🚀 Deploy</div>
+                </div>
+                <div class="chat-log" id="timeline-chat-log" style="flex:1;"></div>
+            </div>
+            <div class="chat-input-row" id="chat-input-row">
+                <input type="text" id="chat-input" placeholder="Hey PM, build me a landing page for..." />
+                <button class="btn-build" id="btn-send">Send</button>
+            </div>
+            <div class="telegram-notice" id="telegram-notice" style="display:none">📱 Input via Telegram</div>
+        </div>
+    </div>
+
+    <!-- Countdown Overlay (present mode) -->
+    <div class="countdown-overlay" id="countdown-overlay">
+        <div class="countdown-num" id="countdown-num">3</div>
+        <div class="countdown-label">Opening built site...</div>
+    </div>
+
+    <!-- Site Reveal (present mode) -->
+    <div class="site-reveal" id="site-reveal">
+        <div class="site-reveal-header">
+            <div>
+                <div class="site-reveal-title" id="site-reveal-title">Built Site</div>
+                <div class="site-reveal-meta" id="site-reveal-meta"></div>
+            </div>
+            <button class="site-reveal-close" onclick="closeSiteReveal()">Close</button>
+        </div>
+        <iframe id="site-reveal-frame" style="flex:1;border:none;"></iframe>
+    </div>
+
+    <!-- QR Card (present mode) -->
+    <div class="qr-card" id="qr-card">
+        <div class="qr-scan-label">Scan to watch live</div>
+        <div class="qr-url-box" style="position:relative;">
+            <div class="qr-corner qr-tl"></div>
+            <div class="qr-corner qr-tr"></div>
+            <div class="qr-corner qr-bl"></div>
+            <div class="qr-url-text">factory.georg.miami/live</div>
+        </div>
+    </div>
+
+    <!-- Footer link (present mode) -->
+    <div class="footer-link" id="footer-link"><a href="https://georg.miami" target="_blank">georg.miami</a></div>
+
+    <!-- Preview Modal -->
+    <div class="preview-modal" id="preview-modal">
+        <div class="modal-header">
+            <h3 id="preview-title">Preview</h3>
+            <div class="modal-actions">
+                <button onclick="downloadBuild()">💾 Download</button>
+                <button onclick="copyHtml()">📋 Copy</button>
+                <button class="btn-primary" onclick="closePreview()">Close</button>
+            </div>
+        </div>
+        <iframe class="preview-frame" id="preview-frame"></iframe>
+    </div>
+
+    <!-- Agent Info Modal -->
+    <div class="agent-info-modal" id="agent-info-modal" onclick="if(event.target===this)closeAgentInfo()">
+        <div class="agent-info-card" id="agent-info-card"></div>
+    </div>
+
+    <script>
+    const TOKEN = new URLSearchParams(window.location.search).get('token');
+    const PRESENT = new URLSearchParams(window.location.search).get('mode') === 'present';
+
+    const AGENTS = {
+        pm:       { name: 'Plan',    color: '#4A9EFF', emoji: '📋', home: [98, 268] },
+        coder:    { name: 'Code',    color: '#10B981', emoji: '💻', home: [278, 268] },
+        reviewer: { name: 'Review',  color: '#8B5CF6', emoji: '🔍', home: [458, 268] },
+        deployer: { name: 'Deploy',  color: '#F0845C', emoji: '🚀', home: [638, 268] },
+    };
+    const TARGETS = { whiteboard: [370, 140], pm: [98, 268], coder: [258, 268], reviewer: [438, 268], deployer: [618, 268] };
+
+    let currentBuildId = null, building = false, lastBuildHtml = null, lastBuildPlan = null, lastSiteUrl = null;
+    let agentInfoCache = null, sending = false;
+
+    // Build timer state
+    let buildStartTime = null, buildTimerInterval = null;
+    // Pipeline stage tracking: 0=idle, 1=planning, 2=coding, 3=review, 4=deploy
+    const STAGES = ['idle', 'planning', 'coding', 'review', 'deploy'];
+    const STAGE_MAP = { planning: 1, coding: 2, review: 3, deploy: 4 };
+    let currentStageIndex = 0;
+
+    // ---- Presentation mode init ----
+    function initPresentMode() {
+        if (!PRESENT) return;
+        document.getElementById('layout').classList.add('present-mode');
+        document.getElementById('main-grid').classList.add('present-mode');
+        // Header upgrades
+        document.getElementById('header-logo').classList.add('present');
+        document.getElementById('claude-badge').style.display = '';
+        document.getElementById('status-badge').classList.add('present');
+        document.getElementById('build-timer-header').classList.add('visible');
+        document.getElementById('spectator-count').style.display = '';
+        // Sidebar swap
+        document.getElementById('sidebar-normal').style.display = 'none';
+        document.getElementById('sidebar-present').style.display = 'flex';
+        // Bottom panel: hide console tab, show timeline tab, hide chat input row
+        document.getElementById('tab-btn-console').style.display = 'none';
+        document.getElementById('tab-btn-timeline').style.display = '';
+        document.getElementById('chat-input-row').classList.add('hidden');
+        document.getElementById('telegram-notice').style.display = '';
+        // QR card + footer
+        document.getElementById('qr-card').classList.add('visible');
+        document.getElementById('footer-link').classList.add('visible');
+    }
+
+    // ---- Clock ----
+    function updateClock() {
+        document.getElementById('clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    setInterval(updateClock, 10000); updateClock();
+
+    // ---- Build Timer ----
+    function startBuildTimer() {
+        buildStartTime = Date.now();
+        if (buildTimerInterval) clearInterval(buildTimerInterval);
+        buildTimerInterval = setInterval(tickBuildTimer, 1000);
+        tickBuildTimer();
+        if (PRESENT) {
+            document.getElementById('stat-timer').classList.remove('idle');
+            document.getElementById('stage-dots').style.display = 'flex';
+        }
+    }
+
+    function stopBuildTimer() {
+        if (buildTimerInterval) { clearInterval(buildTimerInterval); buildTimerInterval = null; }
+    }
+
+    function tickBuildTimer() {
+        if (!buildStartTime) return;
+        const elapsed = Math.floor((Date.now() - buildStartTime) / 1000);
+        const m = Math.floor(elapsed / 60);
+        const s = elapsed % 60;
+        const formatted = m + ':' + String(s).padStart(2, '0');
+        document.getElementById('build-timer-header').textContent = formatted;
+        if (PRESENT) {
+            document.getElementById('stat-timer').textContent = formatted;
+        }
+    }
+
+    function resetBuildTimer() {
+        stopBuildTimer();
+        buildStartTime = null;
+        document.getElementById('build-timer-header').textContent = '0:00';
+        if (PRESENT) {
+            const timerEl = document.getElementById('stat-timer');
+            timerEl.textContent = 'Idle';
+            timerEl.classList.add('idle');
+            document.getElementById('stage-dots').style.display = 'none';
+        }
+    }
+
+    function getElapsedFormatted() {
+        if (!buildStartTime) return null;
+        const elapsed = Math.floor((Date.now() - buildStartTime) / 1000);
+        const m = Math.floor(elapsed / 60);
+        const s = elapsed % 60;
+        return 'Built in ' + m + 'm ' + s + 's';
+    }
+
+    // ---- Pipeline / Stage Tracking ----
+    const STAGE_INFO = {
+        planning: { icon: '📋', label: 'Planning' },
+        coding:   { icon: '💻', label: 'Coding' },
+        review:   { icon: '🔍', label: 'Reviewing' },
+        deploy:   { icon: '🚀', label: 'Deploying' },
+    };
+
+    function setStage(stageName) {
+        const idx = STAGE_MAP[stageName];
+        if (!idx) return;
+        currentStageIndex = idx;
+
+        // Update stat stage (present sidebar)
+        if (PRESENT) {
+            const info = STAGE_INFO[stageName];
+            document.getElementById('stat-stage-icon').textContent = info.icon;
+            document.getElementById('stat-stage-label').textContent = info.label;
+        }
+
+        // Update pipeline stepper
+        const steps = document.querySelectorAll('.pipeline-step');
+        steps.forEach(step => {
+            const si = STAGE_MAP[step.dataset.stage];
+            step.classList.remove('done', 'active');
+            if (si < idx) step.classList.add('done');
+            else if (si === idx) step.classList.add('active');
+        });
+
+        // Update timeline pills
+        const tlMap = { 1: 'planning', 2: 'coding', 3: 'review', 4: 'deploy' };
+        for (let i = 1; i <= 4; i++) {
+            const pill = document.getElementById('tl-' + tlMap[i]);
+            const conn = document.getElementById('tlc-' + i);
+            if (!pill) continue;
+            pill.classList.remove('done', 'active');
+            if (i < idx) { pill.classList.add('done'); if (conn) conn.classList.add('done'); }
+            else if (i === idx) { pill.classList.add('active'); if (conn) conn.classList.remove('done'); }
+            else { if (conn) conn.classList.remove('done'); }
+        }
+        // brief pill is always done once building starts
+        if (idx >= 1) document.getElementById('tl-brief').classList.add('done');
+    }
+
+    function resetPipeline() {
+        currentStageIndex = 0;
+        document.querySelectorAll('.pipeline-step').forEach(s => s.classList.remove('done', 'active'));
+        document.querySelectorAll('.timeline-pill').forEach(p => p.classList.remove('done', 'active'));
+        document.querySelectorAll('.timeline-connector').forEach(c => c.classList.remove('done'));
+        if (PRESENT) {
+            document.getElementById('stat-stage-icon').textContent = '💤';
+            document.getElementById('stat-stage-label').textContent = 'Waiting';
+        }
+    }
+
+    // ---- Spectator count ----
+    function updateSpectatorCount(n) {
+        const text = '👥 ' + n + ' watching';
+        document.getElementById('spectator-count').textContent = text;
+        document.getElementById('spectator-num').textContent = n;
+    }
+
+    // ---- Tabs ----
+    function switchTab(tab) {
+        document.querySelectorAll('.panel-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
+    }
+
+    // ---- SSE ----
+    let sseConnection = null;
+    function connectSSE() {
+        if (!TOKEN) { addActivity('system', 'Viewing in demo mode — live builds require authentication.'); return; }
+        if (sseConnection) { try { sseConnection.close(); } catch(e) {} }
+        sseConnection = new EventSource('/factory/api/stream?token=' + TOKEN);
+        sseConnection.onmessage = e => {
+            try { handleEvent(JSON.parse(e.data)); } catch(err) { console.error('SSE parse error:', err); }
+        };
+        sseConnection.onerror = () => {
+            addActivity('system', 'Connection lost. Reconnecting...');
+            try { sseConnection.close(); } catch(e) {}
+            sseConnection = null;
+            setTimeout(connectSSE, 3000);
+        };
+    }
+
+    function handleEvent(evt) {
+        switch (evt.type) {
+            case 'connected':
+                addActivity('system', 'Connected to factory');
+                break;
+
+            case 'build_started':
+                currentBuildId = evt.buildId;
+                lastSiteUrl = null;
+                building = true;
+                setBadge(evt.modify ? 'MODIFYING' : 'BUILDING', '#F0845C');
+                document.getElementById('live-url-banner').classList.remove('visible');
+                document.getElementById('review-score-block').classList.remove('visible');
+                if (!evt.modify) {
+                    clearConsole();
+                    document.getElementById('wb-content').textContent = 'Planning...';
+                    resetPipeline();
+                }
+                startBuildTimer();
+                setStage('planning');
+                break;
+
+            case 'agent_status':
+                setAgentStatus(evt.agent, evt.status, evt.message);
+                // Infer stage from agent activity
+                if (evt.status === 'working') {
+                    if (evt.agent === 'pm') setStage('planning');
+                    else if (evt.agent === 'coder') setStage('coding');
+                    else if (evt.agent === 'reviewer') setStage('review');
+                    else if (evt.agent === 'deployer') setStage('deploy');
+                }
+                break;
+
+            case 'agent_move':
+                moveAgent(evt.agent, evt.target);
+                break;
+
+            case 'chat_message':
+                addChat(evt.agent, evt.message);
+                break;
+
+            case 'console_log':
+                addConsoleEntry(evt.agent, evt.message);
+                break;
+
+            case 'task_created':
+                if (evt.plan) {
+                    lastBuildPlan = evt.plan;
+                    const sections = evt.plan.sections || [];
+                    const names = sections.map(s => typeof s === 'string' ? s : s.name);
+                    document.getElementById('wb-content').textContent = names.join(', ');
+                }
+                break;
+
+            case 'code_generated':
+                addActivity('coder', 'HTML generated');
+                setStage('coding');
+                break;
+
+            case 'review_result':
+                addActivity('reviewer', 'Score: ' + evt.score + '/10 — ' + (evt.passed ? 'Passed' : 'Needs revision'));
+                setStage('review');
+                if (PRESENT) {
+                    const scoreBlock = document.getElementById('review-score-block');
+                    scoreBlock.classList.add('visible');
+                    const scoreEl = document.getElementById('score-num');
+                    scoreEl.textContent = evt.score;
+                    const scoreColor = evt.score >= 8 ? '#10B981' : evt.score >= 6 ? '#F0845C' : '#EF4444';
+                    scoreEl.style.color = scoreColor;
+                    document.getElementById('score-label').textContent = evt.passed ? 'Passed' : 'Needs revision';
+                }
+                break;
+
+            case 'build_complete':
+                currentBuildId = evt.buildId;
+                lastBuildPlan = evt.plan;
+                lastSiteUrl = evt.siteUrl;
+                // Mark deploy stage done
+                setStage('deploy');
+                // Stop timer
+                stopBuildTimer();
+                showBuildComplete(evt);
+                if (PRESENT) {
+                    triggerCountdownReveal(evt);
+                }
+                break;
+
+            case 'celebrate':
+                celebrate();
+                setBadge('COMPLETE', '#10B981');
+                setTimeout(() => { building = false; }, 3000);
+                break;
+
+            case 'error':
+                addChat('system', 'Error: ' + evt.message);
+                addConsoleEntry('system', 'ERROR: ' + evt.message);
+                setBadge('ERROR', '#EF4444');
+                building = false;
+                stopBuildTimer();
+                break;
+
+            case 'heartbeat':
+                addConsoleEntry('system', 'still working...');
+                break;
+
+            case 'spectator_count':
+                updateSpectatorCount(evt.count);
+                break;
+        }
+    }
+
+    // ---- Agent control ----
+    function moveAgent(id, target) {
+        const el = document.getElementById('agent-' + id);
+        if (!el) return;
+        const pos = TARGETS[target] || AGENTS[id]?.home;
+        if (pos) { el.style.left = pos[0] + 'px'; el.style.top = pos[1] + 'px'; }
+    }
+
+    function setAgentStatus(id, status, message) {
+        const el = document.getElementById('agent-' + id);
+        if (!el) return;
+        el.className = 'agent ' + status;
+        const bubble = document.getElementById('bubble-' + id);
+        if (message) { bubble.textContent = message; bubble.classList.add('visible'); }
+        else { bubble.classList.remove('visible'); }
+        const monitor = document.getElementById('monitor-' + id);
+        if (monitor) { status === 'working' ? monitor.classList.add('active') : monitor.classList.remove('active'); }
+        if (message) addActivity(id, message);
+    }
+
+    function celebrate() {
+        const office = document.getElementById('office');
+        const colors = ['#F0845C','#00D2C8','#10B981','#6366F1','#4A9EFF','#8B5CF6','#FFD700'];
+        for (let i = 0; i < 60; i++) {
+            const c = document.createElement('div'); c.className = 'confetti';
+            c.style.left = Math.random()*100+'%'; c.style.background = colors[Math.floor(Math.random()*colors.length)];
+            c.style.animationDelay = (Math.random()*0.6)+'s'; c.style.animationDuration = (1.5+Math.random())+'s';
+            c.style.width = (4+Math.random()*6)+'px'; c.style.height = (4+Math.random()*6)+'px';
+            office.appendChild(c); setTimeout(() => c.remove(), 4000);
+        }
+        document.querySelectorAll('.agent').forEach(a => {
+            a.classList.add('celebrating');
+            setTimeout(() => { a.classList.remove('celebrating'); a.classList.add('idle'); }, 3500);
+        });
+    }
+
+    // ---- Chat (bubble style) ----
+    function addChat(agent, text) {
+        const log = document.getElementById('chat-log');
+        const isUser = agent === 'user', isSystem = agent === 'system';
+        const info = isUser ? { name: 'You', color: '#00D2C8', emoji: '👤' }
+                   : isSystem ? { name: 'Factory', color: '#666', emoji: '⚙' }
+                   : (AGENTS[agent] || { name: agent, color: '#666', emoji: '🤖' });
+
+        const row = document.createElement('div');
+        row.className = 'chat-bubble-row ' + agent;
+
+        const avatar = document.createElement('div');
+        avatar.className = 'chat-avatar';
+        avatar.style.background = info.color + '22';
+        avatar.style.border = '1px solid ' + info.color + '44';
+        avatar.textContent = info.emoji;
+
+        const bubbleWrap = document.createElement('div');
+        bubbleWrap.style.display = 'flex';
+        bubbleWrap.style.flexDirection = 'column';
+        bubbleWrap.style.gap = '2px';
+        if (isUser) bubbleWrap.style.alignItems = 'flex-end';
+
+        const senderName = document.createElement('div');
+        senderName.className = 'chat-sender-name';
+        senderName.style.color = info.color;
+        senderName.textContent = info.name;
+
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble';
+        bubble.innerHTML = text;
+
+        bubbleWrap.appendChild(senderName);
+        bubbleWrap.appendChild(bubble);
+        row.appendChild(avatar);
+        row.appendChild(bubbleWrap);
+        log.appendChild(row);
+        log.scrollTop = log.scrollHeight;
+
+        // Also mirror to timeline chat if present
+        if (PRESENT) {
+            const tlLog = document.getElementById('timeline-chat-log');
+            const clone = row.cloneNode(true);
+            tlLog.appendChild(clone);
+            tlLog.scrollTop = tlLog.scrollHeight;
+        }
+    }
+
+    function addActivity(agent, text) {
+        const feed = document.getElementById('activity-feed');
+        const item = document.createElement('div');
+        const time = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        const info = AGENTS[agent] || { color: '#444' };
+        item.className = 'activity-item';
+        item.innerHTML = '<span class="activity-dot" style="background:'+info.color+'"></span><span class="activity-time">'+time+'</span><span class="activity-text">'+text+'</span>';
+        feed.appendChild(item); feed.scrollTop = feed.scrollHeight;
+    }
+
+    // ---- Console ----
+    function addConsoleEntry(agent, message) {
+        const log = document.getElementById('console-log');
+        const entry = document.createElement('div');
+        entry.className = 'console-entry';
+        const info = AGENTS[agent] || { name: agent, color: '#666' };
+        const time = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        const truncated = message.length > 2000 ? message.substring(0, 2000) + '\n... (' + message.length + ' chars total)' : message;
+        entry.innerHTML = '<span style="color:#555">['+time+']</span> <span class="console-prefix" style="color:'+info.color+'">['+info.name.toUpperCase()+']</span> ' + escapeHtml(truncated);
+        log.appendChild(entry); log.scrollTop = log.scrollHeight;
+    }
+
+    function clearConsole() {
+        document.getElementById('console-log').innerHTML = '';
+    }
+
+    function escapeHtml(text) {
+        return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    }
+
+    // ---- Chat Send ----
+    async function sendMessage() {
+        if (sending) return;
+        const input = document.getElementById('chat-input');
+        const message = input.value.trim();
+        if (!message) return;
+        sending = true; input.value = '';
+        updateSendBtn();
+        try {
+            const res = await fetch('/factory/api/chat?token='+TOKEN, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({message}) });
+            if (!res.ok) throw new Error('Request failed: '+res.status);
+        } catch(err) { addChat('system','Failed: '+err.message); }
+        sending = false;
+        updateSendBtn();
+    }
+    function updateSendBtn() {
+        const b = document.getElementById('btn-send');
+        b.disabled = sending;
+        b.textContent = sending ? '...' : 'Send';
+    }
+
+    function showBuildComplete(evt) {
+        const urlHtml = evt.siteUrl
+            ? ' <a href="'+evt.siteUrl+'" target="_blank">'+evt.siteUrl+'</a>'
+            : '';
+        addChat('system', '🎉 Build complete!' + urlHtml +
+            ' <button class="inline-btn" onclick="previewBuild()">👁 Preview</button>' +
+            ' <button class="inline-btn" onclick="downloadBuild()">💾 Download</button>'
+        );
+        if (evt.siteUrl) {
+            const banner = document.getElementById('live-url-banner');
+            banner.innerHTML = '🚀 Live at: <a href="'+evt.siteUrl+'" target="_blank">'+evt.siteUrl+'</a>';
+            banner.classList.add('visible');
+        }
+    }
+
+    // ---- Countdown + Iframe Reveal (present mode) ----
+    function triggerCountdownReveal(evt) {
+        const overlay = document.getElementById('countdown-overlay');
+        const numEl = document.getElementById('countdown-num');
+        overlay.classList.add('visible');
+
+        let count = 3;
+        numEl.textContent = count;
+
+        const tick = setInterval(() => {
+            count--;
+            if (count > 0) {
+                numEl.style.opacity = '0';
+                numEl.style.transform = 'scale(1.3)';
+                setTimeout(() => {
+                    numEl.textContent = count;
+                    numEl.style.opacity = '1';
+                    numEl.style.transform = 'scale(1)';
+                }, 200);
+            } else {
+                clearInterval(tick);
+                numEl.style.opacity = '0';
+                numEl.style.transform = 'scale(1.3)';
+                setTimeout(() => {
+                    numEl.textContent = 'Opening...';
+                    numEl.style.opacity = '1';
+                    numEl.style.transform = 'scale(1)';
+                    setTimeout(() => {
+                        overlay.classList.remove('visible');
+                        openSiteReveal(evt);
+                    }, 800);
+                }, 200);
+            }
+        }, 1000);
+    }
+
+    async function openSiteReveal(evt) {
+        const revealEl = document.getElementById('site-reveal');
+        const titleEl = document.getElementById('site-reveal-title');
+        const metaEl = document.getElementById('site-reveal-meta');
+        const frameEl = document.getElementById('site-reveal-frame');
+
+        const projectName = evt.plan?.projectName || 'Built Site';
+        const elapsed = getElapsedFormatted() || '';
+        titleEl.textContent = projectName;
+        metaEl.textContent = elapsed;
+        revealEl.classList.add('visible');
+
+        // Fetch the HTML and load in iframe
+        if (currentBuildId) {
+            try {
+                const res = await fetch('/factory/api/build/'+currentBuildId+'?token='+TOKEN);
+                const data = await res.json();
+                lastBuildHtml = data.html;
+                lastBuildPlan = data.plan;
+                frameEl.srcdoc = data.html;
+            } catch(err) {
+                frameEl.srcdoc = '<body style="font-family:sans-serif;padding:40px;background:#111;color:#fff"><h2>Could not load preview</h2><p>'+escapeHtml(err.message)+'</p></body>';
+            }
+        }
+    }
+
+    function closeSiteReveal() {
+        document.getElementById('site-reveal').classList.remove('visible');
+        document.getElementById('site-reveal-frame').srcdoc = '';
+    }
+
+    // ---- Preview Modal ----
+    async function previewBuild() {
+        if (!currentBuildId) return;
+        try {
+            const res = await fetch('/factory/api/build/'+currentBuildId+'?token='+TOKEN);
+            const data = await res.json();
+            lastBuildHtml = data.html; lastBuildPlan = data.plan;
+            document.getElementById('preview-title').textContent = 'Preview — '+(data.plan?.projectName||'Build');
+            document.getElementById('preview-frame').srcdoc = data.html;
+            document.getElementById('preview-modal').classList.add('visible');
+        } catch(err) { addChat('system','Preview failed: '+err.message); }
+    }
+
+    function downloadBuild() {
+        if (lastBuildHtml) { doDownload(lastBuildHtml, lastBuildPlan?.repoName||'site'); return; }
+        if (!currentBuildId) return;
+        fetch('/factory/api/build/'+currentBuildId+'?token='+TOKEN).then(r=>r.json()).then(d=>{ lastBuildHtml=d.html; doDownload(d.html, d.plan?.repoName||'site'); });
+    }
+    function doDownload(html, name) { const b=new Blob([html],{type:'text/html'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name+'.html'; a.click(); URL.revokeObjectURL(u); }
+    function copyHtml() { if(!lastBuildHtml)return; navigator.clipboard.writeText(lastBuildHtml).then(()=>addChat('system','Copied!')); }
+    function closePreview() { document.getElementById('preview-modal').classList.remove('visible'); document.getElementById('preview-frame').srcdoc=''; }
+
+    // ---- Agent Info ----
+    async function showAgentInfo(id) {
+        if (!agentInfoCache) {
+            try {
+                const res = await fetch('/factory/api/agents?token='+TOKEN);
+                agentInfoCache = await res.json();
+            } catch { agentInfoCache = []; }
+        }
+        const agent = agentInfoCache.find(a => a.id === id);
+        if (!agent) return;
+        const card = document.getElementById('agent-info-card');
+        card.innerHTML = `
+            <button class="agent-info-close" onclick="closeAgentInfo()">Close</button>
+            <h2 style="color:${agent.color}">${agent.emoji} ${agent.name}</h2>
+            <div class="agent-role">${agent.description}</div>
+            <h4>Capabilities</h4>
+            <ul>${agent.capabilities.map(c => '<li>'+c+'</li>').join('')}</ul>
+            <h4>System Prompt</h4>
+            <div class="prompt-preview">${escapeHtml(agent.systemPrompt || 'No prompt (uses shell commands)')}</div>
+            <div class="meta">Model: ${agent.model} · Max tokens: ${agent.maxTokens.toLocaleString()}</div>
+        `;
+        document.getElementById('agent-info-modal').classList.add('visible');
+    }
+    function closeAgentInfo() { document.getElementById('agent-info-modal').classList.remove('visible'); }
+
+    // ---- UI helpers ----
+    function setBadge(text, color) {
+        const b = document.getElementById('status-badge');
+        b.textContent = text;
+        b.style.background = color + '18';
+        b.style.color = color;
+        b.style.borderColor = color + '44';
+    }
+
+    function scaleOffice() {
+        const w = document.querySelector('.office-wrap');
+        const s = document.getElementById('office');
+        if (!w || !s) return;
+        const maxScale = PRESENT ? 2.5 : 1.8;
+        const sc = Math.min(w.clientWidth / 800, w.clientHeight / 380, maxScale);
+        s.style.transform = 'scale(' + sc + ')';
+    }
+
+    // ---- Init ----
+    initPresentMode();
+
+    if (!PRESENT) {
+        // Normal mode: add initial chat message
+        addChat('system', 'Chat with PM to build something. After a site is live, you can ask for changes — "make it warmer", "add a contact form". Click any agent to see their profile.');
+    }
+
+    document.getElementById('chat-input').addEventListener('keydown', e => { if(e.key==='Enter') sendMessage(); });
+    document.getElementById('btn-send').addEventListener('click', sendMessage);
+    window.addEventListener('resize', scaleOffice);
+    scaleOffice();
+    connectSSE();
+    addActivity('system', 'Factory online — talk to PM to get started');
+    </script>
+</body>
+</html>

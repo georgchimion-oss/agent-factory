@@ -1,0 +1,517 @@
+'use strict';
+require('dotenv').config();
+
+const express = require('express');
+const crypto = require('crypto');
+const path = require('path');
+const Anthropic = require('@anthropic-ai/sdk').default;
+
+const PMAgent = require('./agents/pm');
+const CoderAgent = require('./agents/coder');
+const ReviewerAgent = require('./agents/reviewer');
+const DeployerAgent = require('./agents/deployer');
+
+// ============================================
+// CONFIG
+// ============================================
+
+const PORT = process.env.PORT || 3002;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const OPS_AUTH_TOKEN = process.env.OPS_AUTH_TOKEN || 'dev-ops-token';
+
+if (!ANTHROPIC_API_KEY) {
+    console.error('ANTHROPIC_API_KEY is required');
+    process.exit(1);
+}
+
+const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+
+// ============================================
+// EXPRESS APP
+// ============================================
+
+const app = express();
+app.use(express.json());
+
+// ============================================
+// USAGE TRACKING (no database — log only)
+// ============================================
+
+async function trackUsage(endpoint, response, sessionId) {
+    if (!response?.usage) return;
+    const { input_tokens, output_tokens } = response.usage;
+    const costCents = (input_tokens * 0.3 + output_tokens * 1.5) / 100000;
+    console.log(`[usage] ${endpoint}: ${input_tokens} in, ${output_tokens} out, $${(costCents / 100).toFixed(4)}`);
+}
+
+// ============================================
+// SSE CLIENTS
+// ============================================
+
+const factoryClients = new Set();
+const spectatorClients = new Set();
+const factoryBuilds = new Map();
+const factorySites = new Map();
+
+let buildStartedAt = null;
+
+function broadcastFactory(event) {
+    const data = `data: ${JSON.stringify(event)}\n\n`;
+    for (const client of factoryClients) {
+        try { client.write(data); } catch (e) { factoryClients.delete(client); }
+    }
+}
+
+function broadcastSpectator(event) {
+    const data = `data: ${JSON.stringify(event)}\n\n`;
+    for (const client of spectatorClients) {
+        try { client.write(data); } catch (e) { spectatorClients.delete(client); }
+    }
+}
+
+function broadcastAll(event) {
+    broadcastFactory(event);
+    const allowed = ['connected', 'agent_status', 'chat_message', 'build_started', 'build_complete', 'celebrate', 'review_result', 'task_created', 'error', 'heartbeat'];
+    if (allowed.includes(event.type)) {
+        broadcastSpectator(event);
+    }
+}
+
+function broadcastSpectatorCount() {
+    broadcastFactory({ type: 'spectator_count', count: spectatorClients.size });
+}
+
+// ============================================
+// AGENTS
+// ============================================
+
+// Load persisted factory sites from disk
+DeployerAgent.loadFromDisk(factorySites);
+
+const agents = {
+    pm: new PMAgent({ anthropic, broadcast: broadcastAll, trackUsage }),
+    coder: new CoderAgent({ anthropic, broadcast: broadcastAll, trackUsage }),
+    reviewer: new ReviewerAgent({ anthropic, broadcast: broadcastAll, trackUsage }),
+    deployer: new DeployerAgent({ anthropic, broadcast: broadcastAll, trackUsage, factorySites, factoryBuilds }),
+};
+
+// Conversation state
+let factoryCurrentSite = null;
+let factoryLastReview = null;
+let factoryLastPlan = null;
+let factoryLastHtml = null;
+
+// ============================================
+// AUTH MIDDLEWARE
+// ============================================
+
+function opsAuthMiddleware(req, res, next) {
+    const token = req.query.token || req.headers['x-ops-token'];
+    if (token !== OPS_AUTH_TOKEN) {
+        return res.status(403).json({ error: 'Unauthorized' });
+    }
+    next();
+}
+
+// ============================================
+// ROUTES — Dashboard & Spectator
+// ============================================
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'factory.html'));
+});
+
+app.get('/factory', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'factory.html'));
+});
+
+app.get('/live', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'live.html'));
+});
+
+app.get('/factory/live', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'live.html'));
+});
+
+// ============================================
+// ROUTES — SSE Streams
+// ============================================
+
+app.get('/factory/api/stream', opsAuthMiddleware, (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    agents.pm.resetConversation();
+    console.log('Factory: New SSE connection');
+
+    res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
+    factoryClients.add(res);
+    req.on('close', () => factoryClients.delete(res));
+});
+
+app.get('/factory/api/live-stream', (req, res) => {
+    if (spectatorClients.size >= 100) {
+        return res.status(503).send('Room is full');
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    spectatorClients.add(res);
+    res.write(`data: ${JSON.stringify({ type: 'connected', spectatorCount: spectatorClients.size })}\n\n`);
+    broadcastSpectatorCount();
+
+    req.on('close', () => {
+        spectatorClients.delete(res);
+        broadcastSpectatorCount();
+    });
+});
+
+// ============================================
+// ROUTES — Build API
+// ============================================
+
+app.post('/factory/api/build', opsAuthMiddleware, async (req, res) => {
+    const { brief } = req.body;
+    if (!brief) return res.status(400).json({ error: 'Brief is required' });
+
+    res.json({ status: 'started', message: 'Build pipeline initiated' });
+
+    runFactory(brief).catch(err => {
+        console.error('Factory pipeline error:', err);
+        broadcastFactory({ type: 'error', message: err.message });
+    });
+});
+
+app.get('/factory/api/build/:id', opsAuthMiddleware, (req, res) => {
+    const build = factoryBuilds.get(req.params.id);
+    if (!build) return res.status(404).json({ error: 'Build not found' });
+    res.json(build);
+});
+
+app.get('/factory/api/agents', opsAuthMiddleware, (req, res) => {
+    res.json(Object.values(agents).map(a => a.getInfo()));
+});
+
+// ============================================
+// ROUTES — Sites
+// ============================================
+
+app.get('/factory/sites/:name', (req, res) => {
+    const html = factorySites.get(req.params.name);
+    if (!html) return res.status(404).send('<!DOCTYPE html><html><body style="background:#08080A;color:#ccc;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><h1>Site not found</h1></body></html>');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+});
+
+app.get('/factory/api/sites', opsAuthMiddleware, (req, res) => {
+    const sites = [];
+    for (const [name] of factorySites) {
+        sites.push({
+            name,
+            url: `https://${name}.georg.miami`,
+            fallbackUrl: `/factory/sites/${name}`
+        });
+    }
+    res.json(sites);
+});
+
+app.get('/factory/public/sites', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    try {
+        const fs = require('fs');
+        const manifestPath = (process.env.SITES_DIR || '/var/www/sites') + '/sites.json';
+        if (!fs.existsSync(manifestPath)) return res.json([]);
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+        const sites = Object.entries(manifest).map(([slug, data]) => ({
+            slug, name: data.name, url: data.url, brief: data.brief, score: data.score, createdAt: data.createdAt
+        }));
+        sites.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        res.json(sites);
+    } catch (err) {
+        res.json([]);
+    }
+});
+
+app.get('/factory/api/showcase', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    try {
+        const fs = require('fs');
+        const manifestPath = (process.env.SITES_DIR || '/var/www/sites') + '/sites.json';
+        if (!fs.existsSync(manifestPath)) return res.json([]);
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+        const sites = Object.entries(manifest)
+            .map(([slug, data]) => ({ slug, name: data.name, url: data.url, brief: data.brief, score: data.score, createdAt: data.createdAt }))
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 4);
+        res.json(sites);
+    } catch (err) {
+        res.json([]);
+    }
+});
+
+// ============================================
+// ROUTES — Chat (Conversational Interface)
+// ============================================
+
+app.post('/factory/api/chat', opsAuthMiddleware, async (req, res) => {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+
+    console.log(`Factory chat: "${message}"`);
+    broadcastAll({ type: 'chat_message', agent: 'user', message });
+    res.json({ status: 'received' });
+
+    try {
+        const context = {
+            currentSite: factoryCurrentSite,
+            lastReview: factoryLastReview,
+        };
+
+        const result = await agents.pm.chat(message, context);
+        console.log(`PM decided: action=${result.action}`);
+
+        if (result.action === 'build') {
+            runFactory(result.brief || message).catch(err => {
+                console.error('Factory pipeline error:', err);
+                broadcastAll({ type: 'error', message: err.message });
+            });
+        } else if (result.action === 'modify' && factoryLastHtml && factoryCurrentSite) {
+            runModify(result.instructions).catch(err => {
+                console.error('Factory modify error:', err);
+                broadcastAll({ type: 'error', message: err.message });
+            });
+        } else if (result.action === 'modify' && !factoryCurrentSite) {
+            broadcastAll({ type: 'chat_message', agent: 'pm',
+                message: "There's no active site to modify yet. Tell me what to build first!" });
+        }
+    } catch (err) {
+        console.error('Factory chat error:', err);
+        broadcastAll({ type: 'error', message: 'Chat failed: ' + err.message });
+    }
+});
+
+// ============================================
+// PIPELINE — runModify
+// ============================================
+
+async function runModify(instructions) {
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+    broadcastAll({ type: 'build_started', buildId: factoryCurrentSite?.buildId || 'modify', modify: true });
+
+    try {
+        agents.pm.moveTo('coder');
+        await wait(800);
+        agents.pm.say('Sending your feedback to Coder...');
+        agents.pm.moveTo('pm');
+        await wait(500);
+
+        let html = await agents.coder.revise(factoryLastHtml, instructions);
+        await wait(800);
+
+        agents.pm.moveTo('reviewer');
+        await wait(800);
+        agents.pm.say('Quick review on the changes...');
+        agents.pm.moveTo('pm');
+
+        let review = await agents.reviewer.run(html);
+        factoryLastReview = review;
+        await wait(800);
+
+        if (review.score < 8 && review.revisionInstructions) {
+            agents.pm.say(`Reviewer wants a tweak (${review.score}/10). One more round...`);
+            agents.pm.moveTo('coder');
+            await wait(800);
+            agents.pm.moveTo('pm');
+
+            html = await agents.coder.revise(html, review.revisionInstructions);
+            await wait(500);
+
+            agents.pm.moveTo('reviewer');
+            await wait(800);
+            agents.pm.moveTo('pm');
+            review = await agents.reviewer.run(html);
+            factoryLastReview = review;
+            await wait(500);
+        }
+
+        factoryLastHtml = html;
+        const siteName = factoryCurrentSite.siteName;
+        factorySites.set(siteName, html);
+
+        try {
+            const fs = require('fs');
+            const sitesDir = process.env.SITES_DIR || '/var/www/sites';
+            const siteDir = `${sitesDir}/${siteName}`;
+            fs.mkdirSync(siteDir, { recursive: true });
+            fs.writeFileSync(`${siteDir}/index.html`, html);
+        } catch (err) { console.error('Disk write on modify failed:', err.message); }
+
+        const buildId = factoryCurrentSite.buildId;
+        const existing = factoryBuilds.get(buildId);
+        if (existing) {
+            existing.html = html;
+            existing.review = review;
+            existing.modifiedAt = new Date().toISOString();
+        }
+
+        agents.pm.moveTo('deployer');
+        await wait(600);
+        agents.deployer.setStatus('working', 'Updating...');
+        agents.deployer.log(`Updated site: ${siteName}`);
+        await wait(500);
+        agents.deployer.setStatus('done', 'Updated!');
+        agents.deployer.say(`Site updated! ${factoryCurrentSite.url}`);
+        agents.pm.moveTo('pm');
+
+        broadcastAll({ type: 'celebrate' });
+        broadcastAll({ type: 'chat_message', agent: 'system',
+            message: `Site updated! <a href="${factoryCurrentSite.url}" target="_blank">${factoryCurrentSite.url}</a>`
+        });
+
+        await wait(3000);
+        for (const id of ['pm', 'coder', 'reviewer', 'deployer']) {
+            broadcastAll({ type: 'agent_status', agent: id, status: 'idle', message: '' });
+        }
+
+        console.log(`Factory modify complete: ${siteName}`);
+    } catch (err) {
+        console.error('Factory modify error:', err);
+        broadcastAll({ type: 'error', message: 'Modification failed: ' + err.message });
+        for (const id of ['pm', 'coder', 'reviewer', 'deployer']) {
+            broadcastAll({ type: 'agent_status', agent: id, status: 'idle', message: '' });
+        }
+    }
+}
+
+// ============================================
+// PIPELINE — runFactory
+// ============================================
+
+async function runFactory(brief) {
+    const buildId = crypto.randomUUID();
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+    buildStartedAt = Date.now();
+    broadcastAll({ type: 'build_started', buildId, startedAt: buildStartedAt });
+
+    try {
+        // 1. PM PHASE
+        const plan = await agents.pm.run(brief);
+        await wait(1000);
+
+        // 2. CODER PHASE
+        agents.pm.moveTo('coder');
+        await wait(1200);
+        agents.pm.say('Handing specs to the Coder...');
+        agents.pm.moveTo('pm');
+        await wait(500);
+
+        let html;
+        const coderHeartbeat = setInterval(() => {
+            broadcastAll({ type: 'heartbeat', agent: 'coder', message: 'Still coding...' });
+        }, 30000);
+        try {
+            html = await agents.coder.run(plan);
+        } catch (coderErr) {
+            agents.coder.say('Hit a snag, trying again...');
+            html = await agents.coder.run(plan);
+        }
+        clearInterval(coderHeartbeat);
+        await wait(1000);
+
+        // 3. REVIEWER PHASE
+        agents.pm.moveTo('reviewer');
+        await wait(1000);
+        agents.pm.say('Sending code to Reviewer for QA...');
+        agents.pm.moveTo('pm');
+
+        const reviewerHeartbeat = setInterval(() => {
+            broadcastAll({ type: 'heartbeat', agent: 'reviewer', message: 'Still reviewing...' });
+        }, 30000);
+        let review = await agents.reviewer.run(html);
+        clearInterval(reviewerHeartbeat);
+        await wait(1000);
+
+        // 4. ITERATION (if needed)
+        if (review.score < 8 && review.revisionInstructions) {
+            agents.pm.say(`Reviewer found issues (${review.score}/10). Sending feedback to Coder for revision...`);
+            agents.pm.moveTo('coder');
+            await wait(1200);
+            agents.pm.moveTo('pm');
+
+            const reviseHeartbeat = setInterval(() => {
+                broadcastAll({ type: 'heartbeat', agent: 'coder', message: 'Still coding...' });
+            }, 30000);
+            html = await agents.coder.revise(html, review.revisionInstructions);
+            clearInterval(reviseHeartbeat);
+            await wait(800);
+
+            agents.pm.say('Revised code ready. Back to Reviewer...');
+            agents.pm.moveTo('reviewer');
+            await wait(1000);
+            agents.pm.moveTo('pm');
+
+            const reviewerHeartbeat2 = setInterval(() => {
+                broadcastAll({ type: 'heartbeat', agent: 'reviewer', message: 'Still reviewing...' });
+            }, 30000);
+            review = await agents.reviewer.run(html);
+            clearInterval(reviewerHeartbeat2);
+            await wait(1000);
+        }
+
+        // 5. DEPLOYER PHASE
+        agents.pm.moveTo('deployer');
+        await wait(1000);
+        agents.pm.say(review.score >= 8
+            ? 'Approved! Deployer, take it live!'
+            : 'Shipping it -- Deployer, deploy!');
+        agents.pm.moveTo('pm');
+
+        const result = await agents.deployer.run({ plan, html, review, buildId, brief });
+        await wait(500);
+
+        // Save state for conversational context
+        factoryCurrentSite = { name: plan.projectName, siteName: result.siteName, url: result.siteUrl, buildId };
+        factoryLastReview = review;
+        factoryLastPlan = plan;
+        factoryLastHtml = html;
+
+        // 6. CELEBRATION
+        const elapsed = buildStartedAt ? Math.round((Date.now() - buildStartedAt) / 1000) : null;
+        broadcastAll({ type: 'build_complete', buildId, plan, review, siteName: result.siteName, siteUrl: result.siteUrl, elapsed });
+        await wait(300);
+        broadcastAll({ type: 'celebrate', elapsed });
+        broadcastAll({ type: 'chat_message', agent: 'system',
+            message: `Build complete! "${plan.projectName}" is live at <a href="${result.siteUrl}" target="_blank">${result.siteUrl}</a>`
+        });
+
+        await wait(4000);
+        for (const id of ['pm', 'coder', 'reviewer', 'deployer']) {
+            broadcastAll({ type: 'agent_status', agent: id, status: 'idle', message: '' });
+        }
+
+        console.log(`Factory build ${buildId} complete: ${plan.projectName} -> ${result.siteUrl}`);
+    } catch (err) {
+        console.error('Factory pipeline error:', err);
+        broadcastAll({ type: 'error', message: 'Build failed: ' + err.message });
+        for (const id of ['pm', 'coder', 'reviewer', 'deployer']) {
+            broadcastAll({ type: 'agent_status', agent: id, status: 'idle', message: '' });
+        }
+        throw err;
+    }
+}
+
+// ============================================
+// START
+// ============================================
+
+app.listen(PORT, () => {
+    console.log(`Agent Factory running on port ${PORT}`);
+    console.log(`Dashboard: http://localhost:${PORT}`);
+    console.log(`Spectator: http://localhost:${PORT}/live`);
+});
