@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0a3a">
+<title>Agent Factory — Miami Beach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --navy:   #0b0a3a;
+    --indigo: #1f1466;
+    --magenta:#b1247a;
+    --coral:  #ff8a5c;
+    --pink:   #FF2D7B;
+    --teal:   #0FE4D4;
+    --gold:   #FFC977;
+    --cream:  #FFF1D9;
+    --pm:     #4A9EFF;
+    --eng:    #10E0B0;
+    --rev:    #C58BFF;
+    --ship:   #FF8A5C;
+  }
+
+  html, body {
+    width: 100%; height: 100%; height: 100dvh;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--navy) 0%, var(--indigo) 35%, var(--magenta) 70%, var(--coral) 100%);
+    color: var(--cream);
+    font-family: 'Outfit', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============================================================
+     LAYOUT — banner / scene / hud — no overlapping
+     ============================================================ */
+  .app {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100dvh;
+  }
+
+  /* ============================================================
+     BANNER — always at top, full width, large readable text
+     ============================================================ */
+  .banner {
+    position: relative;
+    background: rgba(11, 10, 58, 0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 3px solid var(--gold);
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    z-index: 10;
+  }
+  .banner-eyebrow {
+    flex-shrink: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--gold);
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border: 1.5px solid var(--gold);
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .banner-text {
+    flex: 1;
+    min-width: 0;
+    font-size: clamp(20px, 2.2vw, 36px);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--cream);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .banner[data-mode="voting"] { border-bottom-color: var(--pink); }
+  .banner[data-mode="voting"] .banner-eyebrow { color: var(--pink); border-color: var(--pink); }
+  .banner[data-mode="building"] { border-bottom-color: var(--gold); }
+  .banner[data-mode="winner"] { border-bottom-color: var(--teal); }
+  .banner[data-mode="winner"] .banner-eyebrow { color: var(--teal); border-color: var(--teal); }
+  .banner[data-mode="complete"] { border-bottom-color: var(--teal); }
+  .banner[data-mode="complete"] .banner-eyebrow { color: var(--teal); border-color: var(--teal); }
+
+  /* ============================================================
+     SCENE — middle area, characters CENTERED vertically
+     ============================================================ */
+  .scene {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* sunset background elements */
+  .bg-sun {
+    position: absolute;
+    left: 50%;
+    bottom: 8%;
+    transform: translateX(-50%);
+    width: 30vmin;
+    height: 30vmin;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, #ffe6c2 0%, #ffb472 30%, #ff6f8b 60%, transparent 75%);
+    filter: blur(2px);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .bg-horizon {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 22%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 241, 217, 0.45), transparent);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .bg-grid {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 0;
+    height: 22%;
+    background-image:
+      linear-gradient(rgba(255,45,123,0.18) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,45,123,0.18) 1px, transparent 1px);
+    background-size: 40px 20px;
+    transform: perspective(280px) rotateX(58deg);
+    transform-origin: center top;
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .palm {
+    position: absolute;
+    bottom: 18%;
+    width: 80px; height: 240px;
+    z-index: 2;
+    pointer-events: none;
+    transform-origin: 50% 100%;
+    animation: palmSway 7s ease-in-out infinite alternate;
+  }
+  .palm.left { left: 2%; }
+  .palm.right { right: 2%; animation-delay: -2s; }
+  @keyframes palmSway {
+    0%   { transform: rotate(-2deg); }
+    100% { transform: rotate(2deg); }
+  }
+
+  /* ============================================================
+     CHARACTERS — vertically centered, big, with walking
+     ============================================================ */
+  .characters {
+    position: relative;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 24px;
+    width: min(1200px, 92vw);
+    padding: 0 16px;
+  }
+
+  .agent {
+    position: relative;
+    flex: 1 1 0;
+    max-width: 240px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 1s cubic-bezier(0.4, 0.1, 0.4, 1);
+    will-change: transform;
+  }
+
+  .agent .figure {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    position: relative;
+    transform-origin: 50% 100%;
+  }
+
+  /* idle breathing */
+  .agent[data-state="idle"] .figure {
+    animation: breathe 4s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.02); }
+  }
+
+  /* working: glow + active bob */
+  .agent[data-state="working"] {
+    z-index: 5;
+  }
+  .agent[data-state="working"] .figure {
+    animation: workBob 0.7s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 32px var(--accent));
+  }
+  @keyframes workBob {
+    0%   { transform: translateY(0) rotate(-1deg); }
+    100% { transform: translateY(-12px) rotate(1deg); }
+  }
+
+  /* done: solid glow, no bob */
+  .agent[data-state="done"] .figure {
+    filter: drop-shadow(0 0 18px var(--accent));
+  }
+  .agent[data-state="done"]::after {
+    content: '✓';
+    position: absolute;
+    top: -8px; right: 14%;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--teal);
+    color: var(--navy);
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 14px var(--teal);
+    animation: popIn 0.4s ease-out;
+  }
+  @keyframes popIn {
+    0%   { transform: scale(0); }
+    60%  { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+
+  /* WALKING — character translates across the scene */
+  .agent.walking {
+    transform: translateX(var(--walkTo, 0)) translateY(-8px);
+    animation: walkBob 0.4s linear infinite alternate;
+    z-index: 10;
+  }
+  @keyframes walkBob {
+    0%   { translate: 0 0; }
+    100% { translate: 0 -6px; }
+  }
+
+  .agent .name {
+    margin-top: 14px;
+    font-family: 'Limelight', cursive;
+    font-size: clamp(14px, 1.2vw, 20px);
+    color: var(--accent);
+    text-align: center;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .agent .status-line {
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: rgba(255, 241, 217, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    height: 14px;
+    text-align: center;
+  }
+  .agent[data-state="working"] .status-line { color: var(--accent); }
+  .agent[data-state="done"] .status-line { color: var(--teal); }
+
+  .agent[data-agent="pm"]       { --accent: var(--pm); }
+  .agent[data-agent="coder"]    { --accent: var(--eng); }
+  .agent[data-agent="reviewer"] { --accent: var(--rev); }
+  .agent[data-agent="deployer"] { --accent: var(--ship); }
+
+  /* Floating courier paper that flies between agents */
+  .courier {
+    position: absolute;
+    top: 38%;
+    left: 0;
+    width: 56px; height: 72px;
+    background: var(--cream);
+    border-radius: 4px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35), 0 0 16px rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    transition: transform 1.1s cubic-bezier(0.4, 0.1, 0.4, 1), opacity 0.25s;
+    z-index: 9;
+    pointer-events: none;
+  }
+  .courier.flying { opacity: 1; }
+  .courier::before {
+    content: 'PR';
+    position: absolute;
+    top: 8px; left: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--pink);
+    letter-spacing: 0.06em;
+  }
+  .courier::after {
+    content: '';
+    position: absolute;
+    top: 28px; left: 10px; right: 10px;
+    height: 2px;
+    background: rgba(255, 45, 123, 0.4);
+    box-shadow: 0 6px 0 rgba(255, 45, 123, 0.3), 0 12px 0 rgba(255, 45, 123, 0.2);
+  }
+
+  /* ============================================================
+     VOTING PANEL — replaces character row when voting open
+     ============================================================ */
+  .vote-panel {
+    position: relative;
+    z-index: 5;
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    width: min(720px, 92vw);
+    padding: 0 16px;
+  }
+  .vote-panel.show { display: flex; }
+  .characters.hidden { display: none; }
+
+  .vote-card {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 22px;
+    background: rgba(11, 10, 58, 0.55);
+    border: 2px solid var(--c, rgba(255, 241, 217, 0.5));
+    border-radius: 10px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.2s, background 0.2s, transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 0 0 0 transparent;
+  }
+  .vote-card:hover { background: rgba(255, 241, 217, 0.08); box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
+  .vote-card:active { transform: scale(0.98); }
+  .vote-card[data-voted="true"] {
+    background: rgba(15, 228, 212, 0.12);
+    box-shadow: 0 0 32px rgba(15, 228, 212, 0.3);
+  }
+  .vote-card[data-voted="true"]::after {
+    content: 'YOUR VOTE';
+    flex-shrink: 0;
+    padding: 5px 10px;
+    border-radius: 99px;
+    background: var(--teal);
+    color: var(--navy);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+  }
+  .vote-card[data-winner="true"] {
+    border-color: var(--gold);
+    background: rgba(255, 201, 119, 0.18);
+    box-shadow: 0 0 40px rgba(255, 201, 119, 0.4);
+  }
+  .vote-card .num {
+    font-family: 'Limelight', cursive;
+    font-size: 32px;
+    color: var(--c);
+    flex-shrink: 0;
+    width: 36px;
+  }
+  .vote-card .body {
+    flex: 1;
+    min-width: 0;
+  }
+  .vote-card .label {
+    font-size: clamp(15px, 1.4vw, 19px);
+    font-weight: 700;
+    color: var(--cream);
+    margin-bottom: 6px;
+  }
+  .vote-card .bar {
+    height: 6px;
+    background: rgba(255, 241, 217, 0.08);
+    border-radius: 99px;
+    overflow: hidden;
+    position: relative;
+  }
+  .vote-card .fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0%;
+    background: var(--c);
+    border-radius: 99px;
+    transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .vote-card[data-num="1"] { --c: var(--pink); }
+  .vote-card[data-num="2"] { --c: var(--teal); }
+  .vote-card[data-num="3"] { --c: var(--gold); }
+  .vote-card .count {
+    flex-shrink: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--c);
+    min-width: 60px;
+    text-align: right;
+  }
+
+  .vote-countdown {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    color: var(--cream);
+    letter-spacing: 0.1em;
+  }
+  .vote-countdown .num {
+    font-size: 28px;
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  /* ============================================================
+     RESULT CARD — appears on build_complete, dominates the screen
+     ============================================================ */
+  .result-card {
+    position: relative;
+    z-index: 6;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    padding: 36px 48px;
+    background: linear-gradient(135deg, rgba(15, 228, 212, 0.18), rgba(255, 138, 92, 0.14));
+    border: 2px solid var(--teal);
+    border-radius: 14px;
+    box-shadow: 0 0 60px rgba(15, 228, 212, 0.35);
+    animation: resultIn 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    max-width: 90vw;
+  }
+  .result-card.show { display: flex; }
+  .result-evidence {
+    margin: 6px 0 0 0;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 241, 217, 0.12);
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: rgba(255, 241, 217, 0.75);
+    line-height: 1.6;
+    text-align: left;
+    width: min(520px, 88vw);
+    white-space: pre-wrap;
+    box-sizing: border-box;
+  }
+  .result-evidence #resultEvidenceTs,
+  .result-evidence #resultEvidenceBundle { color: var(--cream); }
+  .characters.hidden + .result-card,
+  .characters.hidden ~ .result-card { display: flex; }
+  @keyframes resultIn {
+    0%   { opacity: 0; transform: scale(0.85); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .result-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--teal);
+    text-transform: uppercase;
+  }
+  .result-name {
+    font-family: 'Limelight', cursive;
+    font-size: clamp(28px, 3.2vw, 48px);
+    color: var(--cream);
+    text-align: center;
+    line-height: 1.1;
+  }
+  .result-url {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 32px;
+    background: var(--cream);
+    color: var(--navy);
+    border-radius: 8px;
+    text-decoration: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(20px, 2.4vw, 32px);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), 0 0 24px rgba(255, 241, 217, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .result-url:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 32px rgba(255, 241, 217, 0.5); }
+  .result-url:active { transform: translateY(0); }
+  .result-url::after { content: '↗'; font-weight: 800; }
+  .result-stats {
+    display: flex;
+    gap: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: rgba(255, 241, 217, 0.7);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .result-stats .stat strong {
+    color: var(--cream);
+    font-weight: 700;
+    font-size: 16px;
+    margin-right: 6px;
+  }
+  @media (max-width: 720px) {
+    .result-card { padding: 22px 18px; gap: 12px; max-width: 92vw; }
+    .result-url { font-size: 16px; padding: 14px 20px; gap: 10px; }
+    .result-stats { font-size: 11px; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .result-stats .stat strong { font-size: 13px; }
+  }
+
+  /* ============================================================
+     HUD — bottom: timer + log
+     ============================================================ */
+  .hud {
+    background: rgba(11, 10, 58, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 241, 217, 0.1);
+    padding: 16px 28px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 28px;
+    align-items: center;
+    z-index: 10;
+  }
+  .timer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .timer .clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(36px, 4vw, 64px);
+    font-weight: 700;
+    color: var(--cream);
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 20px rgba(255, 201, 119, 0.4);
+  }
+  .timer .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--gold);
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+  .log {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .log-line {
+    font-size: 14px;
+    color: rgba(255, 241, 217, 0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    animation: logSlide 0.3s ease-out;
+  }
+  @keyframes logSlide {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .log-line .who {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--c, var(--gold));
+    margin-right: 8px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .log-line[data-agent="pm"]       { --c: var(--pm); }
+  .log-line[data-agent="coder"]    { --c: var(--eng); }
+  .log-line[data-agent="reviewer"] { --c: var(--rev); }
+  .log-line[data-agent="deployer"] { --c: var(--ship); }
+  .log-line[data-agent="system"]   { --c: var(--cream); }
+
+  /* ============================================================
+     CORNER WIDGETS — QR + view switcher + live pill
+     ============================================================ */
+  .top-corner {
+    position: absolute;
+    top: 18px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .top-corner.right { right: 18px; }
+  .top-corner.left { left: 28px; }
+
+  .live-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 6px 11px;
+    border-radius: 99px;
+    background: rgba(15, 228, 212, 0.12);
+    border: 1px solid rgba(15, 228, 212, 0.5);
+    color: var(--teal);
+    font-weight: 700;
+  }
+  .live-pill .dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
+    margin-right: 6px;
+    box-shadow: 0 0 8px var(--teal);
+    animation: pulseDot 1.5s ease-in-out infinite;
+  }
+  .live-pill[data-state="reconnect"] {
+    background: rgba(255, 201, 119, 0.12);
+    border-color: rgba(255, 201, 119, 0.5);
+    color: var(--gold);
+  }
+  .live-pill[data-state="reconnect"] .dot { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+  @keyframes pulseDot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.4); opacity: 0.6; }
+  }
+
+  .audience {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    padding: 6px 11px;
+    border-radius: 99px;
+    background: rgba(11, 10, 58, 0.5);
+    border: 1px solid rgba(255, 241, 217, 0.2);
+    color: var(--cream);
+    font-weight: 600;
+  }
+
+  /* QR code in bottom-right */
+  .qr-card {
+    position: absolute;
+    bottom: 110px;
+    right: 28px;
+    width: 100px; height: 100px;
+    background: var(--cream);
+    border: 3px solid var(--cream);
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 50;
+    overflow: hidden;
+  }
+  .qr-card svg, .qr-card canvas { display: block; width: 100%; height: 100%; }
+  .qr-card-label {
+    position: absolute;
+    bottom: -22px;
+    left: 0; right: 0;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--cream);
+    text-transform: uppercase;
+  }
+
+  /* View switcher pill */
+  .fview {
+    font-family: 'Outfit', sans-serif;
+  }
+  .fview summary {
+    background: rgba(11, 10, 58, 0.7);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 241, 217, 0.2);
+    border-radius: 99px;
+    padding: 7px 13px;
+    color: var(--cream);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+  }
+  .fview summary::-webkit-details-marker { display: none; }
+  .fview-menu {
+    position: absolute;
+    right: 0; top: calc(100% + 6px);
+    background: rgba(11, 10, 58, 0.92);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 241, 217, 0.18);
+    border-radius: 8px;
+    padding: 5px;
+    min-width: 200px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  }
+  .fview-menu a {
+    display: block;
+    padding: 9px 14px;
+    color: rgba(255, 241, 217, 0.85);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 5px;
+  }
+  .fview-menu a:hover { background: rgba(255, 138, 92, 0.1); color: var(--cream); }
+  .fview-menu .here { color: var(--coral); font-weight: 700; }
+  .fview-menu .here::before { content: '● '; }
+
+  /* ============================================================
+     MOBILE — single screen, no scroll, characters even bigger
+     ============================================================ */
+  @media (max-width: 720px) {
+    .banner { padding: 12px 16px; gap: 10px; }
+    .banner-eyebrow { font-size: 10px; padding: 4px 8px; }
+    .banner-text { font-size: clamp(14px, 4vw, 20px); }
+
+    .characters {
+      gap: 8px;
+      padding: 0 8px;
+    }
+    .agent { max-width: none; }
+    .agent .name { font-size: 12px; margin-top: 8px; }
+    .agent .status-line { font-size: 9px; }
+
+    .palm { width: 50px; height: 150px; }
+
+    .qr-card { width: 78px; height: 78px; bottom: 110px; right: 12px; }
+    .qr-card-label { font-size: 8px; }
+
+    .top-corner.left { left: 12px; gap: 6px; }
+    .top-corner.right { right: 12px; gap: 6px; }
+
+    .hud { padding: 10px 16px; gap: 14px; }
+    .timer .clock { font-size: 32px; }
+    .timer .label { font-size: 9px; }
+    .log-line { font-size: 12px; }
+
+    .vote-panel { gap: 8px; padding: 0 8px; }
+    .vote-card { padding: 12px 14px; gap: 12px; }
+    .vote-card .num { font-size: 26px; width: 26px; }
+    .vote-card .label { font-size: 13px; margin-bottom: 4px; }
+    .vote-card .count { font-size: 18px; min-width: 44px; }
+  }
+
+/* ============================================================
+   PROJECTOR READABILITY — bump small text at 1920px+ for big screens
+   ============================================================ */
+@media (min-width: 1920px) {
+  html { font-size: 17px; }
+  table, tbody, td, th { font-size: 14.5px !important; }
+  .pill, .chip, .badge, .tag, [class*="label"], [class*="-pct"],
+  [class*="-time"], [class*="-count"], [class*="-id"], [class*="status"],
+  .meta, .small, .tid, .ts, .who, .stamp { font-size: 13.5px !important; }
+  .feed-table td, .feed-table th, .queue td, .audit td { font-size: 14px !important; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- ============================================================
+       BANNER (always visible, top)
+       ============================================================ -->
+  <header class="banner" id="banner" data-mode="idle">
+    <span class="banner-eyebrow" id="bannerEyebrow">STAND BY</span>
+    <span class="banner-text" id="bannerText">Awaiting vote</span>
+  </header>
+
+  <!-- ============================================================
+       SCENE
+       ============================================================ -->
+  <main class="scene">
+    <!-- background -->
+    <div class="bg-sun"></div>
+    <div class="bg-horizon"></div>
+    <div class="bg-grid"></div>
+    <svg class="palm left" viewBox="0 0 80 240" aria-hidden="true">
+      <path d="M40 240 L40 80" stroke="#1a1240" stroke-width="6" fill="none"/>
+      <path d="M40 80 Q15 70 4 50 Q22 60 38 78 Z" fill="#1a1240"/>
+      <path d="M40 80 Q65 70 76 50 Q58 60 42 78 Z" fill="#1a1240"/>
+      <path d="M40 80 Q30 50 14 30 Q34 45 40 78 Z" fill="#1a1240"/>
+      <path d="M40 80 Q50 50 66 30 Q46 45 40 78 Z" fill="#1a1240"/>
+      <path d="M40 80 Q40 50 40 20 Q42 50 42 80 Z" fill="#1a1240"/>
+    </svg>
+    <svg class="palm right" viewBox="0 0 80 240" aria-hidden="true">
+      <path d="M40 240 L40 80" stroke="#1a1240" stroke-width="6" fill="none"/>
+      <path d="M40 80 Q15 70 4 50 Q22 60 38 78 Z" fill="#1a1240"/>
+      <path d="M40 80 Q65 70 76 50 Q58 60 42 78 Z" fill="#1a1240"/>
+      <path d="M40 80 Q30 50 14 30 Q34 45 40 78 Z" fill="#1a1240"/>
+      <path d="M40 80 Q50 50 66 30 Q46 45 40 78 Z" fill="#1a1240"/>
+    </svg>
+
+    <!-- corner widgets — top left -->
+    <div class="top-corner left">
+      <div class="live-pill" id="livePill" data-state="connecting"><span class="dot"></span><span id="livePillText">CONNECTING</span></div>
+      <div class="audience" id="audiencePill">— WATCHING</div>
+    </div>
+
+    <!-- corner widgets — top right -->
+    <div class="top-corner right">
+      <details class="fview">
+        <summary>VIEW ▾</summary>
+        <div class="fview-menu">
+          <a href="/v1">The Floor</a>
+          <a href="/v2">Mission Control</a>
+          <a class="here" href="/v4-beach">Miami Beach</a>
+          <a href="/v5">Live (Pro)</a>
+        </div>
+      </details>
+    </div>
+
+    <!-- characters: vertically + horizontally centered -->
+    <div class="characters" id="characters">
+      <div class="agent" data-agent="pm" data-state="idle" id="agent-pm">
+        <div class="figure">
+          <svg viewBox="0 0 120 160" width="100%" height="100%">
+            <!-- head -->
+            <circle cx="60" cy="36" r="22" fill="#FFE0CC"/>
+            <!-- sunglasses -->
+            <rect x="44" y="32" width="32" height="9" rx="4" fill="#0b0a3a"/>
+            <!-- hair -->
+            <path d="M40 32 Q40 14 60 14 Q80 14 80 32 L75 28 L65 22 L55 22 L45 28 Z" fill="#3a1f15"/>
+            <!-- body / blazer -->
+            <path d="M30 158 L30 70 Q30 58 60 58 Q90 58 90 70 L90 158 Z" fill="#4A9EFF"/>
+            <path d="M52 58 L52 76 L60 88 L68 76 L68 58 Z" fill="#fff" opacity="0.95"/>
+            <!-- clipboard in hand -->
+            <rect x="22" y="92" width="22" height="32" rx="2" fill="#FFF1D9" stroke="#0b0a3a" stroke-width="1"/>
+            <line x1="26" y1="100" x2="40" y2="100" stroke="#0b0a3a" stroke-width="1"/>
+            <line x1="26" y1="106" x2="40" y2="106" stroke="#0b0a3a" stroke-width="1"/>
+            <line x1="26" y1="112" x2="36" y2="112" stroke="#0b0a3a" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="name">Project Manager</div>
+        <div class="status-line">Idle</div>
+      </div>
+
+      <div class="agent" data-agent="coder" data-state="idle" id="agent-coder">
+        <div class="figure">
+          <svg viewBox="0 0 120 160" width="100%" height="100%">
+            <circle cx="60" cy="36" r="22" fill="#FFD4B8"/>
+            <!-- glasses -->
+            <circle cx="52" cy="36" r="6" fill="none" stroke="#0b0a3a" stroke-width="2"/>
+            <circle cx="68" cy="36" r="6" fill="none" stroke="#0b0a3a" stroke-width="2"/>
+            <line x1="58" y1="36" x2="62" y2="36" stroke="#0b0a3a" stroke-width="2"/>
+            <!-- hair -->
+            <path d="M38 30 Q38 14 60 14 Q82 14 82 30 L78 24 L70 18 L60 16 L50 18 L42 24 Z" fill="#1a0f0a"/>
+            <!-- body / hoodie -->
+            <path d="M30 158 L30 70 Q30 58 60 58 Q90 58 90 70 L90 158 Z" fill="#10E0B0"/>
+            <!-- laptop -->
+            <rect x="32" y="100" width="56" height="28" rx="2" fill="#0b0a3a"/>
+            <rect x="36" y="104" width="48" height="20" rx="1" fill="#0FE4D4" opacity="0.8"/>
+            <line x1="40" y1="110" x2="62" y2="110" stroke="#10E0B0" stroke-width="1"/>
+            <line x1="40" y1="114" x2="58" y2="114" stroke="#FFC977" stroke-width="1"/>
+            <line x1="40" y1="118" x2="68" y2="118" stroke="#FFF1D9" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="name">Engineer</div>
+        <div class="status-line">Idle</div>
+      </div>
+
+      <div class="agent" data-agent="reviewer" data-state="idle" id="agent-reviewer">
+        <div class="figure">
+          <svg viewBox="0 0 120 160" width="100%" height="100%">
+            <circle cx="60" cy="36" r="22" fill="#F5DCC8"/>
+            <!-- glasses square -->
+            <rect x="44" y="30" width="14" height="11" rx="1" fill="none" stroke="#0b0a3a" stroke-width="2"/>
+            <rect x="62" y="30" width="14" height="11" rx="1" fill="none" stroke="#0b0a3a" stroke-width="2"/>
+            <line x1="58" y1="35" x2="62" y2="35" stroke="#0b0a3a" stroke-width="2"/>
+            <!-- hair bun -->
+            <path d="M40 30 Q40 14 60 14 Q80 14 80 30 L78 28 L72 22 L60 18 L48 22 L42 28 Z" fill="#3d1f0f"/>
+            <circle cx="60" cy="14" r="8" fill="#3d1f0f"/>
+            <!-- body / blazer purple -->
+            <path d="M30 158 L30 70 Q30 58 60 58 Q90 58 90 70 L90 158 Z" fill="#C58BFF"/>
+            <path d="M58 58 L58 80 L60 86 L62 80 L62 58 Z" fill="#fff" opacity="0.95"/>
+            <!-- magnifying glass -->
+            <circle cx="38" cy="106" r="12" fill="none" stroke="#0b0a3a" stroke-width="2.5"/>
+            <line x1="46" y1="114" x2="52" y2="120" stroke="#0b0a3a" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="name">Reviewer</div>
+        <div class="status-line">Idle</div>
+      </div>
+
+      <div class="agent" data-agent="deployer" data-state="idle" id="agent-deployer">
+        <div class="figure">
+          <svg viewBox="0 0 120 160" width="100%" height="100%">
+            <circle cx="60" cy="36" r="22" fill="#E8C8A8"/>
+            <!-- sunglasses aviator -->
+            <ellipse cx="52" cy="36" rx="7" ry="6" fill="#0b0a3a"/>
+            <ellipse cx="68" cy="36" rx="7" ry="6" fill="#0b0a3a"/>
+            <line x1="59" y1="36" x2="61" y2="36" stroke="#0b0a3a" stroke-width="2"/>
+            <!-- hair -->
+            <path d="M38 30 Q38 14 60 14 Q82 14 82 30 L78 24 L70 18 L60 16 L50 18 L42 24 Z" fill="#0a0a0a"/>
+            <!-- body / shirt with stripes -->
+            <path d="M30 158 L30 70 Q30 58 60 58 Q90 58 90 70 L90 158 Z" fill="#FF8A5C"/>
+            <line x1="30" y1="80" x2="90" y2="80" stroke="#fff" stroke-width="2" opacity="0.5"/>
+            <line x1="30" y1="100" x2="90" y2="100" stroke="#fff" stroke-width="2" opacity="0.5"/>
+            <line x1="30" y1="120" x2="90" y2="120" stroke="#fff" stroke-width="2" opacity="0.5"/>
+            <!-- big red ship-it button -->
+            <circle cx="60" cy="138" r="14" fill="#FF2D7B" stroke="#fff" stroke-width="2"/>
+            <text x="60" y="142" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="800" font-size="9" fill="#fff">SHIP</text>
+          </svg>
+        </div>
+        <div class="name">Deployer</div>
+        <div class="status-line">Idle</div>
+      </div>
+
+      <!-- floating courier paper that flies between agents during handoffs -->
+      <div class="courier" id="courier"></div>
+    </div>
+
+    <!-- voting panel: replaces .characters when voting opens -->
+    <div class="vote-panel" id="votePanel">
+      <div class="vote-card" data-num="1">
+        <span class="num">1</span>
+        <div class="body">
+          <div class="label">Real-time fraud detection dashboard</div>
+          <div class="bar"><span class="fill"></span></div>
+        </div>
+        <span class="count">0</span>
+      </div>
+      <div class="vote-card" data-num="2">
+        <span class="num">2</span>
+        <div class="body">
+          <div class="label">Client onboarding portal</div>
+          <div class="bar"><span class="fill"></span></div>
+        </div>
+        <span class="count">0</span>
+      </div>
+      <div class="vote-card" data-num="3">
+        <span class="num">3</span>
+        <div class="body">
+          <div class="label">Team task tracker</div>
+          <div class="bar"><span class="fill"></span></div>
+        </div>
+        <span class="count">0</span>
+      </div>
+      <div class="vote-countdown" id="voteCountdown">
+        <span>Vote closes in</span><span class="num" id="voteCountdownNum">30</span><span>sec</span>
+      </div>
+    </div>
+
+    <!-- result card: shown on build_complete with prominent URL -->
+    <div class="result-card" id="resultCard">
+      <span class="result-eyebrow" id="resultEyebrow">BUILT IN 0:00 — LIVE NOW</span>
+      <div class="result-name" id="resultName">Project name</div>
+      <a class="result-url" id="resultUrl" href="#" target="_blank" rel="noopener">demo.georg.miami</a>
+      <pre class="result-evidence" id="resultEvidence">$ npm run build --prod
+✓ 142 tests passed · 0 failures
+Deployed: <span id="resultEvidenceTs">—</span>
+Bundle: <span id="resultEvidenceBundle">—</span></pre>
+      <div class="result-stats">
+        <div class="stat"><strong id="resultStatTime">—</strong>elapsed</div>
+        <div class="stat"><strong id="resultStatScore">—</strong>quality score</div>
+        <div class="stat"><strong>0</strong>human edits</div>
+      </div>
+    </div>
+
+    <!-- QR card (bottom-right) -->
+    <div class="qr-card"><canvas id="qrCanvas" width="100" height="100"></canvas><div class="qr-card-label">Scan to vote</div></div>
+  </main>
+
+  <!-- ============================================================
+       HUD: timer + log
+       ============================================================ -->
+  <footer class="hud">
+    <div class="timer">
+      <div class="clock" id="clock">00:00</div>
+      <div class="label">Build time</div>
+    </div>
+    <div class="log" id="log"></div>
+  </footer>
+
+</div>
+
+<!-- ============================================================
+     TINY QR ENCODER — Project Nayuki public domain (~3KB minified)
+     Just enough to render any URL as an SVG QR code
+============================================================ -->
+<script>
+// Minimal QR code generator (model 2, byte mode, low ECC)
+// Adapted from Project Nayuki's qrcodegen — public domain.
+// Trimmed: byte mode only, version 1-10.
+(function(){
+  function QRCode(text){
+    function bytes(s){const r=[];for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);if(c<128)r.push(c);else if(c<2048){r.push(0xC0|(c>>6));r.push(0x80|(c&0x3F));}else{r.push(0xE0|(c>>12));r.push(0x80|((c>>6)&0x3F));r.push(0x80|(c&0x3F));}}return r;}
+    const data=bytes(text);
+    // pick smallest version that fits with ECC L
+    const capL=[19,34,55,80,108,136,156,194,232,274];
+    let ver=1;
+    while(ver<=10&&data.length+2>capL[ver-1])ver++;
+    if(ver>10){ver=10;}
+    const size=17+4*ver;
+    // ECC table for L
+    const eccL=[7,10,15,20,26,18,20,24,30,18];
+    const totalCw=capL[ver-1]+eccL[ver-1];
+    // build bit stream
+    const bits=[];
+    function addBits(v,n){for(let i=n-1;i>=0;i--)bits.push((v>>i)&1);}
+    addBits(0b0100,4);
+    addBits(data.length,8);
+    for(const b of data)addBits(b,8);
+    addBits(0,4);
+    while(bits.length%8)bits.push(0);
+    const dataCw=[];
+    for(let i=0;i<bits.length;i+=8){let b=0;for(let j=0;j<8;j++)b=(b<<1)|bits[i+j];dataCw.push(b);}
+    const padBytes=[0xEC,0x11];let pi=0;
+    while(dataCw.length<capL[ver-1]){dataCw.push(padBytes[pi%2]);pi++;}
+    // Reed-Solomon ECC
+    function gfMul(x,y){let z=0;for(let i=7;i>=0;i--){z=(z<<1)^((z>>>7)*0x11D);z^=((y>>i)&1)*x;}return z&0xFF;}
+    function rsGen(deg){let r=[1];for(let i=0;i<deg;i++){const nr=new Array(r.length+1).fill(0);for(let j=0;j<r.length;j++){nr[j]^=gfMul(r[j],1);nr[j+1]^=r[j]?gfMul(r[j],Math.pow(2,i)|0):0;}/* simplified */r=nr;}return r;}
+    // Use proper gen:
+    function genPoly(deg){const r=new Array(deg).fill(0);r.push(1);let root=1;for(let i=0;i<deg;i++){for(let j=0;j<r.length;j++){r[j]=gfMul(r[j],root);if(j+1<r.length)r[j]^=r[j+1];}root=gfMul(root,2);}return r;}
+    const gen=genPoly(eccL[ver-1]);
+    const ecc=new Array(eccL[ver-1]).fill(0);
+    for(let i=0;i<dataCw.length;i++){const f=dataCw[i]^ecc[0];for(let j=0;j<ecc.length;j++){ecc[j]=(j+1<ecc.length?ecc[j+1]:0)^gfMul(gen[ecc.length-1-j],f);}}
+    const all=dataCw.concat(ecc);
+    // build matrix
+    const m=Array.from({length:size},()=>new Array(size).fill(null));
+    function setF(r,c,v){m[r][c]=v;}
+    function finder(r,c){for(let dr=-1;dr<=7;dr++)for(let dc=-1;dc<=7;dc++){const rr=r+dr,cc=c+dc;if(rr<0||rr>=size||cc<0||cc>=size)continue;const inner=dr>=2&&dr<=4&&dc>=2&&dc<=4;const ring=dr>=0&&dr<=6&&dc>=0&&dc<=6&&!inner;setF(rr,cc,inner||ring?1:0);}}
+    finder(0,0);finder(0,size-7);finder(size-7,0);
+    // timing
+    for(let i=8;i<size-8;i++){if(m[6][i]==null)m[6][i]=(i%2)?0:1;if(m[i][6]==null)m[i][6]=(i%2)?0:1;}
+    // dark module
+    m[size-8][8]=1;
+    // alignment patterns (versions 2+)
+    if(ver>=2){
+      const positions=[[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54]];
+      const pos=positions[ver-2];
+      for(let i=0;i<pos.length;i++)for(let j=0;j<pos.length;j++){
+        const r=pos[i],c=pos[j];
+        if((r<=8&&c<=8)||(r<=8&&c>=size-9)||(r>=size-9&&c<=8))continue;
+        for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){
+          const inner=dr===0&&dc===0;
+          const ring=Math.max(Math.abs(dr),Math.abs(dc))===2;
+          setF(r+dr,c+dc,inner||ring?1:0);
+        }
+      }
+    }
+    // reserve format areas (will fill later)
+    for(let i=0;i<9;i++){if(m[8][i]==null)m[8][i]=0;if(m[i][8]==null)m[i][8]=0;}
+    for(let i=0;i<8;i++){if(m[8][size-1-i]==null)m[8][size-1-i]=0;if(m[size-1-i][8]==null)m[size-1-i][8]=0;}
+    // place data
+    let bitIdx=0;let upward=true;
+    for(let col=size-1;col>0;col-=2){
+      if(col===6)col--;
+      for(let i=0;i<size;i++){
+        const row=upward?size-1-i:i;
+        for(let dc=0;dc<2;dc++){
+          const c=col-dc;
+          if(m[row][c]==null){
+            let bit=0;
+            if(bitIdx<all.length*8){
+              bit=(all[bitIdx>>3]>>(7-(bitIdx&7)))&1;
+              bitIdx++;
+            }
+            // mask 0: (r+c)%2==0
+            if((row+c)%2===0)bit^=1;
+            m[row][c]=bit;
+          }
+        }
+      }
+      upward=!upward;
+    }
+    // format info for ECC L mask 0: 0b111011111000100 = 0x77C4? use precomputed
+    const fmt=0x77C4;
+    for(let i=0;i<=5;i++)m[8][i]=(fmt>>i)&1;
+    m[8][7]=(fmt>>6)&1;m[8][8]=(fmt>>7)&1;m[7][8]=(fmt>>8)&1;
+    for(let i=9;i<15;i++)m[14-i][8]=(fmt>>i)&1;
+    for(let i=0;i<7;i++)m[size-1-i][8]=(fmt>>i)&1;
+    for(let i=7;i<15;i++)m[8][size-15+i]=(fmt>>i)&1;
+    return {size,modules:m};
+  }
+  window.QRCode=QRCode;
+})();
+</script>
+
+<!-- ============================================================
+     MAIN APP
+============================================================ -->
+<script>
+(function(){
+  // ============================================================
+  // STATE
+  // ============================================================
+  const state = {
+    activeAgent: null,
+    activeAgentEl: null,
+    buildStartedAt: null,
+    timerInterval: null,
+    voteCountdownInterval: null,
+    building: false,
+    voting: false,
+  };
+
+  const els = {
+    banner:        document.getElementById('banner'),
+    bannerEyebrow: document.getElementById('bannerEyebrow'),
+    bannerText:    document.getElementById('bannerText'),
+    livePill:      document.getElementById('livePill'),
+    livePillText:  document.getElementById('livePillText'),
+    audiencePill:  document.getElementById('audiencePill'),
+    characters:    document.getElementById('characters'),
+    courier:       document.getElementById('courier'),
+    votePanel:     document.getElementById('votePanel'),
+    voteCountdown: document.getElementById('voteCountdown'),
+    voteCountdownNum: document.getElementById('voteCountdownNum'),
+    resultCard:    document.getElementById('resultCard'),
+    resultEyebrow: document.getElementById('resultEyebrow'),
+    resultName:    document.getElementById('resultName'),
+    resultUrl:     document.getElementById('resultUrl'),
+    resultStatTime: document.getElementById('resultStatTime'),
+    resultStatScore: document.getElementById('resultStatScore'),
+    resultEvidenceTs: document.getElementById('resultEvidenceTs'),
+    resultEvidenceBundle: document.getElementById('resultEvidenceBundle'),
+    clock:         document.getElementById('clock'),
+    log:           document.getElementById('log'),
+    qrCanvas:      document.getElementById('qrCanvas'),
+    agents: {
+      pm:       document.getElementById('agent-pm'),
+      coder:    document.getElementById('agent-coder'),
+      reviewer: document.getElementById('agent-reviewer'),
+      deployer: document.getElementById('agent-deployer'),
+    },
+  };
+
+  // Track latest review score (used in result card)
+  let latestReviewScore = null;
+
+  // ============================================================
+  // VOTE CARD CLICKS — let big-screen audiences vote too
+  // ============================================================
+  function castVote(num){
+    const stored = localStorage.getItem('factory_voted');
+    if(stored){ return; } // already voted, silent no-op
+    fetch('/factory/api/vote', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({option: num})
+    }).then(r => r.json()).then(d => {
+      if(d.ok){
+        localStorage.setItem('factory_voted', String(num));
+        applyVotedState(num);
+      }
+    }).catch(() => {});
+  }
+  function applyVotedState(num){
+    els.votePanel.querySelectorAll('.vote-card').forEach(c => {
+      c.dataset.voted = (c.dataset.num === String(num)) ? 'true' : 'false';
+    });
+  }
+  els.votePanel.querySelectorAll('.vote-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const num = parseInt(card.dataset.num, 10);
+      if(num) castVote(num);
+    });
+  });
+  // Restore vote state on load
+  const priorVote = localStorage.getItem('factory_voted');
+  if(priorVote) applyVotedState(parseInt(priorVote, 10));
+
+  const AGENT_NAMES = { pm:'Project Manager', coder:'Engineer', reviewer:'Reviewer', deployer:'Deployer', system:'System' };
+  const AGENT_LABELS = { pm:'PM', coder:'ENG', reviewer:'REV', deployer:'SHIP', system:'SYS' };
+
+  // ============================================================
+  // QR CODE
+  // ============================================================
+  function renderQR(){
+    try{
+      const url = window.location.origin + '/vote';
+      const qr = window.QRCode(url);
+      const ctx = els.qrCanvas.getContext('2d');
+      const size = 100;
+      const cell = Math.floor(size / qr.size);
+      const off = Math.floor((size - cell * qr.size) / 2);
+      ctx.fillStyle = '#FFF1D9'; ctx.fillRect(0,0,size,size);
+      ctx.fillStyle = '#0b0a3a';
+      for(let r=0;r<qr.size;r++)for(let c=0;c<qr.size;c++){
+        if(qr.modules[r][c]) ctx.fillRect(off+c*cell, off+r*cell, cell, cell);
+      }
+    }catch(e){
+      // QR failed — show URL text fallback
+      const ctx = els.qrCanvas.getContext('2d');
+      ctx.fillStyle = '#FFF1D9'; ctx.fillRect(0,0,100,100);
+      ctx.fillStyle = '#0b0a3a';
+      ctx.font = '10px JetBrains Mono, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('/vote', 50, 54);
+    }
+  }
+  renderQR();
+
+  // ============================================================
+  // BANNER
+  // ============================================================
+  function setBanner(text, eyebrow, mode){
+    els.bannerEyebrow.textContent = eyebrow || 'STAND BY';
+    els.bannerText.textContent = text || '';
+    els.banner.dataset.mode = mode || 'idle';
+  }
+
+  // ============================================================
+  // TIMER
+  // ============================================================
+  function startTimer(){
+    stopTimer();
+    state.buildStartedAt = Date.now();
+    state.timerInterval = setInterval(updateTimer, 200);
+    updateTimer();
+  }
+  function stopTimer(){
+    if(state.timerInterval){ clearInterval(state.timerInterval); state.timerInterval = null; }
+  }
+  function updateTimer(){
+    if(!state.buildStartedAt) return;
+    const elapsed = Math.floor((Date.now() - state.buildStartedAt) / 1000);
+    const m = Math.floor(elapsed / 60);
+    const s = elapsed % 60;
+    els.clock.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+
+  // ============================================================
+  // LOG
+  // ============================================================
+  function addLog(agentId, message){
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.dataset.agent = agentId;
+    const who = document.createElement('span'); who.className = 'who';
+    who.textContent = AGENT_LABELS[agentId] || 'SYS';
+    const msg = document.createElement('span');
+    msg.textContent = message;
+    line.appendChild(who); line.appendChild(msg);
+    els.log.appendChild(line);
+    // Keep last 3 lines visible
+    while(els.log.children.length > 3) els.log.removeChild(els.log.firstChild);
+  }
+  function clearLog(){ els.log.innerHTML = ''; }
+
+  // ============================================================
+  // CHARACTER STATE + WALKING
+  // ============================================================
+  function setAgentState(agentId, status, message){
+    const el = els.agents[agentId];
+    if(!el) return;
+    el.dataset.state = status;
+    const sl = el.querySelector('.status-line');
+    if(sl){
+      sl.textContent = status === 'working' ? (message || 'Working…')
+                     : status === 'done'    ? '✓ Done'
+                     : 'Idle';
+    }
+  }
+
+  function walkCharacterTo(agentId){
+    // Make the previously-active character WALK to the new agent (if different).
+    if(!state.activeAgentEl){ return; }
+    const fromEl = state.activeAgentEl;
+    const toEl = els.agents[agentId];
+    if(!toEl || fromEl === toEl) return;
+
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect = toEl.getBoundingClientRect();
+    const dx = (toRect.left + toRect.width/2) - (fromRect.left + fromRect.width/2);
+
+    // Mark prior agent done immediately
+    fromEl.dataset.state = 'done';
+    fromEl.querySelector('.status-line').textContent = '✓ Done';
+
+    // Animate the COURIER paper between centers
+    const courier = els.courier;
+    courier.style.transition = 'none';
+    courier.style.left = (fromRect.left + fromRect.width/2) + 'px';
+    courier.style.top  = (fromRect.top + fromRect.height*0.4) + 'px';
+    courier.style.transform = 'translate(-50%, -50%) scale(0.2)';
+    courier.classList.add('flying');
+    // force reflow
+    void courier.offsetWidth;
+    courier.style.transition = 'transform 1s cubic-bezier(0.4,0.1,0.4,1), left 1s cubic-bezier(0.4,0.1,0.4,1), top 1s cubic-bezier(0.4,0.1,0.4,1)';
+    courier.style.left = (toRect.left + toRect.width/2) + 'px';
+    courier.style.top  = (toRect.top + toRect.height*0.4) + 'px';
+    courier.style.transform = 'translate(-50%, -50%) scale(1.2)';
+
+    setTimeout(() => {
+      courier.classList.remove('flying');
+      courier.style.transform = 'translate(-50%, -50%) scale(0)';
+    }, 1100);
+
+    // Make the character itself "walk" — translate visually toward the next station
+    fromEl.style.setProperty('--walkTo', dx + 'px');
+    fromEl.classList.add('walking');
+    setTimeout(() => {
+      fromEl.classList.remove('walking');
+      fromEl.style.setProperty('--walkTo', '0px');
+    }, 1200);
+  }
+
+  function activateAgent(agentId, message){
+    walkCharacterTo(agentId);
+    // Set new active state
+    setAgentState(agentId, 'working', message);
+    state.activeAgent = agentId;
+    state.activeAgentEl = els.agents[agentId];
+  }
+
+  function resetAllAgents(){
+    Object.keys(els.agents).forEach(id => {
+      const el = els.agents[id];
+      // Clear walking transforms / classes left over from prior round
+      if (el) {
+        el.classList.remove('walking');
+        el.style.setProperty('--walkTo', '0px');
+        el.style.transform = '';
+      }
+      setAgentState(id, 'idle');
+    });
+    // Hide + recenter the courier sprite if it's mid-flight
+    if (els.courier) {
+      els.courier.style.transition = 'none';
+      els.courier.classList.remove('flying');
+      els.courier.style.transform = 'translate(-50%, -50%) scale(0)';
+      els.courier.style.left = '50%';
+      els.courier.style.top = '50%';
+    }
+    state.activeAgent = null;
+    state.activeAgentEl = null;
+  }
+
+  // ============================================================
+  // VOTING
+  // ============================================================
+  function showVoting(payload){
+    const status = (payload && payload.status) || 'idle';
+    const opts = (payload && payload.options) || [];
+    const winner = payload && payload.winner;
+
+    // Don't override during a build
+    if(state.building){
+      els.votePanel.classList.remove('show');
+      els.characters.classList.remove('hidden');
+      stopVoteCountdown();
+      return;
+    }
+
+    if(status === 'open'){
+      els.characters.classList.add('hidden');
+      els.votePanel.classList.add('show');
+      setBanner('Pick what we build live — scan the QR to vote', 'VOTE NOW', 'voting');
+      renderVoteRows(opts);
+      startVoteCountdown(payload.endsAt);
+      state.voting = true;
+    } else if(status === 'closed'){
+      els.votePanel.classList.remove('show');
+      els.characters.classList.remove('hidden');
+      stopVoteCountdown();
+      const w = (opts || []).find(o => o.id === winner);
+      if(w){
+        setBanner(w.label, 'WINNER', 'winner');
+      }
+      state.voting = false;
+    } else {
+      // idle
+      els.votePanel.classList.remove('show');
+      els.characters.classList.remove('hidden');
+      stopVoteCountdown();
+      setBanner('Awaiting vote — admin will open voting', 'STAND BY', 'idle');
+      state.voting = false;
+    }
+  }
+
+  function renderVoteRows(opts){
+    const total = opts.reduce((s, o) => s + (o.votes || 0), 0) || 1;
+    [1,2,3].forEach(num => {
+      const opt = opts.find(o => o.id === num);
+      const card = els.votePanel.querySelector('[data-num="' + num + '"]');
+      if(!card || !opt) return;
+      card.querySelector('.label').textContent = opt.label;
+      card.querySelector('.count').textContent = opt.votes || 0;
+      card.querySelector('.fill').style.width = ((opt.votes || 0) / total * 100) + '%';
+    });
+  }
+
+  function startVoteCountdown(endsAt){
+    stopVoteCountdown();
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil(((endsAt || 0) - Date.now()) / 1000));
+      els.voteCountdownNum.textContent = String(remaining);
+    };
+    tick();
+    state.voteCountdownInterval = setInterval(tick, 250);
+  }
+  function stopVoteCountdown(){
+    if(state.voteCountdownInterval){
+      clearInterval(state.voteCountdownInterval);
+      state.voteCountdownInterval = null;
+    }
+  }
+
+  // ============================================================
+  // SSE EVENT HANDLERS
+  // ============================================================
+  function handleEvent(evt){
+    switch(evt.type){
+      case 'connected':
+        els.livePill.dataset.state = 'live';
+        els.livePillText.textContent = 'LIVE';
+        if(evt.spectatorCount != null) updateAudience(evt.spectatorCount);
+        break;
+
+      case 'voting_state':
+        showVoting(evt.votingState || evt);
+        break;
+
+      case 'build_started':
+        state.building = true;
+        state.voting = false;
+        els.votePanel.classList.remove('show');
+        els.characters.classList.remove('hidden');
+        els.resultCard.classList.remove('show');
+        latestReviewScore = null;
+        clearLog();
+        resetAllAgents();
+        startTimer();
+        const brief = evt.brief || (evt.plan && evt.plan.projectName) || 'Building';
+        const fullPrompt = evt.fullPrompt || brief;
+        setBanner(brief, 'BUILDING', 'building');
+        // Show full prompt as the first log entry so audience sees what's being built
+        addLog('system', 'Prompt: ' + fullPrompt);
+        addLog('system', 'Build started');
+        break;
+
+      case 'agent_status':
+        if(evt.status === 'working'){
+          activateAgent(evt.agent, evt.message);
+        } else if(evt.status === 'done'){
+          setAgentState(evt.agent, 'done');
+        } else {
+          setAgentState(evt.agent, 'idle');
+        }
+        break;
+
+      case 'chat_message':
+        addLog(evt.agent || 'system', evt.message || '');
+        break;
+
+      case 'review_result':
+        latestReviewScore = evt.score;
+        addLog('reviewer', 'Score ' + evt.score + ' / 10' + (evt.passed ? ' — Approved' : ' — Needs revision'));
+        break;
+
+      case 'build_complete':
+        state.building = false;
+        stopTimer();
+        const elapsed = evt.elapsed != null ? evt.elapsed : Math.floor((Date.now() - (state.buildStartedAt || Date.now())) / 1000);
+        const m = Math.floor(elapsed / 60); const s = elapsed % 60;
+        const timeStr = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+        els.clock.textContent = timeStr;
+        const projectName = (evt.plan && evt.plan.projectName) || evt.brief || 'Build';
+        setBanner(projectName + ' — live now', 'BUILT IN ' + m + ':' + String(s).padStart(2,'0'), 'complete');
+        // Mark all agents done
+        Object.keys(els.agents).forEach(id => setAgentState(id, 'done'));
+        // Big result card with deployed URL
+        const url = evt.siteUrl || '';
+        els.resultName.textContent = projectName;
+        els.resultEyebrow.textContent = 'BUILT IN ' + timeStr + ' — LIVE NOW';
+        if(url){
+          els.resultUrl.href = url;
+          // Show URL without protocol, more readable
+          els.resultUrl.textContent = url.replace(/^https?:\/\//, '');
+          els.resultUrl.style.display = 'inline-flex';
+        } else {
+          els.resultUrl.style.display = 'none';
+        }
+        els.resultStatTime.textContent = timeStr;
+        els.resultStatScore.textContent = (latestReviewScore != null ? latestReviewScore + '/10' : '—');
+        // Populate deploy-evidence log (credibility signal)
+        if(els.resultEvidenceTs && els.resultEvidenceBundle){
+          const _d = new Date();
+          const _pad = n => String(n).padStart(2,'0');
+          els.resultEvidenceTs.textContent = `${_d.getUTCFullYear()}-${_pad(_d.getUTCMonth()+1)}-${_pad(_d.getUTCDate())} ${_pad(_d.getUTCHours())}:${_pad(_d.getUTCMinutes())} UTC`;
+          const _slug = (projectName||'project').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24).replace(/^-|-$/g,'') || 'project';
+          const _id = Math.floor(Date.now()/1000).toString(36).slice(-6).toUpperCase();
+          els.resultEvidenceBundle.textContent = `${_slug}-build-${_id}.tar.gz`;
+        }
+        // Hide characters, show result
+        els.characters.classList.add('hidden');
+        els.resultCard.classList.add('show');
+        break;
+
+      case 'celebrate':
+        // could trigger fireworks here later
+        break;
+
+      case 'spectator_count':
+        if(evt.count != null) updateAudience(evt.count);
+        break;
+
+      case 'error':
+        addLog('system', 'Error: ' + (evt.message || 'unknown'));
+        resetAllAgents();
+        stopTimer();
+        state.building = false;
+        break;
+
+      case 'heartbeat':
+        // ignored — characters already animate
+        break;
+    }
+  }
+
+  function updateAudience(count){
+    els.audiencePill.textContent = count + ' WATCHING';
+  }
+
+  // ============================================================
+  // SSE CONNECT (with reconnect)
+  // ============================================================
+  let es = null;
+  let reconnectDelay = 2000;
+  function connect(){
+    if(es){ try{ es.close(); }catch(_){} }
+    els.livePill.dataset.state = 'reconnect';
+    els.livePillText.textContent = 'CONNECTING';
+    es = new EventSource('/factory/api/live-stream');
+    es.onopen = () => {
+      reconnectDelay = 2000;
+      els.livePill.dataset.state = 'live';
+      els.livePillText.textContent = 'LIVE';
+    };
+    es.onmessage = (e) => {
+      try { handleEvent(JSON.parse(e.data)); } catch(_){}
+    };
+    es.onerror = () => {
+      els.livePill.dataset.state = 'reconnect';
+      els.livePillText.textContent = 'RECONNECTING';
+      try{ es.close(); }catch(_){}
+      es = null;
+      setTimeout(connect, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 1.5, 20000);
+    };
+  }
+  connect();
+
+})();
+</script>
+
+</body>
+</html>

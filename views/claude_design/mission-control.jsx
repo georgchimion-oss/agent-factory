@@ -1,0 +1,625 @@
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── CONFIG ───
+const C = { pm:'#5B9CF5', engineer:'#4CD4A1', reviewer:'#B88FE8', deployer:'#F5A05B' };
+const NAMES = { pm:'PM Agent', engineer:'Eng Agent', reviewer:'QA Agent', deployer:'Deploy Agent' };
+const SHORT = { pm:'PM', engineer:'ENG', reviewer:'QA', deployer:'OPS' };
+const ORDER = ['pm','engineer','reviewer','deployer'];
+const ICONS = {
+  pm: <><rect x="6" y="4" width="12" height="16" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5"/><line x1="9" y1="9" x2="15" y2="9" stroke="currentColor" strokeWidth="1"/><line x1="9" y1="12" x2="14" y2="12" stroke="currentColor" strokeWidth="1"/><line x1="9" y1="15" x2="12" y2="15" stroke="currentColor" strokeWidth="1"/><path d="M8 4V2h8v2" fill="none" stroke="currentColor" strokeWidth="1.5"/></>,
+  engineer: <><rect x="3" y="6" width="18" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5"/><polyline points="7,12 10,15 17,9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></>,
+  reviewer: <><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" strokeWidth="1.5"/><line x1="14.5" y1="14.5" x2="19" y2="19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>,
+  deployer: <><path d="M12 3L12 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><polyline points="8,11 12,15 16,11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><line x1="5" y1="19" x2="19" y2="19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>,
+};
+const OPTS = [
+  { id:1, label:'AML Transaction Monitoring Console', desc:'SAR-ready alerts, FinCEN-aligned scoring.' },
+  { id:2, label:'KYC/CIP Intake Pipeline', desc:'OFAC screening, document verification, audit trail.' },
+  { id:3, label:'Engagement Workstream Tracker', desc:'SOX-auditable assignments, segregation of duties.' },
+];
+
+// ─── AGENT NODE (the "character" for mission control = a status node) ───
+function AgentNode({ role, state, isActive }) {
+  const c = C[role];
+  const anim = state==='working'?'workPulse 2s ease-in-out infinite'
+    :state==='celebrate'?'celebratePop 0.6s ease-in-out infinite'
+    :state==='done'?'none':'gentleBob 4s ease-in-out infinite';
+  return (
+    <div style={{
+      display:'flex',flexDirection:'column',alignItems:'center',gap:10,
+      animation:anim,
+    }}>
+      {/* Node circle */}
+      <div style={{
+        width:72,height:72,borderRadius:'50%',
+        background: state==='working' ? `${c}18` : state==='done' ? 'rgba(57,255,20,0.06)' : 'var(--bg3)',
+        border:`2px solid ${state==='working'?c:state==='done'?'var(--green)':'var(--border)'}`,
+        display:'flex',alignItems:'center',justifyContent:'center',
+        transition:'all 0.5s',position:'relative',
+        boxShadow: state==='working' ? `0 0 20px ${c}30, 0 0 40px ${c}15` : 'none',
+        '--c': c,
+        animation: state==='working' ? 'nodeGlow 2s ease-in-out infinite' : 'none',
+      }}>
+        <svg viewBox="0 0 24 24" width="28" height="28" style={{
+          color: state==='working' ? c : state==='done' ? 'var(--green)' : 'var(--ink3)',
+          transition:'color 0.5s',
+        }}>{ICONS[role]}</svg>
+        {/* Status indicator dot */}
+        <div style={{
+          position:'absolute',top:-2,right:-2,width:14,height:14,borderRadius:'50%',
+          background: state==='working'?c:state==='done'?'var(--green)':'var(--ink3)',
+          border:'2px solid var(--bg)',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          fontSize:8,color:'var(--bg)',fontWeight:700,
+          transition:'all 0.3s',
+        }}>
+          {state==='done'?'✓':state==='working'?'':' '}
+        </div>
+      </div>
+      {/* Label */}
+      <div style={{textAlign:'center'}}>
+        <div style={{
+          fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,
+          letterSpacing:'0.1em',textTransform:'uppercase',
+          color: state==='working'?c:state==='done'?'var(--green)':'var(--ink2)',
+          transition:'color 0.5s',
+        }}>{SHORT[role]}</div>
+        <div style={{
+          fontFamily:"'Space Mono',monospace",fontSize:9,
+          color:'var(--ink3)',letterSpacing:'0.06em',marginTop:2,
+          textTransform:'uppercase',
+        }}>{state==='working'?'Active':state==='done'?'Complete':'Standby'}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PIPELINE (the "floor" — horizontal pipeline with connection lines) ───
+function Pipeline({ agents, activeAgent, handoff, courierActive }) {
+  return (
+    <div style={{
+      position:'relative',width:'min(900px,94%)',
+      display:'flex',alignItems:'center',justifyContent:'center',gap:0,zIndex:4,
+    }}>
+      {/* Connection lines + nodes */}
+      <div style={{display:'flex',alignItems:'center',gap:0,width:'100%',justifyContent:'space-between',position:'relative'}}>
+        {ORDER.map((role,i) => {
+          const isActive = agents[role]==='working';
+          return (
+            <React.Fragment key={role}>
+              {i > 0 && (
+                <div style={{
+                  flex:1,height:2,position:'relative',overflow:'visible',
+                  background:'var(--border)',margin:'0 -4px',marginTop:-36,
+                }}>
+                  {/* Animated fill for completed connections */}
+                  <div style={{
+                    position:'absolute',left:0,top:0,bottom:0,
+                    width: (agents[ORDER[i-1]]==='done'||agents[ORDER[i]]==='working'||agents[ORDER[i]]==='done')?'100%':'0%',
+                    background:`linear-gradient(90deg,${C[ORDER[i-1]]},${C[role]})`,
+                    transition:'width 0.8s cubic-bezier(0.4,0,0.2,1)',
+                    borderRadius:1,opacity:0.5,
+                  }}/>
+                  {/* Courier dot traveling along the line */}
+                  {courierActive && handoff && handoff.from===ORDER[i-1] && handoff.to===role && (
+                    <div style={{
+                      position:'absolute',top:-4,width:10,height:10,borderRadius:'50%',
+                      background:C[role],boxShadow:`0 0 12px ${C[role]}`,
+                      left:'0%',
+                      transition:'left 1s cubic-bezier(0.4,0,0.2,1)',
+                    }} ref={el=>{if(el)requestAnimationFrame(()=>{el.style.left='100%'})}}/>
+                  )}
+                </div>
+              )}
+              <div style={{zIndex:2,flexShrink:0}}>
+                <AgentNode role={role} state={agents[role]} isActive={isActive}/>
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── STARFIELD (memoized — generated once) ───
+const STARS = Array.from({length:140},(_,i)=>({
+  id:i,
+  x: Math.random()*100,
+  y: Math.random()*70,
+  s: Math.random()*1.6+0.4,
+  o: Math.random()*0.7+0.2,
+  d: Math.random()*4+2,
+  delay: Math.random()*4,
+}));
+const BIG_STARS = Array.from({length:8},(_,i)=>({
+  id:i,
+  x: 8+Math.random()*84,
+  y: 5+Math.random()*55,
+  delay: Math.random()*5,
+}));
+// constellation: a fake "Pegasus"-ish cluster of points + lines
+const CONSTELLATION = {
+  points: [[12,18],[18,14],[24,22],[28,12],[34,20],[22,28]],
+  lines: [[0,1],[1,2],[2,3],[3,4],[2,5]],
+};
+
+// ─── BACKGROUND ───
+function MCBackground() {
+  return (
+    <div style={{position:'absolute',inset:0,overflow:'hidden',zIndex:0}}>
+      {/* Deep space gradient with subtle nebula */}
+      <div style={{position:'absolute',inset:0,background:'radial-gradient(ellipse at 80% 20%, rgba(91,156,245,0.08) 0%, transparent 40%), radial-gradient(ellipse at 15% 80%, rgba(184,143,232,0.06) 0%, transparent 45%), linear-gradient(180deg, #060F20 0%, #0A1628 50%, #0F1D32 100%)'}}/>
+
+      {/* Distant planet/moon */}
+      <div style={{
+        position:'absolute',top:'8%',right:'6%',width:160,height:160,borderRadius:'50%',
+        background:'radial-gradient(circle at 35% 35%, #1a2a4a 0%, #0d1830 50%, #050a18 100%)',
+        boxShadow:'inset -20px -20px 40px rgba(0,0,0,0.6), 0 0 80px rgba(91,156,245,0.08)',
+        opacity:0.5,
+      }}>
+        {/* crater dots */}
+        <div style={{position:'absolute',top:'30%',left:'40%',width:14,height:14,borderRadius:'50%',background:'rgba(0,0,0,0.3)'}}/>
+        <div style={{position:'absolute',top:'55%',left:'25%',width:8,height:8,borderRadius:'50%',background:'rgba(0,0,0,0.25)'}}/>
+        <div style={{position:'absolute',top:'48%',left:'62%',width:10,height:10,borderRadius:'50%',background:'rgba(0,0,0,0.28)'}}/>
+      </div>
+
+      {/* Stars */}
+      <svg width="100%" height="100%" style={{position:'absolute',inset:0,pointerEvents:'none'}}>
+        {STARS.map(s=>(
+          <circle key={s.id} cx={`${s.x}%`} cy={`${s.y}%`} r={s.s} fill="#E8ECF2"
+            style={{opacity:s.o,animation:`twinkle ${s.d}s ease-in-out ${s.delay}s infinite`}}/>
+        ))}
+        {BIG_STARS.map(s=>(
+          <g key={s.id} style={{opacity:0.7,animation:`twinkle 3s ease-in-out ${s.delay}s infinite`,transformOrigin:`${s.x}% ${s.y}%`}}>
+            <circle cx={`${s.x}%`} cy={`${s.y}%`} r="1.4" fill="#fff"/>
+            <line x1={`${s.x}%`} y1={`${s.y-1}%`} x2={`${s.x}%`} y2={`${s.y+1}%`} stroke="#fff" strokeWidth="0.5" opacity="0.4"/>
+            <line x1={`${s.x-0.8}%`} y1={`${s.y}%`} x2={`${s.x+0.8}%`} y2={`${s.y}%`} stroke="#fff" strokeWidth="0.5" opacity="0.4"/>
+          </g>
+        ))}
+        {/* Constellation lines */}
+        {CONSTELLATION.lines.map(([a,b],i)=>{
+          const p1=CONSTELLATION.points[a], p2=CONSTELLATION.points[b];
+          return <line key={i} x1={`${p1[0]}%`} y1={`${p1[1]}%`} x2={`${p2[0]}%`} y2={`${p2[1]}%`} stroke="rgba(74,234,219,0.18)" strokeWidth="0.5" strokeDasharray="2,3"/>;
+        })}
+        {CONSTELLATION.points.map((p,i)=>(
+          <circle key={i} cx={`${p[0]}%`} cy={`${p[1]}%`} r="2" fill="rgba(74,234,219,0.5)"/>
+        ))}
+        {/* Orbital arc */}
+        <ellipse cx="80%" cy="20%" rx="180" ry="180" fill="none" stroke="rgba(74,234,219,0.08)" strokeWidth="1" strokeDasharray="4,8"/>
+        <ellipse cx="80%" cy="20%" rx="220" ry="220" fill="none" stroke="rgba(91,156,245,0.06)" strokeWidth="1" strokeDasharray="2,6"/>
+      </svg>
+
+      {/* Drifting satellite */}
+      <div style={{
+        position:'absolute',top:'15%',left:'-40px',width:40,height:8,
+        animation:'satelliteDrift 60s linear infinite',pointerEvents:'none',opacity:0.6,
+      }}>
+        <div style={{width:6,height:6,background:'#4AEADB',borderRadius:1,position:'absolute',left:17,top:1,boxShadow:'0 0 6px #4AEADB'}}/>
+        <div style={{position:'absolute',left:0,top:2,width:14,height:4,background:'rgba(74,234,219,0.4)',borderRadius:1}}/>
+        <div style={{position:'absolute',right:0,top:2,width:14,height:4,background:'rgba(74,234,219,0.4)',borderRadius:1}}/>
+      </div>
+
+      {/* Shooting star */}
+      <div style={{
+        position:'absolute',top:'30%',left:'-100px',width:80,height:1,
+        background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.8),transparent)',
+        animation:'shootingStar 8s ease-in 2s infinite',pointerEvents:'none',
+        transform:'rotate(15deg)',
+      }}/>
+
+      {/* Subtle grid */}
+      <div style={{
+        position:'absolute',inset:0,opacity:0.03,
+        backgroundImage:'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)',
+        backgroundSize:'80px 80px',
+        maskImage:'radial-gradient(ellipse at center, black 30%, transparent 80%)',
+      }}/>
+
+      {/* Earth horizon curve at bottom */}
+      <div style={{
+        position:'absolute',bottom:'-60%',left:'-20%',right:'-20%',height:'80%',
+        borderRadius:'50%',
+        background:'radial-gradient(ellipse at center top, rgba(91,156,245,0.12) 0%, rgba(91,156,245,0.04) 40%, transparent 70%)',
+        borderTop:'1px solid rgba(91,156,245,0.15)',
+        pointerEvents:'none',
+      }}/>
+
+      {/* Scan line */}
+      <div style={{
+        position:'absolute',left:0,right:0,height:1,
+        background:'linear-gradient(90deg,transparent,var(--teal),transparent)',
+        opacity:0.08,animation:'scan 8s linear infinite',
+      }}/>
+    </div>
+  );
+}
+
+// ─── HUD OVERLAY (screen-edge mission-control chrome) ───
+function MCHudOverlay() {
+  const [tick, setTick] = useState(0);
+  useEffect(()=>{const iv=setInterval(()=>setTick(t=>t+1), 1500);return()=>clearInterval(iv)},[]);
+  // pseudorandom but deterministic readouts that drift
+  const r = (seed) => {
+    const x = Math.sin((tick + seed) * 12.9898) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  const cpu = Math.floor(40 + r(1) * 35);
+  const mem = Math.floor(55 + r(2) * 25);
+  const net = Math.floor(70 + r(3) * 20);
+  const lat = Math.floor(8 + r(4) * 22);
+  const sig = 3 + Math.floor(r(5) * 2); // 3-4 bars
+
+  const corner = {
+    position:'absolute',pointerEvents:'none',zIndex:3,
+    fontFamily:"'Space Mono',monospace",fontSize:9,
+    color:'rgba(232,236,242,0.45)',letterSpacing:'0.12em',textTransform:'uppercase',
+    lineHeight:1.5,
+  };
+  const bracket = (pos) => ({
+    position:'absolute',width:18,height:18,
+    borderColor:'rgba(74,234,219,0.35)',borderStyle:'solid',
+    ...pos,
+  });
+
+  return (
+    <div style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:3}}>
+      {/* Corner brackets */}
+      <div style={{...bracket({top:8,left:8,borderWidth:'1px 0 0 1px'})}}/>
+      <div style={{...bracket({top:8,right:8,borderWidth:'1px 1px 0 0'})}}/>
+      <div style={{...bracket({bottom:8,left:8,borderWidth:'0 0 1px 1px'})}}/>
+      <div style={{...bracket({bottom:8,right:8,borderWidth:'0 1px 1px 0'})}}/>
+
+      {/* Top-left: mission ID */}
+      <div style={{...corner,top:18,left:32}}>
+        <div style={{color:'var(--teal)',fontWeight:700,marginBottom:2}}>◉ FACTORY-7 // SECTOR 4A</div>
+        <div>MISSION ID: AGT-{String(2840+tick%99).padStart(4,'0')}</div>
+        <div>LAT 37.7749° N · LON 122.4194° W</div>
+        <div>UTC {new Date().toISOString().substring(11,19)}</div>
+      </div>
+
+      {/* Top-right: signal & status */}
+      <div style={{...corner,top:18,right:32,textAlign:'right'}}>
+        <div style={{display:'flex',gap:2,justifyContent:'flex-end',marginBottom:3}}>
+          {[1,2,3,4,5].map(i=>(
+            <div key={i} style={{width:3,height:3+i*2,background:i<=sig?'var(--teal)':'rgba(255,255,255,0.1)',borderRadius:1}}/>
+          ))}
+          <span style={{marginLeft:6,color:'var(--teal)',fontWeight:700}}>UPLINK</span>
+        </div>
+        <div>NET {net}% · LAT {lat}MS</div>
+        <div>PKT 0.{String(Math.floor(r(7)*99)).padStart(2,'0')}% LOSS</div>
+        <div>BAND <span style={{color:'rgba(232,236,242,0.7)'}}>X-BAND 8.4GHz</span></div>
+      </div>
+
+      {/* Mid-left: telemetry bars */}
+      <div style={{position:'absolute',left:18,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:14,fontFamily:"'Space Mono',monospace",fontSize:8,color:'rgba(232,236,242,0.4)',letterSpacing:'0.1em'}}>
+        {[['CPU',cpu,'var(--pm)'],['MEM',mem,'var(--engineer)'],['NET',net,'var(--teal)']].map(([label,val,c])=>(
+          <div key={label} style={{display:'flex',flexDirection:'column',gap:3,width:54}}>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span>{label}</span><span style={{color:c,fontWeight:700}}>{val}%</span></div>
+            <div style={{display:'flex',gap:1,height:18,alignItems:'flex-end'}}>
+              {Array.from({length:12}).map((_,i)=>(
+                <div key={i} style={{flex:1,height:`${20+r(i+Number(val))*80}%`,background:i<val/8.5?c:'rgba(255,255,255,0.06)',opacity:i<val/8.5?0.6:1,borderRadius:0.5,transition:'all 1.5s'}}/>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Mid-right: radar */}
+      <div style={{position:'absolute',right:18,top:'50%',transform:'translateY(-50%)',width:88,height:88}}>
+        <svg viewBox="0 0 100 100" style={{width:'100%',height:'100%'}}>
+          <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(74,234,219,0.15)" strokeWidth="0.5"/>
+          <circle cx="50" cy="50" r="32" fill="none" stroke="rgba(74,234,219,0.12)" strokeWidth="0.5"/>
+          <circle cx="50" cy="50" r="18" fill="none" stroke="rgba(74,234,219,0.1)" strokeWidth="0.5"/>
+          <line x1="4" y1="50" x2="96" y2="50" stroke="rgba(74,234,219,0.1)" strokeWidth="0.5"/>
+          <line x1="50" y1="4" x2="50" y2="96" stroke="rgba(74,234,219,0.1)" strokeWidth="0.5"/>
+          {/* Sweep */}
+          <g style={{transformOrigin:'50px 50px',animation:'radarSweep 4s linear infinite'}}>
+            <defs>
+              <linearGradient id="radarSweepGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="rgba(74,234,219,0.5)"/>
+                <stop offset="100%" stopColor="rgba(74,234,219,0)"/>
+              </linearGradient>
+            </defs>
+            <path d="M50,50 L96,50 A46,46 0 0,0 78,14 Z" fill="url(#radarSweepGrad)"/>
+          </g>
+          {/* Blips */}
+          <circle cx={50+Math.cos(tick*0.5)*22} cy={50+Math.sin(tick*0.5)*22} r="1.5" fill="var(--teal)"/>
+          <circle cx={50+Math.cos(tick*0.3+1)*36} cy={50+Math.sin(tick*0.3+1)*36} r="1.5" fill="var(--accent)"/>
+          <circle cx="50" cy="50" r="2" fill="var(--teal)"/>
+        </svg>
+        <div style={{textAlign:'center',fontFamily:"'Space Mono',monospace",fontSize:8,color:'rgba(232,236,242,0.4)',letterSpacing:'0.1em',marginTop:2}}>RADAR · SWEEP</div>
+      </div>
+
+      {/* Bottom-left: telemetry feed */}
+      <div style={{...corner,bottom:14,left:32}}>
+        <div>◉ TELEMETRY · {String(Math.floor(r(8)*9999)).padStart(4,'0')} HZ</div>
+        <div>POWER <span style={{color:'var(--engineer)'}}>NOMINAL</span> · CORE 21.4°C</div>
+      </div>
+
+      {/* Bottom-right: stack */}
+      <div style={{...corner,bottom:14,right:32,textAlign:'right'}}>
+        <div>BUILD v4.7.{String(tick%99).padStart(2,'0')} · KERNEL 6.1.0</div>
+        <div>CHECKSUM 0x{Math.floor(r(9)*0xffffff).toString(16).toUpperCase().padStart(6,'0')}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── BANNER ───
+function MCBanner({ text, eyebrow, mode }) {
+  const ac = mode==='voting'?'var(--accent)':mode==='building'?'var(--pm)':mode==='complete'?'var(--green)':'var(--ink3)';
+  return (
+    <header style={{
+      background:'rgba(10,22,40,0.92)',backdropFilter:'blur(16px)',
+      borderBottom:'1px solid var(--border)',padding:'12px 28px',
+      display:'flex',alignItems:'center',gap:16,zIndex:10,flexShrink:0,
+    }}>
+      <span style={{
+        fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700,
+        letterSpacing:'0.18em',color:ac,textTransform:'uppercase',
+        padding:'4px 10px',border:`1px solid ${ac}`,borderRadius:3,lineHeight:1,
+      }}>{eyebrow}</span>
+      <span style={{
+        flex:1,fontSize:'clamp(14px,1.8vw,22px)',fontWeight:600,color:'var(--ink)',
+        whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:'-0.01em',
+      }}>{text}</span>
+      <div style={{
+        fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700,
+        letterSpacing:'0.14em',padding:'4px 10px',borderRadius:99,
+        background:'rgba(74,234,219,0.08)',border:'1px solid rgba(74,234,219,0.2)',
+        color:'var(--teal)',display:'flex',alignItems:'center',gap:6,flexShrink:0,
+      }}>
+        <span style={{width:6,height:6,borderRadius:'50%',background:'var(--teal)',animation:'dotPulse 1.5s ease-in-out infinite',display:'inline-block'}}/> LIVE
+      </div>
+    </header>
+  );
+}
+
+// ─── HUD ───
+function MCHUD({ timer, logs }) {
+  const m=Math.floor(timer/60), s=timer%60;
+  const clock=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return (
+    <footer style={{
+      background:'rgba(10,22,40,0.95)',backdropFilter:'blur(12px)',
+      borderTop:'1px solid var(--border)',padding:'12px 28px',
+      display:'grid',gridTemplateColumns:'auto 1fr',gap:24,alignItems:'center',
+      zIndex:10,flexShrink:0,
+    }}>
+      <div style={{textAlign:'center'}}>
+        <div style={{
+          fontFamily:"'Space Mono',monospace",fontVariantNumeric:'tabular-nums',
+          fontSize:'clamp(24px,3vw,44px)',fontWeight:700,color:'var(--ink)',lineHeight:1,
+        }}>{clock}</div>
+        <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,letterSpacing:'0.2em',color:'var(--ink3)',marginTop:3,textTransform:'uppercase'}}>Elapsed</div>
+      </div>
+      <div style={{overflow:'hidden',display:'flex',flexDirection:'column',gap:2}}>
+        {logs.slice(-3).map((l,i)=>(
+          <div key={l.id||i} style={{fontSize:12,color:'var(--ink2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',animation:'slideIn 0.3s ease-out',fontFamily:"'Space Mono',monospace"}}>
+            <span style={{fontSize:10,fontWeight:700,color:C[l.agent]||'var(--ink3)',marginRight:8,letterSpacing:'0.08em'}}>[{SHORT[l.agent]||'SYS'}]</span>
+            <span style={{fontFamily:"'Space Grotesk',sans-serif"}}>{l.msg}</span>
+          </div>
+        ))}
+      </div>
+    </footer>
+  );
+}
+
+// ─── VOTE PANEL ───
+function MCVotePanel({ votes, voted, onVote, countdown, winner }) {
+  const total=votes.reduce((a,b)=>a+b,0)||1;
+  const vC=['var(--accent)','var(--teal)','var(--pm)'];
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:8,width:'min(640px,92%)',zIndex:5}}>
+      {OPTS.map((opt,i)=>{
+        const pct=(votes[i]/total*100).toFixed(1);
+        const isW=winner===opt.id, isV=voted===opt.id;
+        return (
+          <button key={opt.id} onClick={()=>onVote(opt.id)} disabled={voted!==null||winner!==null}
+            style={{
+              display:'flex',alignItems:'center',gap:16,padding:'14px 18px',
+              background:isW?'rgba(57,255,20,0.04)':isV?'rgba(74,234,219,0.04)':'var(--bg2)',
+              border:`1px solid ${isW?'var(--green)':isV?'var(--teal)':'var(--border)'}`,
+              borderRadius:8,cursor:voted?'default':'pointer',color:'var(--ink)',
+              fontFamily:'inherit',textAlign:'left',width:'100%',transition:'all 0.2s',
+            }}>
+            <span style={{fontFamily:"'Space Mono',monospace",fontWeight:700,fontSize:24,color:vC[i],minWidth:24}}>{opt.id}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:600,marginBottom:4,display:'flex',alignItems:'center',gap:8}}>
+                {opt.label}
+                {isV&&<span style={{padding:'2px 6px',borderRadius:3,background:'var(--teal)',color:'var(--bg)',fontFamily:"'Space Mono',monospace",fontSize:8,fontWeight:700,letterSpacing:'0.14em'}}>VOTED</span>}
+                {isW&&<span style={{padding:'2px 6px',borderRadius:3,background:'var(--green)',color:'var(--bg)',fontFamily:"'Space Mono',monospace",fontSize:8,fontWeight:700,letterSpacing:'0.14em'}}>WINNER</span>}
+              </div>
+              <div style={{height:3,background:'rgba(255,255,255,0.04)',borderRadius:99,overflow:'hidden'}}>
+                <div style={{height:'100%',width:`${pct}%`,background:vC[i],borderRadius:99,transition:'width 0.6s cubic-bezier(0.22,1,0.36,1)',opacity:0.6}}/>
+              </div>
+            </div>
+            <span style={{fontFamily:"'Space Mono',monospace",fontSize:16,fontWeight:700,color:vC[i],minWidth:40,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{votes[i]}</span>
+          </button>
+        );
+      })}
+      {countdown>0&&!winner&&(
+        <div style={{display:'flex',justifyContent:'center',gap:8,marginTop:4,fontFamily:"'Space Mono',monospace",fontSize:12,color:'var(--ink3)'}}>
+          Closes in <span style={{fontSize:18,fontWeight:700,color:countdown<=5?'var(--accent)':'var(--ink)'}}>{countdown}</span>s
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── BUILD PROGRESS ───
+function MCBuildProgress({ progress }) {
+  return (
+    <div style={{width:'min(500px,80%)',height:3,background:'rgba(255,255,255,0.04)',borderRadius:99,overflow:'hidden',zIndex:5,marginTop:8}}>
+      <div style={{
+        height:'100%',width:`${progress}%`,borderRadius:99,
+        background:'linear-gradient(90deg,var(--pm),var(--green))',
+        transition:'width 1.5s cubic-bezier(0.4,0,0.2,1)',
+        position:'relative',overflow:'hidden',opacity:0.7,
+      }}>
+        <div style={{position:'absolute',top:0,bottom:0,width:'30%',background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)',animation:'progressShine 2s linear infinite'}}/>
+      </div>
+    </div>
+  );
+}
+
+// ─── IDLE SCREEN ───
+function MCIdleScreen({ onStart }) {
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:20,zIndex:5,textAlign:'center',padding:'0 24px'}}>
+      {/* Agent nodes in idle */}
+      <div style={{display:'flex',gap:32,marginBottom:8}}>
+        {ORDER.map(r=><AgentNode key={r} role={r} state="idle"/>)}
+      </div>
+      <div style={{
+        fontSize:'clamp(26px,4vw,48px)',fontWeight:700,lineHeight:1.1,
+        color:'var(--ink)',letterSpacing:'-0.02em',
+      }}>
+        Agent Factory<br/>
+        <span style={{color:'var(--teal)'}}>Mission Control</span>
+      </div>
+      <div style={{fontSize:'clamp(13px,1.2vw,15px)',color:'var(--ink2)',maxWidth:'42ch',lineHeight:1.6}}>
+        Scan the QR code to vote. Four autonomous agents will plan, build, review, and deploy the winner — live.
+      </div>
+      <div style={{
+        width:120,height:120,background:'var(--bg3)',borderRadius:6,
+        border:'1px solid var(--border)',
+        display:'flex',alignItems:'center',justifyContent:'center',
+        fontFamily:"'Space Mono',monospace",fontSize:10,color:'var(--ink3)',
+      }}>QR CODE</div>
+      <button onClick={onStart} style={{
+        marginTop:4,padding:'10px 24px',borderRadius:6,
+        background:'rgba(74,234,219,0.08)',border:'1px solid rgba(74,234,219,0.2)',
+        color:'var(--teal)',cursor:'pointer',fontFamily:"'Space Mono',monospace",
+        fontSize:11,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
+      }}>Initialize Demo →</button>
+    </div>
+  );
+}
+
+// ─── RESULT CARD ───
+function MCResultCard({ url, elapsed, show }) {
+  if(!show)return null;
+  return (
+    <div style={{
+      display:'flex',flexDirection:'column',alignItems:'center',gap:16,
+      padding:'32px 44px',background:'var(--bg2)',
+      border:'1px solid rgba(57,255,20,0.15)',borderRadius:12,
+      boxShadow:'0 0 40px rgba(57,255,20,0.05)',zIndex:6,
+      animation:'fadeUp 0.6s ease-out',maxWidth:'88vw',
+    }}>
+      <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:'0.2em',color:'var(--green)',textTransform:'uppercase'}}>Deployed in {elapsed}</span>
+      <div style={{fontSize:'clamp(22px,2.6vw,36px)',fontWeight:700,color:'var(--ink)',textAlign:'center',lineHeight:1.15,letterSpacing:'-0.01em'}}>AML Transaction Monitoring Console</div>
+      <a href="#" style={{
+        display:'inline-flex',alignItems:'center',gap:12,padding:'14px 28px',
+        background:'var(--green)',color:'var(--bg)',borderRadius:6,textDecoration:'none',
+        fontFamily:"'Space Mono',monospace",fontSize:'clamp(14px,1.6vw,22px)',fontWeight:700,
+        boxShadow:'0 0 20px rgba(57,255,20,0.2)',letterSpacing:'0.02em',
+      }}>{url} ↗</a>
+      <div style={{display:'flex',gap:20,fontFamily:"'Space Mono',monospace",fontSize:10,color:'var(--ink3)',letterSpacing:'0.08em',textTransform:'uppercase'}}>
+        <span><strong style={{color:'var(--ink)',marginRight:4}}>{elapsed}</strong>elapsed</span>
+        <span><strong style={{color:'var(--ink)',marginRight:4}}>9.2</strong>quality</span>
+        <span><strong style={{color:'var(--ink)',marginRight:4}}>$0.34</strong>cost</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── DEMO ENGINE ───
+function useDemoEngine() {
+  const [phase,setPhase]=useState('idle');
+  const [agents,setAgents]=useState({pm:'idle',engineer:'idle',reviewer:'idle',deployer:'idle'});
+  const [activeAgent,setActiveAgent]=useState(null);
+  const [handoff,setHandoff]=useState(null);
+  const [courierActive,setCourierActive]=useState(false);
+  const [votes,setVotes]=useState([0,0,0]);
+  const [voted,setVoted]=useState(null);
+  const [countdown,setCountdown]=useState(30);
+  const [winner,setWinner]=useState(null);
+  const [timer,setTimer]=useState(0);
+  const [logs,setLogs]=useState([]);
+  const [buildProgress,setBuildProgress]=useState(0);
+  const [showResult,setShowResult]=useState(false);
+  const logId=useRef(0);const timersRef=useRef([]);const timerIv=useRef(null);
+
+  const addLog=useCallback((agent,msg)=>{setLogs(prev=>[...prev.slice(-8),{id:logId.current++,agent,msg}])},[]);
+  const doHandoff=useCallback((from,to)=>{
+    setHandoff({from,to});setCourierActive(true);setAgents(a=>({...a,[from]:'done'}));
+    const t=setTimeout(()=>{setCourierActive(false);setHandoff(null);setAgents(a=>({...a,[to]:'working'}));setActiveAgent(to)},1300);
+    timersRef.current.push(t);
+  },[]);
+
+  const startDemo=useCallback(()=>{
+    timersRef.current.forEach(clearTimeout);timersRef.current=[];
+    if(timerIv.current)clearInterval(timerIv.current);
+    setPhase('idle');setAgents({pm:'idle',engineer:'idle',reviewer:'idle',deployer:'idle'});
+    setActiveAgent(null);setHandoff(null);setCourierActive(false);
+    setVotes([0,0,0]);setVoted(null);setCountdown(30);setWinner(null);
+    setTimer(0);setLogs([]);setBuildProgress(0);setShowResult(false);
+
+    const s=(ms,fn)=>{const t=setTimeout(fn,ms);timersRef.current.push(t)};
+    s(500,()=>{setPhase('voting');setCountdown(30)});
+    [[1500,[4,2,1]],[3000,[9,5,3]],[5000,[14,8,6]],[7000,[19,12,9]],[9000,[24,15,12]],[11000,[28,18,14]],[13000,[31,20,16]],[14500,[34,22,17]]].forEach(([ms,v])=>s(ms,()=>setVotes(v)));
+    let cd=30;const cdIv=setInterval(()=>{cd--;if(cd<0)cd=0;setCountdown(cd)},500);
+    timersRef.current.push(cdIv);s(15500,()=>{clearInterval(cdIv);setCountdown(0)});
+    s(16000,()=>setWinner(1));
+    s(18000,()=>{setPhase('building');setTimer(0);timerIv.current=setInterval(()=>setTimer(t=>t+1),1000);setAgents({pm:'working',engineer:'idle',reviewer:'idle',deployer:'idle'});setActiveAgent('pm');addLog('pm','Analyzing brief: AML Transaction Monitoring Console')});
+    s(20000,()=>{addLog('pm','Breaking down requirements…');setBuildProgress(8)});
+    s(22000,()=>{addLog('pm','Project spec created');setBuildProgress(15)});
+    s(24000,()=>{addLog('pm','Requirements finalized');setBuildProgress(20)});
+    s(26000,()=>{doHandoff('pm','engineer');addLog('system','PM → ENG handoff');setBuildProgress(25)});
+    s(28000,()=>{addLog('engineer','Scaffolding project…');setBuildProgress(30)});
+    s(30000,()=>{addLog('engineer','auth.ts created');setBuildProgress(38)});
+    s(32000,()=>{addLog('engineer','dashboard.tsx created');setBuildProgress(45)});
+    s(34000,()=>{addLog('engineer','schema.sql written');setBuildProgress(52)});
+    s(36000,()=>{addLog('engineer','API routes implemented');setBuildProgress(58)});
+    s(38000,()=>{addLog('engineer','Frontend complete');setBuildProgress(62)});
+    s(40000,()=>{doHandoff('engineer','reviewer');addLog('system','ENG → QA handoff');setBuildProgress(65)});
+    s(42000,()=>{addLog('reviewer','Security scan initiated…');setBuildProgress(68)});
+    s(44000,()=>{addLog('reviewer','PII scan: PASS');setBuildProgress(72)});
+    s(46000,()=>{addLog('reviewer','CVE check: CLEAN');setBuildProgress(75)});
+    s(48000,()=>{addLog('reviewer','Quality score: 9.2/10');setBuildProgress(82)});
+    s(50000,()=>{doHandoff('reviewer','deployer');addLog('system','QA → OPS handoff');setBuildProgress(85)});
+    s(52000,()=>{addLog('deployer','Container build…');setBuildProgress(88)});
+    s(54000,()=>{addLog('deployer','DNS configuration…');setBuildProgress(92)});
+    s(56000,()=>{addLog('deployer','Health check: OK');setBuildProgress(96)});
+    s(58000,()=>{clearInterval(timerIv.current);setBuildProgress(100);addLog('deployer','Deployment successful');setAgents({pm:'celebrate',engineer:'celebrate',reviewer:'celebrate',deployer:'celebrate'});setActiveAgent(null)});
+    s(59500,()=>{setPhase('complete');setShowResult(true)});
+  },[addLog,doHandoff]);
+
+  const handleVote=useCallback((id)=>{if(voted)return;setVoted(id);setVotes(prev=>prev.map((v,i)=>i===id-1?v+1:v))},[voted]);
+  return {phase,agents,activeAgent,handoff,courierActive,votes,voted,countdown,winner,timer,logs,buildProgress,showResult,startDemo,handleVote};
+}
+
+// ─── MAIN APP ───
+function MissionControlApp() {
+  const d=useDemoEngine();
+  const bannerCfg={
+    idle:{text:'Systems on standby',eyebrow:'STANDBY',mode:'idle'},
+    voting:{text:d.winner?`Target: ${OPTS[0].label}`:'Select build target',eyebrow:d.winner?'LOCKED':'VOTING',mode:d.winner?'complete':'voting'},
+    building:{text:`Building: ${OPTS[0].label}`,eyebrow:'ACTIVE',mode:'building'},
+    complete:{text:'Deployment successful',eyebrow:'DEPLOYED',mode:'complete'},
+  }[d.phase];
+
+  return (
+    <div style={{display:'grid',gridTemplateRows:'auto 1fr auto',height:'100dvh',position:'relative',overflow:'hidden'}}>
+      <MCBackground/>
+      <MCBanner {...bannerCfg}/>
+      <main style={{position:'relative',overflow:'hidden',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,zIndex:2}}>
+        <MCHudOverlay/>
+        {d.phase==='idle'&&<MCIdleScreen onStart={d.startDemo}/>}
+        {d.phase==='voting'&&<MCVotePanel votes={d.votes} voted={d.voted} onVote={d.handleVote} countdown={d.countdown} winner={d.winner}/>}
+        {d.phase==='building'&&<><Pipeline agents={d.agents} activeAgent={d.activeAgent} handoff={d.handoff} courierActive={d.courierActive}/><MCBuildProgress progress={d.buildProgress}/></>}
+        {d.phase==='complete'&&<>
+          <div style={{position:'absolute',bottom:'10%',left:0,right:0,display:'flex',justifyContent:'center',gap:36,opacity:0.3}}>
+            {ORDER.map(r=><AgentNode key={r} role={r} state="celebrate"/>)}
+          </div>
+          <MCResultCard url="aml-console.demo.factory" elapsed="2:47" show={d.showResult}/>
+        </>}
+      </main>
+      <MCHUD timer={d.timer} logs={d.logs}/>
+    </div>
+  );
+}
+
+window.MissionControlApp = MissionControlApp;

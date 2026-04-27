@@ -1,0 +1,1067 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+<title>AGENT FACTORY — VOTE</title>
+<meta name="theme-color" content="#0b0a3a" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Limelight&family=Big+Shoulders+Display:wght@700;800;900&family=Outfit:wght@300;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+  rel="stylesheet"
+/>
+
+<style>
+  /* --------------------------------------------------------------------
+     AGENT FACTORY — VOTE
+     Mobile-first audience voting page. Miami Beach sunset DNA, but its
+     own animal — bigger touch targets, no spectator chrome, neon ballot.
+  -------------------------------------------------------------------- */
+  :root {
+    --navy:    #0b0a3a;
+    --indigo:  #1f1466;
+    --magenta: #b1247a;
+    --pink:    #ff2d7b;
+    --coral:   #ff8a5c;
+    --teal:    #0fe4d4;
+    --cream:   #fff1d9;
+    --gold:    #ffc977;
+    --ink:     #131233;
+
+    --c-1: var(--pink);
+    --c-2: var(--teal);
+    --c-3: var(--gold);
+
+    --shadow-neon-pink: 0 0 24px rgba(255,45,123,.55), 0 0 48px rgba(255,45,123,.22);
+    --shadow-neon-teal: 0 0 24px rgba(15,228,212,.55), 0 0 48px rgba(15,228,212,.22);
+    --shadow-neon-gold: 0 0 24px rgba(255,201,119,.55), 0 0 48px rgba(255,201,119,.22);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { background: #000; }
+  body {
+    min-height: 100dvh;
+    color: var(--cream);
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+    position: relative;
+    background:
+      radial-gradient(80% 60% at 50% 110%, rgba(255,138,92,.65), transparent 60%),
+      radial-gradient(70% 50% at 50% 95%,  rgba(255,45,123,.55), transparent 65%),
+      radial-gradient(60% 60% at 50% 70%,  rgba(177,36,122,.55), transparent 70%),
+      linear-gradient(180deg, #050530 0%, #0b0a3a 35%, #2b1054 60%, #6e1c5f 82%, #ff6a4a 100%);
+    background-attachment: fixed;
+    background-size: 100% 100%;
+    animation: skyDrift 60s ease-in-out infinite alternate;
+  }
+  @keyframes skyDrift {
+    0%   { filter: hue-rotate(0deg) saturate(1); }
+    50%  { filter: hue-rotate(-8deg) saturate(1.05); }
+    100% { filter: hue-rotate(6deg) saturate(1.08); }
+  }
+
+  /* Soft sun behind everything */
+  .sun {
+    position: fixed; left: 50%; bottom: 22vh;
+    width: 70vmin; height: 70vmin;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%,
+      rgba(255,230,194,.55) 0%,
+      rgba(255,180,114,.32) 28%,
+      rgba(255,111,139,.18) 55%,
+      rgba(255,45,123,0) 72%);
+    filter: blur(2px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Horizon grid (subtle, behind content) */
+  .grid {
+    position: fixed; left: -10%; right: -10%; bottom: 0;
+    height: 28vh; z-index: 0; pointer-events: none;
+    perspective: 600px;
+    opacity: .55;
+  }
+  .grid::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(90deg, rgba(255,45,123,.45) 1px, transparent 1px),
+      linear-gradient(0deg,  rgba(15,228,212,.30) 1px, transparent 1px);
+    background-size: 36px 36px;
+    transform: rotateX(70deg);
+    transform-origin: 50% 100%;
+    mask-image: linear-gradient(180deg, transparent 0%, #000 60%, #000 100%);
+  }
+
+  /* Grain overlay */
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: 1;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: overlay;
+    opacity: .35;
+  }
+
+  /* ---------- Layout ---------- */
+  .shell {
+    position: relative;
+    z-index: 2;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 18px 18px 110px;
+    min-height: 100dvh;
+    display: flex; flex-direction: column;
+  }
+
+  /* ---------- Header ---------- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 9px;
+    font-family: 'Big Shoulders Display', system-ui, sans-serif;
+    font-weight: 900;
+    letter-spacing: .14em;
+    font-size: 13px;
+    color: var(--cream);
+  }
+  .brand .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--pink);
+    box-shadow: 0 0 10px var(--pink), 0 0 22px rgba(255,45,123,.6);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { transform: scale(.7); opacity: .65; } }
+  .brand .sep {
+    color: rgba(255,241,217,.45);
+    font-weight: 700;
+    margin: 0 2px;
+  }
+  .brand .vote-label {
+    color: var(--teal);
+    text-shadow: 0 0 12px rgba(15,228,212,.5);
+  }
+
+  /* View switcher */
+  .view-switch {
+    position: relative;
+  }
+  .view-pill {
+    appearance: none; border: 0; cursor: pointer;
+    background: rgba(11,10,58,.6);
+    border: 1px solid rgba(255,241,217,.22);
+    color: var(--cream);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: .08em;
+    padding: 8px 12px;
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: inline-flex; align-items: center; gap: 6px;
+    text-transform: uppercase;
+  }
+  .view-pill:active { transform: scale(.97); }
+  .view-pill .caret { font-size: 9px; opacity: .7; }
+  .view-menu {
+    position: absolute; right: 0; top: calc(100% + 6px);
+    background: rgba(11,10,58,.92);
+    border: 1px solid rgba(255,241,217,.22);
+    border-radius: 14px;
+    padding: 6px;
+    min-width: 178px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    display: none;
+    z-index: 50;
+  }
+  .view-menu.open { display: block; }
+  .view-menu a {
+    display: flex; align-items: center; justify-content: space-between;
+    color: var(--cream);
+    text-decoration: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    padding: 9px 11px;
+    border-radius: 9px;
+    letter-spacing: .04em;
+  }
+  .view-menu a:hover, .view-menu a.active {
+    background: rgba(255,45,123,.18);
+    color: var(--cream);
+  }
+  .view-menu a .tag {
+    font-size: 9px; letter-spacing: .14em;
+    color: rgba(255,241,217,.5);
+  }
+  .view-menu a.active .tag { color: var(--teal); }
+
+  /* ---------- Hero / prompt ---------- */
+  .prompt {
+    margin-top: 22px;
+    text-align: left;
+  }
+  .prompt h1 {
+    margin: 0;
+    font-family: 'Limelight', 'Big Shoulders Display', serif;
+    font-weight: 400;
+    font-size: clamp(34px, 9vw, 44px);
+    line-height: .98;
+    letter-spacing: -0.005em;
+    color: var(--cream);
+    text-shadow: 0 1px 0 rgba(0,0,0,.3);
+  }
+  .prompt h1 .accent {
+    color: var(--pink);
+    text-shadow: 0 0 22px rgba(255,45,123,.55);
+  }
+  .prompt h1 .accent2 {
+    color: var(--teal);
+    text-shadow: 0 0 22px rgba(15,228,212,.5);
+  }
+  .prompt p {
+    margin: 12px 2px 0;
+    color: rgba(255,241,217,.78);
+    font-size: 14.5px;
+    max-width: 36ch;
+  }
+
+  /* ---------- Countdown ---------- */
+  .clock {
+    margin: 22px 0 6px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,45,123,.10), rgba(15,228,212,.06));
+    border: 1px solid rgba(255,241,217,.16);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: center;
+  }
+  .clock .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: .22em;
+    color: rgba(255,241,217,.6);
+    text-transform: uppercase;
+  }
+  .clock .time {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 900;
+    font-size: 42px;
+    line-height: 1;
+    letter-spacing: .02em;
+    color: var(--cream);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 18px rgba(255,201,119,.45);
+  }
+  .clock .status-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    background: rgba(0,0,0,.18);
+  }
+  .clock[data-status="open"]   .status-chip { color: var(--teal); }
+  .clock[data-status="idle"]   .status-chip { color: var(--gold); }
+  .clock[data-status="closed"] .status-chip { color: var(--coral); }
+  .clock[data-status="open"] .time {
+    text-shadow: 0 0 18px rgba(15,228,212,.55);
+  }
+  .clock .ring {
+    position: relative;
+    width: 64px; height: 64px;
+    grid-column: 3; grid-row: 1 / span 2;
+    align-self: center;
+  }
+  .clock .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .clock .ring .track { stroke: rgba(255,241,217,.14); }
+  .clock .ring .bar   {
+    stroke: var(--teal);
+    stroke-linecap: round;
+    transition: stroke-dashoffset .6s linear, stroke .3s;
+    filter: drop-shadow(0 0 6px rgba(15,228,212,.6));
+  }
+  .clock[data-status="closed"] .ring .bar { stroke: var(--coral); filter: drop-shadow(0 0 6px rgba(255,138,92,.6)); }
+  .clock[data-status="idle"]   .ring .bar { stroke: var(--gold); filter: drop-shadow(0 0 6px rgba(255,201,119,.6)); }
+
+  /* Tweak grid layout so chip sits below label, ring on right */
+  .clock .label  { grid-column: 1 / span 2; grid-row: 1; }
+  .clock .time   { grid-column: 1; grid-row: 2; }
+  .clock .status-chip { grid-column: 2; grid-row: 2; justify-self: start; align-self: end; }
+
+  /* ---------- Vote cards ---------- */
+  .options {
+    display: flex; flex-direction: column;
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .opt {
+    appearance: none; border: 0; text-align: left;
+    width: 100%;
+    min-height: 96px;
+    padding: 16px 18px;
+    border-radius: 22px;
+    background: rgba(11,10,58,.55);
+    border: 1px solid rgba(255,241,217,.18);
+    color: var(--cream);
+    font-family: inherit;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform .15s ease, border-color .25s, box-shadow .25s, background .25s;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .opt:active { transform: scale(.985); }
+  .opt::before {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent, var(--accent, transparent) 220%);
+    opacity: .12;
+    pointer-events: none;
+  }
+  .opt[data-id="1"] { --accent: var(--c-1); }
+  .opt[data-id="2"] { --accent: var(--c-2); }
+  .opt[data-id="3"] { --accent: var(--c-3); }
+
+  .opt-head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: start;
+  }
+  .opt-num {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 900;
+    font-size: 32px;
+    line-height: .9;
+    color: var(--accent);
+    text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 50%, transparent);
+    min-width: 30px;
+  }
+  .opt-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.18;
+    letter-spacing: -0.005em;
+    color: var(--cream);
+  }
+  .opt-desc {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: rgba(255,241,217,.7);
+  }
+  .opt-votes {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    color: var(--accent);
+    text-transform: uppercase;
+    white-space: nowrap;
+    align-self: center;
+  }
+  .opt-votes .n {
+    font-size: 18px;
+    margin-right: 4px;
+    color: var(--cream);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar-wrap {
+    margin-top: 14px;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255,241,217,.10);
+    overflow: hidden;
+    position: relative;
+  }
+  .bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 40%, var(--cream)) 100%);
+    border-radius: inherit;
+    transition: width .7s cubic-bezier(.2,.8,.2,1);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+
+  /* States */
+  .opt.is-mine {
+    border-color: var(--accent);
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent),
+      0 14px 40px -12px color-mix(in srgb, var(--accent) 60%, transparent);
+    background: linear-gradient(180deg, rgba(11,10,58,.7), color-mix(in srgb, var(--accent) 14%, rgba(11,10,58,.55)));
+  }
+  .opt.is-mine .mine-badge { display: inline-flex; }
+  .mine-badge {
+    display: none;
+    align-items: center; gap: 5px;
+    margin-left: 8px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #0b0a3a;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+  .voted .opt:not(.is-mine) {
+    opacity: .62;
+  }
+  .voted .opt:not(.is-mine):active { transform: none; }
+  .opt[disabled] { cursor: default; }
+
+  /* Closed/idle disables */
+  body[data-status="closed"] .opt,
+  body[data-status="idle"]   .opt {
+    pointer-events: none;
+    opacity: .55;
+  }
+  body[data-status="closed"] .opt.is-winner {
+    pointer-events: none;
+    opacity: 1;
+    border-color: var(--accent);
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent),
+      0 16px 50px -10px color-mix(in srgb, var(--accent) 70%, transparent);
+    background: linear-gradient(180deg, rgba(11,10,58,.7), color-mix(in srgb, var(--accent) 22%, rgba(11,10,58,.55)));
+  }
+  body[data-status="closed"] .opt.is-winner .winner-badge { display: inline-flex; }
+  .winner-badge {
+    display: none;
+    align-items: center; gap: 5px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #0b0a3a;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  /* ---------- Status / footer ---------- */
+  .myvote {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(15,228,212,.10);
+    border: 1px solid rgba(15,228,212,.35);
+    color: var(--cream);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: .06em;
+    display: none;
+    align-items: center; gap: 10px;
+  }
+  .myvote.show { display: flex; }
+  .myvote .check {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--teal);
+    color: #0b0a3a;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 900;
+    box-shadow: 0 0 16px rgba(15,228,212,.6);
+    flex: none;
+  }
+  .myvote strong { color: var(--teal); }
+
+  .closed-card {
+    margin-top: 18px;
+    padding: 18px;
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(11,10,58,.65), rgba(177,36,122,.18));
+    border: 1px solid rgba(255,241,217,.22);
+    display: none;
+  }
+  body[data-status="closed"] .closed-card { display: block; }
+  .closed-card h3 {
+    margin: 0;
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: .22em;
+    color: rgba(255,241,217,.7);
+    text-transform: uppercase;
+  }
+  .closed-card .winner-line {
+    margin-top: 8px;
+    font-family: 'Limelight', serif;
+    font-size: 26px;
+    line-height: 1.05;
+    color: var(--cream);
+  }
+  .closed-card .winner-line .acc {
+    color: var(--coral);
+    text-shadow: 0 0 18px rgba(255,138,92,.55);
+  }
+  .closed-card .cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 16px;
+    padding: 14px 18px;
+    min-height: 56px;
+    border-radius: 999px;
+    background: var(--cream);
+    color: #0b0a3a;
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 900;
+    letter-spacing: .12em;
+    font-size: 14px;
+    text-transform: uppercase;
+    text-decoration: none;
+    box-shadow: 0 0 0 1px rgba(255,241,217,.4), 0 16px 40px -10px rgba(255,138,92,.5);
+    transition: transform .15s;
+  }
+  .closed-card .cta:active { transform: scale(.98); }
+  .closed-card .cta .arrow { font-weight: 900; }
+
+  .idle-card {
+    margin-top: 18px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(11,10,58,.55);
+    border: 1px solid rgba(255,201,119,.32);
+    color: var(--cream);
+    display: none;
+  }
+  body[data-status="idle"] .idle-card { display: block; }
+  .idle-card .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: .22em;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .idle-card .text {
+    margin-top: 6px;
+    font-size: 14px;
+    color: rgba(255,241,217,.85);
+  }
+  .idle-card .text strong { color: var(--gold); }
+
+  /* Live total marquee */
+  .meta {
+    margin-top: 22px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .12em;
+    color: rgba(255,241,217,.55);
+    text-transform: uppercase;
+  }
+  .meta .live-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
+    margin-right: 6px;
+    box-shadow: 0 0 8px rgba(15,228,212,.7);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+
+  /* Foot CTA strip — explanatory only */
+  .factory-strip {
+    margin-top: auto;
+    padding: 14px;
+    border-radius: 18px;
+    background: rgba(11,10,58,.55);
+    border: 1px dashed rgba(255,241,217,.20);
+    margin-top: 22px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .factory-strip .glyph {
+    width: 38px; height: 38px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--pink), var(--coral));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 900;
+    color: #0b0a3a;
+    box-shadow: var(--shadow-neon-pink);
+    flex: none;
+  }
+  .factory-strip .copy {
+    font-size: 13px;
+    line-height: 1.4;
+    color: rgba(255,241,217,.85);
+  }
+  .factory-strip .copy strong { color: var(--cream); }
+  .factory-strip .copy .small {
+    display: block;
+    margin-top: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: .14em;
+    color: rgba(255,241,217,.5);
+    text-transform: uppercase;
+  }
+
+  /* Toast on vote */
+  .toast {
+    position: fixed;
+    left: 50%; bottom: 22px;
+    transform: translate(-50%, 24px);
+    background: rgba(11,10,58,.92);
+    border: 1px solid var(--teal);
+    color: var(--cream);
+    padding: 11px 16px;
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: .08em;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5), var(--shadow-neon-teal);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s, transform .25s;
+    z-index: 80;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* Confetti dot bursts */
+  .burst {
+    position: absolute; top: 18px; left: 24px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+  }
+  @keyframes burstFly {
+    0%   { opacity: 1; transform: translate(0,0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.4); }
+  }
+  .opt.bursting .burst { animation: burstFly .9s ease-out forwards; }
+
+  /* Reduce-motion */
+  @media (prefers-reduced-motion: reduce) {
+    body, .sun, .grid::before, .brand .dot, .meta .live-dot { animation: none !important; }
+    .bar { transition: none; }
+  }
+
+  /* Wider screens — keep mobile feel, just centered */
+  @media (min-width: 540px) {
+    .shell { padding: 26px 22px 120px; }
+  }
+</style>
+</head>
+<body data-status="idle">
+  <div class="sun" aria-hidden="true"></div>
+  <div class="grid" aria-hidden="true"></div>
+
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand" aria-label="Agent Factory Vote">
+        <span class="dot" aria-hidden="true"></span>
+        <span>AGENT FACTORY</span>
+        <span class="sep">·</span>
+        <span class="vote-label">VOTE</span>
+      </div>
+
+      <div class="view-switch">
+        <button class="view-pill" id="viewPill" aria-haspopup="menu" aria-expanded="false">
+          <span>VIEW</span>
+          <span class="caret">▾</span>
+        </button>
+        <nav class="view-menu" id="viewMenu" role="menu">
+          <a href="/v1"        role="menuitem"><span>The Floor</span><span class="tag">V1</span></a>
+          <a href="/v2"        role="menuitem"><span>Mission Control</span><span class="tag">V2</span></a>
+          <a href="/v4-beach"  role="menuitem"><span>Miami Beach</span><span class="tag">V4</span></a>
+          <a href="/vote"      role="menuitem" class="active"><span>Vote</span><span class="tag">NOW</span></a>
+        </nav>
+      </div>
+    </header>
+
+    <section class="prompt" aria-live="polite">
+      <h1>What should we <span class="accent">build</span> <span class="accent2">live</span>?</h1>
+      <p>Pick one. The agents will spec, code, review and ship it in front of you in under three minutes.</p>
+    </section>
+
+    <section class="clock" id="clock" data-status="idle" aria-live="polite">
+      <span class="label">Voting window</span>
+      <span class="time" id="clockTime">0:30</span>
+      <span class="status-chip" id="statusChip">IDLE</span>
+      <div class="ring" aria-hidden="true">
+        <svg viewBox="0 0 64 64">
+          <circle class="track" cx="32" cy="32" r="28" stroke-width="4" fill="none" />
+          <circle class="bar"   cx="32" cy="32" r="28" stroke-width="4" fill="none"
+                  stroke-dasharray="175.93" stroke-dashoffset="0" id="ringBar" />
+        </svg>
+      </div>
+    </section>
+
+    <section class="idle-card" aria-hidden="true">
+      <div class="label">Voting starts soon</div>
+      <div class="text">Hold tight — the audience ballot opens in a moment. We'll <strong>build the winner live</strong> the second voting closes.</div>
+    </section>
+
+    <section class="options" id="options" aria-label="Voting options">
+      <!-- Cards injected by JS to keep markup tidy -->
+    </section>
+
+    <div class="myvote" id="myVote" role="status">
+      <span class="check">✓</span>
+      <div>You voted for <strong id="myVoteLabel">#?</strong></div>
+    </div>
+
+    <section class="closed-card" aria-live="polite">
+      <h3>Voting closed</h3>
+      <div class="winner-line">Building <span class="acc" id="winnerName">—</span> next.</div>
+      <a class="cta" href="/v4-beach" id="watchCta">
+        Watch the build live <span class="arrow">→</span>
+      </a>
+    </section>
+
+    <div class="meta">
+      <span><span class="live-dot"></span>LIVE TALLY</span>
+      <span id="totalLine">0 votes</span>
+    </div>
+
+    <aside class="factory-strip" aria-label="What we'll build">
+      <div class="glyph">AF</div>
+      <div class="copy">
+        <strong>One brief in. One real site out.</strong>
+        <span class="small">factory.georg.miami</span>
+      </div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">Vote locked in</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- Static option content (matches server) ----------
+  const FALLBACK_OPTIONS = [
+    { id: 1, label: 'Real-time fraud detection dashboard',
+      description: 'Watch transactions flow in. AI flags suspicious patterns. Score, drill-down, alert.', votes: 0 },
+    { id: 2, label: 'Client onboarding portal',
+      description: 'KYC flow with document upload, identity check, and status tracking.', votes: 0 },
+    { id: 3, label: 'Team task tracker',
+      description: 'Kanban board with assignments, due dates, and progress.', votes: 0 },
+  ];
+
+  // ---------- DOM ----------
+  const $body       = document.body;
+  const $clock      = document.getElementById('clock');
+  const $clockTime  = document.getElementById('clockTime');
+  const $statusChip = document.getElementById('statusChip');
+  const $ringBar    = document.getElementById('ringBar');
+  const $options    = document.getElementById('options');
+  const $myVote     = document.getElementById('myVote');
+  const $myVoteLabel= document.getElementById('myVoteLabel');
+  const $winnerName = document.getElementById('winnerName');
+  const $watchCta   = document.getElementById('watchCta');
+  const $totalLine  = document.getElementById('totalLine');
+  const $toast      = document.getElementById('toast');
+  const $viewPill   = document.getElementById('viewPill');
+  const $viewMenu   = document.getElementById('viewMenu');
+
+  // ---------- State ----------
+  let state = {
+    status: 'idle',
+    options: FALLBACK_OPTIONS.slice(),
+    durationSec: 30,
+    endsAt: null,
+    startedAt: null,
+    winner: null,
+  };
+  let myVote = (() => {
+    try { return parseInt(localStorage.getItem('factory_voted') || '0', 10) || null; }
+    catch (_) { return null; }
+  })();
+
+  let tickHandle = null;
+  let lastBuildId = null;
+
+  // ---------- Render: option cards ----------
+  function renderOptions() {
+    $options.innerHTML = state.options.map(opt => `
+      <button class="opt" data-id="${opt.id}" type="button" aria-label="Vote for ${escapeHtml(opt.label)}">
+        <div class="opt-head">
+          <div class="opt-num">${opt.id}</div>
+          <div>
+            <div class="opt-title">${escapeHtml(opt.label)}<span class="mine-badge">Your vote</span><span class="winner-badge">Winner</span></div>
+            <div class="opt-desc">${escapeHtml(opt.description)}</div>
+          </div>
+          <div class="opt-votes"><span class="n" data-n>0</span>votes</div>
+        </div>
+        <div class="bar-wrap"><div class="bar" data-bar></div></div>
+      </button>
+    `).join('');
+    [...$options.querySelectorAll('.opt')].forEach(el => {
+      el.addEventListener('click', onVoteClick);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  // ---------- Render: tallies + states ----------
+  function paintState() {
+    // body status drives disabled visuals
+    $body.dataset.status = state.status;
+    $clock.dataset.status = state.status;
+
+    // status chip text
+    $statusChip.textContent = ({
+      idle: 'IDLE', open: 'LIVE', closed: 'CLOSED'
+    }[state.status]) || state.status.toUpperCase();
+
+    // tallies
+    const total = state.options.reduce((a, o) => a + (o.votes || 0), 0);
+    $totalLine.textContent = total === 1 ? '1 vote' : `${total} votes`;
+
+    state.options.forEach(opt => {
+      const card = $options.querySelector(`.opt[data-id="${opt.id}"]`);
+      if (!card) return;
+      const $n   = card.querySelector('[data-n]');
+      const $bar = card.querySelector('[data-bar]');
+      $n.textContent = opt.votes || 0;
+      const pct = total > 0 ? (opt.votes / total) * 100 : 0;
+      $bar.style.width = pct.toFixed(1) + '%';
+
+      // mine?
+      card.classList.toggle('is-mine', myVote === opt.id);
+      // winner?
+      const isWin = state.status === 'closed' && state.winner === opt.id;
+      card.classList.toggle('is-winner', isWin);
+      // disabled (already voted but voting still open)?
+      const disable =
+        (state.status !== 'open') ||
+        (myVote !== null && myVote !== opt.id);
+      card.toggleAttribute('disabled', disable);
+    });
+
+    $options.classList.toggle('voted', myVote !== null && state.status === 'open');
+
+    if (myVote !== null) {
+      const mine = state.options.find(o => o.id === myVote);
+      $myVote.classList.add('show');
+      $myVoteLabel.textContent = mine ? `#${mine.id} — ${mine.label}` : `#${myVote}`;
+    } else {
+      $myVote.classList.remove('show');
+    }
+
+    if (state.status === 'closed' && state.winner) {
+      const w = state.options.find(o => o.id === state.winner);
+      $winnerName.textContent = w ? w.label : `Option ${state.winner}`;
+    }
+  }
+
+  // ---------- Countdown ----------
+  function updateClock() {
+    const total = state.durationSec || 30;
+    let remaining = total;
+    if (state.status === 'open' && state.endsAt) {
+      remaining = Math.max(0, Math.ceil((state.endsAt - Date.now()) / 1000));
+    } else if (state.status === 'closed') {
+      remaining = 0;
+    } else if (state.status === 'idle') {
+      remaining = total;
+    }
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    $clockTime.textContent = `${m}:${String(s).padStart(2,'0')}`;
+    // ring (full circumference 175.93 = 2π·28)
+    const C = 175.93;
+    const frac = state.status === 'open' ? (remaining / total) :
+                 state.status === 'idle' ? 1 : 0;
+    $ringBar.setAttribute('stroke-dashoffset', String(C * (1 - frac)));
+  }
+
+  function startTick() {
+    stopTick();
+    updateClock();
+    tickHandle = setInterval(updateClock, 250);
+  }
+  function stopTick() {
+    if (tickHandle) { clearInterval(tickHandle); tickHandle = null; }
+  }
+
+  // ---------- Voting ----------
+  async function onVoteClick(ev) {
+    const card = ev.currentTarget;
+    const id = parseInt(card.dataset.id, 10);
+    if (!id) return;
+    if (state.status !== 'open') return;
+    if (myVote !== null) return;
+
+    // Optimistic UI: lock immediately
+    myVote = id;
+    try { localStorage.setItem('factory_voted', String(id)); } catch (_) {}
+    // Optimistic +1
+    const opt = state.options.find(o => o.id === id);
+    if (opt) opt.votes = (opt.votes || 0) + 1;
+    paintState();
+    fireBurst(card);
+    showToast(`Vote locked: #${id}`);
+
+    // Fire & forget POST. Real tally arrives via SSE.
+    try {
+      const r = await fetch('/factory/api/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ option: id }),
+      });
+      if (!r.ok) {
+        // Server says voting wasn't open — roll back cosmetic +1 silently
+        const j = await r.json().catch(() => ({}));
+        if (j && j.tally) applyServerState(j.tally);
+      } else {
+        const j = await r.json().catch(() => null);
+        if (j && j.tally) applyServerState(j.tally);
+      }
+    } catch (err) {
+      // Network blip is fine — SSE will reconcile
+    }
+  }
+
+  function fireBurst(card) {
+    const colors = {
+      1: getComputedStyle(document.documentElement).getPropertyValue('--c-1').trim(),
+      2: getComputedStyle(document.documentElement).getPropertyValue('--c-2').trim(),
+      3: getComputedStyle(document.documentElement).getPropertyValue('--c-3').trim(),
+    };
+    const id = parseInt(card.dataset.id, 10);
+    const color = colors[id] || '#fff';
+    for (let i = 0; i < 10; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'burst';
+      const angle = (Math.PI * 2 * i) / 10 + Math.random() * 0.4;
+      const dist = 60 + Math.random() * 40;
+      dot.style.background = color;
+      dot.style.boxShadow = `0 0 8px ${color}`;
+      dot.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
+      dot.style.setProperty('--dy', `${Math.sin(angle) * dist}px`);
+      dot.style.left = (20 + Math.random() * 12) + 'px';
+      dot.style.top  = (18 + Math.random() * 12) + 'px';
+      card.appendChild(dot);
+      setTimeout(() => dot.remove(), 1000);
+    }
+    card.classList.add('bursting');
+    setTimeout(() => card.classList.remove('bursting'), 1000);
+  }
+
+  let toastTimer = null;
+  function showToast(msg) {
+    $toast.textContent = msg;
+    $toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => $toast.classList.remove('show'), 1800);
+  }
+
+  // ---------- Apply server state ----------
+  function applyServerState(s) {
+    if (!s) return;
+    // Merge so we never lose option metadata if server omits descriptions
+    state.status      = s.status      || state.status;
+    state.durationSec = s.durationSec || state.durationSec;
+    state.endsAt      = s.endsAt      || null;
+    state.startedAt   = s.startedAt   || null;
+    state.winner      = s.winner      || null;
+    if (Array.isArray(s.options) && s.options.length) {
+      state.options = s.options.map(o => {
+        const fb = FALLBACK_OPTIONS.find(f => f.id === o.id);
+        return {
+          id: o.id,
+          label: o.label || (fb && fb.label) || `Option ${o.id}`,
+          description: o.description || (fb && fb.description) || '',
+          votes: o.votes || 0,
+        };
+      });
+    }
+    paintState();
+    updateClock();
+  }
+
+  // ---------- SSE ----------
+  function connectSSE() {
+    let es;
+    try { es = new EventSource('/factory/api/live-stream'); }
+    catch (_) { return; }
+
+    es.onmessage = (ev) => {
+      let data;
+      try { data = JSON.parse(ev.data); } catch (_) { return; }
+      if (!data || !data.type) return;
+      if (data.type === 'voting_state' && data.votingState) {
+        applyServerState(data.votingState);
+      }
+      if (data.type === 'build_complete') {
+        lastBuildId = data.buildId;
+        if (data.siteUrl) {
+          $watchCta.href = data.siteUrl;
+        }
+      }
+    };
+    es.onerror = () => {
+      // Browser auto-reconnects EventSource
+    };
+  }
+
+  // ---------- Bootstrap ----------
+  async function loadState() {
+    try {
+      const r = await fetch('/factory/api/voting-state', { cache: 'no-store' });
+      if (r.ok) {
+        const j = await r.json();
+        applyServerState(j);
+      }
+    } catch (_) {
+      // Use fallback
+      paintState();
+    }
+  }
+
+  // View switcher
+  $viewPill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = $viewMenu.classList.toggle('open');
+    $viewPill.setAttribute('aria-expanded', String(open));
+  });
+  document.addEventListener('click', (e) => {
+    if (!$viewMenu.contains(e.target) && e.target !== $viewPill) {
+      $viewMenu.classList.remove('open');
+      $viewPill.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  // First paint
+  renderOptions();
+  paintState();
+  startTick();
+  loadState();
+  connectSSE();
+
+  // Pause heavy ticks when tab hidden
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopTick();
+    else startTick();
+  });
+})();
+</script>
+</body>
+</html>

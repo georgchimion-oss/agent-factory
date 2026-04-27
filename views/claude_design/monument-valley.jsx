@@ -1,0 +1,1143 @@
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── ISOMETRIC SYSTEM ───
+const TW = 28, TH = 16, TZ = 28;
+function iso(gx, gy, gz) {
+  return { x: 600 + (gx - gy) * TW, y: 380 + (gx + gy) * TH - gz * TZ };
+}
+function isoStr(gx, gy, gz) { const p = iso(gx,gy,gz); return `${p.x},${p.y}`; }
+
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1),16);
+  const r = Math.max(0,Math.min(255,(n>>16)+amt));
+  const g = Math.max(0,Math.min(255,((n>>8)&0xff)+amt));
+  const b = Math.max(0,Math.min(255,(n&0xff)+amt));
+  return '#'+((r<<16)|(g<<8)|b).toString(16).padStart(6,'0');
+}
+
+function Block({ gx,gy,gz, w=1,d=1,h=1, color, opacity=1 }) {
+  const top = [isoStr(gx,gy,gz+h), isoStr(gx+w,gy,gz+h), isoStr(gx+w,gy+d,gz+h), isoStr(gx,gy+d,gz+h)].join(' ');
+  const left = [isoStr(gx,gy,gz), isoStr(gx,gy+d,gz), isoStr(gx,gy+d,gz+h), isoStr(gx,gy,gz+h)].join(' ');
+  const right = [isoStr(gx,gy+d,gz), isoStr(gx+w,gy+d,gz), isoStr(gx+w,gy+d,gz+h), isoStr(gx,gy+d,gz+h)].join(' ');
+  return (
+    <g opacity={opacity}>
+      <polygon points={right} fill={shade(color,-35)}/>
+      <polygon points={left} fill={shade(color,-18)}/>
+      <polygon points={top} fill={color}/>
+    </g>
+  );
+}
+
+function Stairs({ sx,sy,sz, dir='x', steps=4, color }) {
+  const blocks=[];
+  for(let i=0;i<steps;i++){
+    const gx=dir==='x'?sx+i:sx, gy=dir==='y'?sy+i:sy, gz=sz-i*0.6;
+    blocks.push(<Block key={i} gx={gx} gy={gy} gz={gz} w={1} d={1} h={0.6} color={color}/>);
+  }
+  return <g>{blocks}</g>;
+}
+
+const PAL = {
+  pink:'#E8A0BF', rose:'#D4889A', blush:'#F0C4D0', deep:'#B86880',
+  teal:'#7ECFC0', mint:'#A8DCD1', sea:'#5BBCAC', deepteal:'#3E8E80',
+  purple:'#C4A0D0', lavender:'#D8BDE6', violet:'#A080B8', deepviolet:'#7A5C90',
+  coral:'#F0A868', peach:'#F5C49C', warm:'#E89050', deepcoral:'#C87038',
+  cream:'#FFF5E9', sand:'#F0E4D0', stone:'#D8CFC0', ivory:'#FAEFE0',
+};
+const AGENT_C = { pm:'#D4889A', engineer:'#5BBCAC', reviewer:'#A080B8', deployer:'#E89050' };
+const NAMES = { pm:'ARCHITECT', engineer:'BUILDER', reviewer:'INSPECTOR', deployer:'COURIER' };
+const ROLES = { pm:'plans the work', engineer:'writes the code', reviewer:'checks quality', deployer:'ships it live' };
+const ORDER = ['pm','engineer','reviewer','deployer'];
+
+const OPTS = [
+  { id:1, label:'AML Transaction Monitoring Console', desc:'SAR-ready alerts, FinCEN-aligned scoring.' },
+  { id:2, label:'KYC/CIP Intake Pipeline', desc:'OFAC screening, document verification, audit trail.' },
+  { id:3, label:'Engagement Workstream Tracker', desc:'SOX-auditable assignments, segregation of duties.' },
+];
+
+// Station GRID positions (gx, gy, gz)
+const STATION_G = {
+  pm: [-9, -1, 8],
+  engineer: [-1, 4, 1.8],
+  reviewer: [7, -2, 5.5],
+  deployer: [13, 4, 0.6],
+};
+const STATIONS = Object.fromEntries(
+  Object.entries(STATION_G).map(([k,v]) => [k, iso(...v)])
+);
+
+// Real walking paths — waypoints in grid coords, character follows actual stairs
+// Walker stops ~1.2 grid units in front of receiver so they can interact (don't overlap)
+const WALK_PATHS = {
+  'pm-engineer': [
+    [-9, -1, 8.0],
+    [-9, -1, 7.5],
+    [-7.7, -1, 7.0],
+    [-6.7, -1, 6.4],
+    [-5.7, -1, 5.8],
+    [-4.7, -1, 5.2],
+    [-3.7, -1, 4.6],
+    [-3.0, -0.3, 4.1],
+    [-3.0, 0.5, 3.7],
+    [-3.0, 1.5, 3.1],
+    [-3.0, 2.5, 2.5],
+    [-3.0, 3.0, 2.2], // STOPS in front of engineer
+  ],
+  'engineer-reviewer': [
+    [-1.0, 4.0, 1.8],
+    [0.0, 3.5, 1.8],
+    [1.5, 2.5, 2.0],
+    [2.5, 1.5, 2.8],
+    [3.3, 0.7, 3.7],
+    [4.3, 0.7, 3.7],
+    [5.3, 0.7, 3.7],
+    [6.3, 0.0, 4.5],
+    [6.5, -0.5, 5.0], // STOPS in front of reviewer
+  ],
+  // REVERSE paths for the Reviewer-rejection beat (sent back to Coder, then re-reviewed)
+  'reviewer-engineer': [
+    [6.5, -0.5, 5.0],
+    [6.3, 0.0, 4.5],
+    [5.3, 0.7, 3.7],
+    [4.3, 0.7, 3.7],
+    [3.3, 0.7, 3.7],
+    [2.5, 1.5, 2.8],
+    [1.5, 2.5, 2.0],
+    [0.0, 3.5, 1.8],
+    [-1.0, 4.0, 1.8], // STOPS in front of engineer
+  ],
+  'reviewer-deployer': [
+    [7.0, -2.0, 5.5],
+    [8.0, -1.7, 5.2],
+    [9.5, -1.4, 4.3],
+    [10.5, -1.0, 3.5],
+    [11.5, -1.0, 2.9],
+    [12.5, -1.0, 2.3],
+    [13.5, -1.0, 1.7],
+    [13.5, 0.0, 1.4],
+    [13.5, 1.0, 1.1],
+    [13.5, 2.0, 0.8], // STOPS in front of deployer
+  ],
+};
+
+function lerpAngle(a, b, t) {
+  let diff = ((b - a + 540) % 360) - 180;
+  return a + diff * t;
+}
+
+function pathLen(path) {
+  let total = 0;
+  for (let i = 0; i < path.length-1; i++) {
+    const a = path[i], b = path[i+1];
+    total += Math.hypot(b[0]-a[0], b[1]-a[1], b[2]-a[2]);
+  }
+  return total;
+}
+// pos along path at progress t∈[0,1], returning {gx,gy,gz, segIdx, dir:[dx,dy,dz]}
+function pathPos(path, t) {
+  const total = pathLen(path);
+  const target = total * t;
+  let acc = 0;
+  for (let i = 0; i < path.length-1; i++) {
+    const a = path[i], b = path[i+1];
+    const segLen = Math.hypot(b[0]-a[0], b[1]-a[1], b[2]-a[2]);
+    if (acc + segLen >= target || i === path.length-2) {
+      const localT = segLen === 0 ? 0 : (target - acc) / segLen;
+      return {
+        gx: a[0] + (b[0]-a[0])*localT,
+        gy: a[1] + (b[1]-a[1])*localT,
+        gz: a[2] + (b[2]-a[2])*localT,
+        segIdx: i,
+        dir: [b[0]-a[0], b[1]-a[1], b[2]-a[2]],
+        segLen,
+      };
+    }
+    acc += segLen;
+  }
+  const last = path[path.length-1];
+  return { gx:last[0], gy:last[1], gz:last[2], segIdx:path.length-2, dir:[0,0,0], segLen:0 };
+}
+
+// ─── ARCHITECTURE: vertical, multi-level, paths winding ───
+function Architecture() {
+  return (
+    <g>
+      {/* ═══ PINK WATCHTOWER (left, very tall) ═══ */}
+      <Block gx={-11} gy={-3} gz={-2} w={4} d={4} h={2} color={PAL.blush}/>
+      <Block gx={-10} gy={-2} gz={0} w={2.5} d={2.5} h={3} color={PAL.pink}/>
+      <Block gx={-10.3} gy={-2.3} gz={3} w={3} d={3} h={0.4} color={PAL.deep} opacity={0.8}/>
+      <Block gx={-10} gy={-2} gz={3.4} w={2.5} d={2.5} h={4} color={PAL.rose}/>
+      <Block gx={-10.3} gy={-2.3} gz={7.4} w={3} d={3} h={0.5} color={PAL.deep}/>
+      {/* spire pillars */}
+      <Block gx={-10.2} gy={-2.2} gz={7.9} w={0.4} d={0.4} h={2} color={PAL.blush}/>
+      <Block gx={-7.8} gy={-2.2} gz={7.9} w={0.4} d={0.4} h={2} color={PAL.blush}/>
+      <Block gx={-10.2} gy={0.2} gz={7.9} w={0.4} d={0.4} h={2} color={PAL.blush}/>
+      <Block gx={-7.8} gy={0.2} gz={7.9} w={0.4} d={0.4} h={2} color={PAL.blush}/>
+      <Block gx={-10.2} gy={-2.2} gz={9.9} w={3} d={3} h={0.3} color={PAL.deep}/>
+
+      {/* ═══ Spiral stairs from PM tower DOWN to engineer (winding path) ═══ */}
+      <Stairs sx={-7.3} sy={-1} sz={6.5} dir="x" steps={4} color={PAL.sand}/>
+      <Block gx={-3.5} gy={-1} gz={4.1} w={1.5} d={1} h={0.4} color={PAL.stone}/>
+      <Stairs sx={-3} sy={-0.5} sz={3.7} dir="y" steps={5} color={PAL.sand}/>
+
+      {/* ═══ TEAL WORKSHOP (low, wide, with arches) ═══ */}
+      <Block gx={-3} gy={2} gz={-1} w={6} d={4.5} h={1.4} color={PAL.mint}/>
+      <Block gx={-2} gy={2.5} gz={0.4} w={4} d={3} h={0.5} color={PAL.teal}/>
+      {/* 4 columns */}
+      <Block gx={-2.7} gy={2.3} gz={0.9} w={0.5} d={0.5} h={3.5} color={PAL.deepteal}/>
+      <Block gx={2.2} gy={2.3} gz={0.9} w={0.5} d={0.5} h={3.5} color={PAL.deepteal}/>
+      <Block gx={-2.7} gy={5.5} gz={0.9} w={0.5} d={0.5} h={3.5} color={PAL.deepteal}/>
+      <Block gx={2.2} gy={5.5} gz={0.9} w={0.5} d={0.5} h={3.5} color={PAL.deepteal}/>
+      {/* roof */}
+      <Block gx={-3} gy={2} gz={4.4} w={6} d={4.5} h={0.4} color={PAL.sea}/>
+      {/* small workshop element */}
+      <Block gx={0} gy={3} gz={0.9} w={1} d={1} h={1} color={PAL.cream}/>
+
+      {/* ═══ Bridge with impossible-feeling support — workshop UP to observatory ═══ */}
+      <Block gx={3} gy={1.5} gz={-2} w={0.6} d={0.6} h={5.5} color={PAL.stone}/>
+      <Block gx={5} gy={0} gz={-2} w={0.6} d={0.6} h={6} color={PAL.stone}/>
+      <Block gx={3} gy={0.5} gz={3.4} w={4} d={1.2} h={0.3} color={PAL.sand}/>
+      {/* curved approach */}
+      <Stairs sx={3.5} sy={-1} sz={4.3} dir="y" steps={3} color={PAL.sand}/>
+      <Block gx={6.5} gy={-2} gz={2.5} w={1} d={1.5} h={0.4} color={PAL.stone}/>
+      <Stairs sx={6.5} sy={-2} sz={4.5} dir="x" steps={3} color={PAL.sand}/>
+
+      {/* ═══ PURPLE OBSERVATORY (upper right, on tall column) ═══ */}
+      <Block gx={7} gy={-2} gz={-2} w={3} d={3} h={5.5} color={PAL.deepviolet}/>
+      <Block gx={6.5} gy={-2.5} gz={3.5} w={4} d={4} h={0.5} color={PAL.purple}/>
+      <Block gx={6.5} gy={-2.5} gz={4} w={4} d={4} h={1} color={PAL.lavender}/>
+      {/* 4 columns of arch */}
+      <Block gx={6.7} gy={-2.3} gz={5} w={0.6} d={0.6} h={3} color={PAL.violet}/>
+      <Block gx={9.7} gy={-2.3} gz={5} w={0.6} d={0.6} h={3} color={PAL.violet}/>
+      <Block gx={6.7} gy={0.7} gz={5} w={0.6} d={0.6} h={3} color={PAL.violet}/>
+      <Block gx={9.7} gy={0.7} gz={5} w={0.6} d={0.6} h={3} color={PAL.violet}/>
+      {/* arch top */}
+      <Block gx={6.5} gy={-2.5} gz={8} w={4} d={4} h={0.4} color={PAL.deepviolet}/>
+      {/* dome on top */}
+      <Block gx={7.3} gy={-1.7} gz={8.4} w={2.4} d={2.4} h={0.4} color={PAL.lavender}/>
+      <Block gx={7.6} gy={-1.4} gz={8.8} w={1.8} d={1.8} h={0.4} color={PAL.purple}/>
+      <Block gx={7.9} gy={-1.1} gz={9.2} w={1.2} d={1.2} h={0.4} color={PAL.deepviolet}/>
+
+      {/* ═══ Stairs zig-zag DOWN from observatory to gateway ═══ */}
+      <Stairs sx={10} sy={-1.5} sz={3.5} dir="x" steps={4} color={PAL.sand}/>
+      <Block gx={13.5} gy={-1.5} gz={1.2} w={1.5} d={1} h={0.4} color={PAL.stone}/>
+      <Stairs sx={13.5} sy={-0.5} sz={1.2} dir="y" steps={5} color={PAL.sand}/>
+
+      {/* ═══ CORAL GATEWAY (right, low with prominent arch) ═══ */}
+      <Block gx={11} gy={3} gz={-2} w={5} d={3.5} h={1.4} color={PAL.peach}/>
+      <Block gx={11.5} gy={3.5} gz={-0.6} w={4} d={2.5} h={0.4} color={PAL.warm}/>
+      {/* big gateway pillars */}
+      <Block gx={11.7} gy={3.3} gz={-0.2} w={1} d={1} h={4.5} color={PAL.coral}/>
+      <Block gx={14.3} gy={3.3} gz={-0.2} w={1} d={1} h={4.5} color={PAL.coral}/>
+      <Block gx={11.7} gy={5.7} gz={-0.2} w={1} d={1} h={4.5} color={PAL.coral}/>
+      <Block gx={14.3} gy={5.7} gz={-0.2} w={1} d={1} h={4.5} color={PAL.coral}/>
+      {/* gateway top — connecting */}
+      <Block gx={11.5} gy={3.3} gz={4.3} w={3.8} d={3.4} h={0.5} color={PAL.deepcoral}/>
+      <Block gx={11.7} gy={3.5} gz={4.8} w={3.4} d={3} h={0.4} color={PAL.warm}/>
+
+      {/* Floating impossible-geometry decorative blocks */}
+      <g opacity="0.55">
+        <Block gx={-5} gy={6} gz={5} w={0.8} d={0.8} h={0.8} color={PAL.blush}/>
+        <Block gx={4} gy={-4} gz={9} w={0.6} d={0.6} h={0.6} color={PAL.lavender}/>
+        <Block gx={11} gy={-3} gz={7.5} w={0.7} d={0.7} h={0.7} color={PAL.peach}/>
+        <Block gx={2} gy={7} gz={6.5} w={0.5} d={0.5} h={0.5} color={PAL.mint}/>
+      </g>
+    </g>
+  );
+}
+
+// ─── DISTINCT CHARACTER DESIGNS ───
+function Architect({ scale=1 }) { // PM — tall pointed hat, long robe, scroll
+  return (
+    <g style={{transform:`scale(${scale})`}}>
+      <ellipse cx="0" cy="20" rx="10" ry="3" fill="rgba(0,0,0,0.12)"/>
+      {/* long robe */}
+      <path d="M-7 4 L-10 19 Q0 22 10 19 L7 4 Z" fill="white" stroke={AGENT_C.pm} strokeWidth="0.6"/>
+      <path d="M-2 6 L-3 19 L3 19 L2 6 Z" fill={AGENT_C.pm} opacity="0.18"/>
+      {/* head */}
+      <circle cx="0" cy="-1" r="5.5" fill="white" stroke={AGENT_C.pm} strokeWidth="0.5"/>
+      {/* TALL pointed witch-style hat */}
+      <path d="M0 -26 L-8 -2 Q0 1 8 -2 Z" fill="white" stroke={AGENT_C.pm} strokeWidth="0.6"/>
+      <path d="M-4 -8 L-2 -14 L2 -14 L4 -8 Z" fill={AGENT_C.pm} opacity="0.2"/>
+      {/* hat band */}
+      <ellipse cx="0" cy="-1.5" rx="7.5" ry="1.5" fill={AGENT_C.pm} opacity="0.3"/>
+      <circle cx="0" cy="-1.5" r="1.3" fill="#2C2A35" opacity="0.45"/>
+      {/* SCROLL in hand */}
+      <g transform="translate(11,8)">
+        <rect x="-1.5" y="-4" width="3" height="8" rx="0.5" fill="white" stroke={AGENT_C.pm} strokeWidth="0.5"/>
+        <line x1="-1" y1="-2" x2="1" y2="-2" stroke={AGENT_C.pm} strokeWidth="0.4"/>
+        <line x1="-1" y1="0" x2="1" y2="0" stroke={AGENT_C.pm} strokeWidth="0.4"/>
+      </g>
+    </g>
+  );
+}
+
+function Builder({ scale=1 }) { // Engineer — square hard-hat, short tunic, hammer
+  return (
+    <g style={{transform:`scale(${scale})`}}>
+      <ellipse cx="0" cy="20" rx="10" ry="3" fill="rgba(0,0,0,0.12)"/>
+      {/* short tunic with visible legs */}
+      <path d="M-7 6 L-8 14 L-3 14 L-3 19 L3 19 L3 14 L8 14 L7 6 Z" fill="white" stroke={AGENT_C.engineer} strokeWidth="0.6"/>
+      {/* belt */}
+      <rect x="-7" y="9" width="14" height="2" fill={AGENT_C.engineer} opacity="0.35"/>
+      {/* head */}
+      <circle cx="0" cy="-1" r="5.5" fill="white" stroke={AGENT_C.engineer} strokeWidth="0.5"/>
+      {/* SQUARE hard-hat */}
+      <rect x="-7" y="-12" width="14" height="6" rx="1" fill="white" stroke={AGENT_C.engineer} strokeWidth="0.6"/>
+      <rect x="-8" y="-7" width="16" height="2" fill="white" stroke={AGENT_C.engineer} strokeWidth="0.5"/>
+      {/* hat stripe */}
+      <rect x="-7" y="-10" width="14" height="1.5" fill={AGENT_C.engineer} opacity="0.35"/>
+      <circle cx="0" cy="-1.5" r="1.3" fill="#2C2A35" opacity="0.45"/>
+      {/* HAMMER in hand */}
+      <g transform="translate(11,4)">
+        <rect x="-0.7" y="-1" width="1.4" height="11" fill={AGENT_C.engineer} opacity="0.5"/>
+        <rect x="-3" y="-3" width="6" height="3" rx="0.3" fill="white" stroke={AGENT_C.engineer} strokeWidth="0.5"/>
+      </g>
+    </g>
+  );
+}
+
+function Inspector({ scale=1 }) { // Reviewer — wide-brim flat hat, formal coat, magnifier
+  return (
+    <g style={{transform:`scale(${scale})`}}>
+      <ellipse cx="0" cy="20" rx="10" ry="3" fill="rgba(0,0,0,0.12)"/>
+      {/* formal long coat */}
+      <path d="M-7 4 L-9 19 Q0 22 9 19 L7 4 Z" fill="white" stroke={AGENT_C.reviewer} strokeWidth="0.6"/>
+      {/* coat split */}
+      <line x1="0" y1="6" x2="0" y2="19" stroke={AGENT_C.reviewer} strokeWidth="0.4" opacity="0.5"/>
+      {/* collar */}
+      <path d="M-3 4 L0 8 L3 4 Z" fill={AGENT_C.reviewer} opacity="0.3"/>
+      {/* head */}
+      <circle cx="0" cy="-1" r="5.5" fill="white" stroke={AGENT_C.reviewer} strokeWidth="0.5"/>
+      {/* WIDE-BRIM FLAT HAT (mortarboard style) */}
+      <rect x="-4" y="-9" width="8" height="3" rx="0.5" fill="white" stroke={AGENT_C.reviewer} strokeWidth="0.5"/>
+      <ellipse cx="0" cy="-6" rx="11" ry="1.8" fill="white" stroke={AGENT_C.reviewer} strokeWidth="0.6"/>
+      <rect x="-4" y="-9" width="8" height="0.5" fill={AGENT_C.reviewer} opacity="0.5"/>
+      {/* tassel */}
+      <line x1="6" y1="-6" x2="9" y2="-3" stroke={AGENT_C.reviewer} strokeWidth="0.6"/>
+      <circle cx="9" cy="-3" r="0.8" fill={AGENT_C.reviewer}/>
+      <circle cx="0" cy="-1.5" r="1.3" fill="#2C2A35" opacity="0.45"/>
+      {/* MAGNIFYING GLASS in hand */}
+      <g transform="translate(-12,7)">
+        <circle cx="0" cy="0" r="3.5" fill="rgba(255,255,255,0.5)" stroke={AGENT_C.reviewer} strokeWidth="0.7"/>
+        <line x1="2.5" y1="2.5" x2="5" y2="5" stroke={AGENT_C.reviewer} strokeWidth="1.2" strokeLinecap="round"/>
+      </g>
+    </g>
+  );
+}
+
+function Courier({ scale=1 }) { // Deployer — winged cap, cape, satchel
+  return (
+    <g style={{transform:`scale(${scale})`}}>
+      <ellipse cx="0" cy="20" rx="10" ry="3" fill="rgba(0,0,0,0.12)"/>
+      {/* short legs */}
+      <rect x="-3" y="13" width="2.5" height="6" fill="white" stroke={AGENT_C.deployer} strokeWidth="0.5"/>
+      <rect x="0.5" y="13" width="2.5" height="6" fill="white" stroke={AGENT_C.deployer} strokeWidth="0.5"/>
+      {/* short tunic */}
+      <path d="M-7 4 L-7 14 L7 14 L7 4 Z" fill="white" stroke={AGENT_C.deployer} strokeWidth="0.6"/>
+      {/* CAPE behind */}
+      <path d="M-6 4 L-9 16 L-7 16 L-5 5 Z" fill={AGENT_C.deployer} opacity="0.5"/>
+      <path d="M6 4 L9 16 L7 16 L5 5 Z" fill={AGENT_C.deployer} opacity="0.5"/>
+      {/* head */}
+      <circle cx="0" cy="-1" r="5.5" fill="white" stroke={AGENT_C.deployer} strokeWidth="0.5"/>
+      {/* WINGED messenger cap */}
+      <ellipse cx="0" cy="-7" rx="6" ry="3.5" fill="white" stroke={AGENT_C.deployer} strokeWidth="0.6"/>
+      {/* wings */}
+      <path d="M-6 -7 L-11 -10 L-9 -6 Z" fill="white" stroke={AGENT_C.deployer} strokeWidth="0.5"/>
+      <path d="M6 -7 L11 -10 L9 -6 Z" fill="white" stroke={AGENT_C.deployer} strokeWidth="0.5"/>
+      <path d="M-5 -8 L-10 -9 L-8 -7 Z" fill={AGENT_C.deployer} opacity="0.3"/>
+      <path d="M5 -8 L10 -9 L8 -7 Z" fill={AGENT_C.deployer} opacity="0.3"/>
+      <circle cx="0" cy="-1.5" r="1.3" fill="#2C2A35" opacity="0.45"/>
+      {/* SATCHEL */}
+      <g transform="translate(-9,6)">
+        <rect x="-2" y="-2" width="4" height="4.5" rx="0.5" fill="white" stroke={AGENT_C.deployer} strokeWidth="0.6"/>
+        <rect x="-2" y="-2" width="4" height="1.2" fill={AGENT_C.deployer} opacity="0.45"/>
+      </g>
+    </g>
+  );
+}
+
+// ─── DISTANT MAGICAL CASTLE ───
+const CHARS = { pm:Architect, engineer:Builder, reviewer:Inspector, deployer:Courier };
+
+function Castle({ cx, cy, scale=1, opacity=0.85 }) {
+  return (
+    <g transform={`translate(${cx},${cy}) scale(${scale})`} opacity={opacity}>
+      {/* floating rock base */}
+      <ellipse cx="0" cy="42" rx="55" ry="7" fill="#7A5C90" opacity="0.4"/>
+      <path d="M-50 38 Q-58 42 -54 50 Q-30 58 0 56 Q30 58 54 50 Q58 42 50 38 Q40 35 0 35 Q-40 35 -50 38 Z" fill="#9B7BAE"/>
+      <path d="M-50 38 Q-30 36 0 36 Q30 36 50 38 L50 40 Q30 38 0 38 Q-30 38 -50 40 Z" fill="#C4A0D0"/>
+      {/* main keep */}
+      <rect x="-22" y="0" width="44" height="38" fill="#F5C4D0"/>
+      <rect x="-22" y="0" width="44" height="4" fill="#D4889A"/>
+      {/* battlements */}
+      <rect x="-22" y="-4" width="5" height="4" fill="#F5C4D0"/>
+      <rect x="-12" y="-4" width="5" height="4" fill="#F5C4D0"/>
+      <rect x="-2" y="-4" width="5" height="4" fill="#F5C4D0"/>
+      <rect x="8" y="-4" width="5" height="4" fill="#F5C4D0"/>
+      <rect x="17" y="-4" width="5" height="4" fill="#F5C4D0"/>
+      {/* gate */}
+      <path d="M-6 38 L-6 22 Q0 18 6 22 L6 38 Z" fill="#7A5C90"/>
+      {/* windows */}
+      <rect x="-15" y="10" width="3" height="6" rx="1.5" fill="#7A5C90"/>
+      <rect x="12" y="10" width="3" height="6" rx="1.5" fill="#7A5C90"/>
+      {/* left turret */}
+      <rect x="-32" y="4" width="12" height="34" fill="#E8A0BF"/>
+      <rect x="-32" y="4" width="12" height="3" fill="#B86880"/>
+      <polygon points="-32,4 -20,4 -26,-14" fill="#D4889A"/>
+      <rect x="-28" y="14" width="3" height="5" rx="1.5" fill="#7A5C90"/>
+      {/* right turret */}
+      <rect x="20" y="4" width="12" height="34" fill="#E8A0BF"/>
+      <rect x="20" y="4" width="12" height="3" fill="#B86880"/>
+      <polygon points="20,4 32,4 26,-14" fill="#D4889A"/>
+      <rect x="24" y="14" width="3" height="5" rx="1.5" fill="#7A5C90"/>
+      {/* tall central spire */}
+      <rect x="-6" y="-22" width="12" height="22" fill="#F5C4D0"/>
+      <rect x="-6" y="-22" width="12" height="3" fill="#D4889A"/>
+      <polygon points="-6,-22 6,-22 0,-46" fill="#C9A84C"/>
+      <polygon points="-3,-32 0,-46 3,-32" fill="#E0B860"/>
+      {/* flag */}
+      <line x1="0" y1="-46" x2="0" y2="-58" stroke="#7A5C90" strokeWidth="0.8"/>
+      <path d="M0 -56 L10 -53 L0 -50 Z" fill="#D4605E"/>
+      <circle cx="0" cy="-58" r="1.2" fill="#C9A84C"/>
+    </g>
+  );
+}
+
+// ─── SCENE WITH CAMERA & CHARACTERS ───
+function Scene({ agents, activeAgent, handoff, courierActive, focusedAgent }) {
+  const [tick, setTick] = useState(0);
+  // 60fps via rAF for smoothness
+  useEffect(()=>{
+    let raf;
+    const loop = () => { setTick(t=>t+1); raf=requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  },[]);
+
+  // Walking + arrival phases
+  const WALK_DURATION = 3500;
+  const ARRIVAL_HOLD = 1300;
+  const walkPos = (() => {
+    if (!handoff) return null;
+    const path = WALK_PATHS[`${handoff.from}-${handoff.to}`];
+    if (!path) return null;
+    const elapsed = Date.now() - handoff.startedAt;
+    const arrived = elapsed >= WALK_DURATION;
+    const raw = Math.min(1, elapsed / WALK_DURATION);
+    // smooth ease-in-out
+    const t = raw < 0.5 ? 2*raw*raw : 1 - Math.pow(-2*raw+2,2)/2;
+    const p = pathPos(path, t);
+    const screen = iso(p.gx, p.gy, p.gz);
+    const arrivalT = arrived ? Math.min(1, (elapsed - WALK_DURATION) / ARRIVAL_HOLD) : 0;
+    return { x: screen.x, y: screen.y, t: raw, gp: p, arrived, arrivalT };
+  })();
+
+  // STATIC CAMERA — no rotation, no zoom pulse, no per-segment swing.
+  // The world is small enough to see all 4 stations at once. Characters
+  // moving inside a stable frame is what gives Monument Valley its calm.
+  // Subtle zoom-in on the focused agent only AFTER arrival, lerped slowly.
+  const camRef = useRef(null);
+  const targetCam = (() => {
+    // Always show the whole world during walks (no follow, no zoom pulse)
+    if (walkPos && !walkPos.arrived) {
+      return { x: 0, y: 0, w: 1200, h: 700 };
+    }
+    // Subtle zoom on the focused agent when stationary (working/done)
+    if (focusedAgent) {
+      const pos = STATIONS[focusedAgent];
+      const zoom = 0.7; // less aggressive than 0.5 — keeps context visible
+      const w = 1200 * zoom, h = 700 * zoom;
+      return { x: pos.x - w/2, y: pos.y - h*0.55, w, h };
+    }
+    return { x: 0, y: 0, w: 1200, h: 700 };
+  })();
+
+  // Smooth lerp toward target — NO rotation, slower than before
+  if (!camRef.current) camRef.current = {...targetCam, rotation: 0};
+  const k = 0.04; // gentle, predictable
+  camRef.current = {
+    x: camRef.current.x + (targetCam.x - camRef.current.x) * k,
+    y: camRef.current.y + (targetCam.y - camRef.current.y) * k,
+    w: camRef.current.w + (targetCam.w - camRef.current.w) * k,
+    h: camRef.current.h + (targetCam.h - camRef.current.h) * k,
+    rotation: 0, // locked — no more nausea
+  };
+  const camera = camRef.current;
+  const camCx = camera.x + camera.w/2;
+  const camCy = camera.y + camera.h/2;
+
+  return (
+    <svg viewBox={`${camera.x} ${camera.y} ${camera.w} ${camera.h}`}
+      preserveAspectRatio="xMidYMid meet"
+      style={{position:'absolute',inset:0,width:'100%',height:'100%'}}>
+      <defs>
+        <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#FFD4B8"/>
+          <stop offset="35%" stopColor="#F5C4D0"/>
+          <stop offset="65%" stopColor="#D4C4E8"/>
+          <stop offset="100%" stopColor="#B8D8E8"/>
+        </linearGradient>
+        <radialGradient id="spotlight">
+          <stop offset="0%" stopColor="#FFF" stopOpacity="0.35"/>
+          <stop offset="60%" stopColor="#FFF" stopOpacity="0.1"/>
+          <stop offset="100%" stopColor="#FFF" stopOpacity="0"/>
+        </radialGradient>
+        <filter id="charGlow">
+          <feGaussianBlur stdDeviation="4" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      {/* Sky covers a wide area so panning still shows it */}
+      <rect x="-600" y="-400" width="2400" height="1500" fill="url(#skyGrad)"/>
+
+      {/* Everything below rotates with camera so walker always faces right on screen */}
+      <g transform={`rotate(${camera.rotation}, ${camCx}, ${camCy})`}>
+      {/* Distant mountains */}
+      <g opacity="0.08">
+        <polygon points="-300,500 0,250 300,500" fill="#2C2A35"/>
+        <polygon points="100,500 400,200 700,500" fill="#2C2A35"/>
+        <polygon points="500,500 800,230 1100,500" fill="#2C2A35"/>
+        <polygon points="900,500 1200,260 1500,500" fill="#2C2A35"/>
+      </g>
+      {/* Soft clouds */}
+      <g opacity="0.4" fill="white">
+        <ellipse cx="100" cy="120" rx="80" ry="14"/>
+        <ellipse cx="700" cy="80" rx="100" ry="16"/>
+        <ellipse cx="1100" cy="160" rx="70" ry="12"/>
+      </g>
+
+      {/* DISTANT MAGICAL CASTLE — floating in the sky behind everything */}
+      <Castle cx={620} cy={150} scale={1.4} opacity={0.85}/>
+      {/* far smaller castle for depth */}
+      <Castle cx={1280} cy={210} scale={0.6} opacity={0.45}/>
+      {/* third tiny castle on far left */}
+      <Castle cx={-80} cy={230} scale={0.5} opacity={0.4}/>
+
+      {/* HOT-AIR BALLOONS drifting */}
+      <g transform={`translate(${400 + Math.sin(tick*0.008)*30}, ${180 + Math.cos(tick*0.005)*8})`}>
+        <ellipse cx="0" cy="0" rx="14" ry="17" fill="#E89050"/>
+        <path d="M-14 0 Q-7 8 0 4 Q7 8 14 0" fill="#C87038" opacity="0.4"/>
+        <line x1="-8" y1="14" x2="-3" y2="22" stroke="#5C5768" strokeWidth="0.5"/>
+        <line x1="8" y1="14" x2="3" y2="22" stroke="#5C5768" strokeWidth="0.5"/>
+        <rect x="-4" y="22" width="8" height="5" rx="1" fill="#9B7BAE"/>
+      </g>
+      <g transform={`translate(${950 + Math.cos(tick*0.006)*20}, ${130 + Math.sin(tick*0.004)*10})`}>
+        <ellipse cx="0" cy="0" rx="11" ry="14" fill="#A080B8"/>
+        <path d="M-11 0 Q0 7 11 0" fill="#7A5C90" opacity="0.4"/>
+        <rect x="-3" y="18" width="6" height="4" rx="1" fill="#5C5768"/>
+      </g>
+
+      {/* DRIFTING PETALS / sparkles */}
+      <g opacity="0.6">
+        {Array.from({length:14}).map((_,i) => {
+          const baseX = (i * 137) % 1400 - 100;
+          const baseY = ((i * 89) % 600) - 50;
+          const driftX = Math.sin(tick*0.01 + i)*20;
+          const driftY = ((tick*0.4 + i*40) % 700) - 50;
+          return (
+            <circle key={i} cx={baseX + driftX} cy={baseY + driftY} r={1.5 + (i%3)*0.5}
+              fill={['#F5C4D0','#E89050','#C4A0D0','#FAEFE0'][i%4]} opacity={0.5 + Math.sin(tick*0.05+i)*0.3}/>
+          );
+        })}
+      </g>
+
+      {/* tiny birds */}
+      <g opacity="0.5" stroke="#5C5768" strokeWidth="1" fill="none" strokeLinecap="round">
+        <path d={`M${380 + Math.sin(tick*0.02)*30} 240 Q385 235 390 240 Q395 235 400 240`}/>
+        <path d={`M${850 + Math.cos(tick*0.018)*25} 280 Q855 275 860 280 Q865 275 870 280`}/>
+        <path d="M450 200 Q453 197 456 200 Q459 197 462 200"/>
+        <path d={`M${1100 + Math.sin(tick*0.015)*40} 170 Q1105 167 1110 170`}/>
+      </g>
+
+      {/* FLOATING LANTERNS near each station */}
+      {[
+        {x: STATIONS.pm.x - 30, y: STATIONS.pm.y - 50, c: '#E89050'},
+        {x: STATIONS.engineer.x + 40, y: STATIONS.engineer.y - 60, c: '#F5C4D0'},
+        {x: STATIONS.reviewer.x - 35, y: STATIONS.reviewer.y - 55, c: '#C9A84C'},
+        {x: STATIONS.deployer.x + 35, y: STATIONS.deployer.y - 55, c: '#A080B8'},
+      ].map((l, i) => {
+        const sway = Math.sin(tick*0.02 + i)*4;
+        return (
+          <g key={i} transform={`translate(${l.x + sway}, ${l.y})`}>
+            <line x1="0" y1="-30" x2="0" y2="-3" stroke="#5C5768" strokeWidth="0.6"/>
+            <ellipse cx="0" cy="2" rx="5" ry="6" fill={l.c} opacity="0.85"/>
+            <ellipse cx="0" cy="2" rx="5" ry="6" fill="white" opacity={0.3 + Math.sin(tick*0.08+i)*0.2}/>
+            <rect x="-4" y="-3" width="8" height="2" fill="#7A5C90"/>
+            <rect x="-4" y="6" width="8" height="2" fill="#7A5C90"/>
+            <circle cx="0" cy="2" r="9" fill={l.c} opacity={0.15 + Math.sin(tick*0.08+i)*0.08}/>
+          </g>
+        );
+      })}
+
+      <Architecture/>
+
+      {/* Spotlight on focused agent */}
+      {focusedAgent && (() => {
+        const p = STATIONS[focusedAgent];
+        return <circle cx={p.x} cy={p.y+10} r="80" fill="url(#spotlight)" pointerEvents="none"/>;
+      })()}
+
+      {/* Stationary characters */}
+      {ORDER.map(role => {
+        if (handoff && handoff.from === role) return null; // walking instead
+        const C = CHARS[role];
+        const pos = STATIONS[role];
+        const isActive = agents[role] === 'working';
+        const isDone = agents[role] === 'done';
+        const isFocused = focusedAgent === role;
+        const isCelebrate = agents[role] === 'celebrate';
+        const bob = isActive ? Math.sin(tick*0.18)*2.5
+                  : isCelebrate ? Math.abs(Math.sin(tick*0.3))*-8
+                  : Math.sin(tick*0.04 + role.length)*1;
+        return (
+          <g key={role} transform={`translate(${pos.x}, ${pos.y + bob}) rotate(${-camera.rotation})`}
+             filter={isActive || isFocused ? 'url(#charGlow)' : 'none'}>
+            {/* Active aura ring */}
+            {(isActive || isFocused) && (
+              <>
+                <circle cx="0" cy="14" r="22"
+                  fill="none" stroke={AGENT_C[role]} strokeWidth="1.5" opacity={0.4 + Math.sin(tick*0.15)*0.2}/>
+                <circle cx="0" cy="14" r="28"
+                  fill="none" stroke={AGENT_C[role]} strokeWidth="0.8" opacity={0.2 + Math.sin(tick*0.15+1)*0.15}/>
+              </>
+            )}
+            <C/>
+            {/* Big readable label always above character */}
+            <g transform="translate(0,-32)">
+              <rect x="-32" y="-10" width="64" height="14" rx="2"
+                fill={isActive||isFocused?AGENT_C[role]:'rgba(255,245,233,0.95)'}
+                stroke={AGENT_C[role]} strokeWidth="1"/>
+              <text x="0" y="0" textAnchor="middle"
+                style={{fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:600,letterSpacing:'0.18em',
+                  fill:isActive||isFocused?'white':AGENT_C[role]}}>
+                {NAMES[role]}
+              </text>
+            </g>
+            {isDone && (
+              <g transform="translate(13,-10)">
+                <circle r="6" fill="#5BA3A3"/>
+                <text x="0" y="2.5" textAnchor="middle" fill="white" fontSize="8" fontWeight="700">✓</text>
+              </g>
+            )}
+          </g>
+        );
+      })}
+
+      {/* Walking character — actually walks the stair waypoints */}
+      {handoff && walkPos && (() => {
+        const C = CHARS[handoff.from];
+        const isWalking = !walkPos.arrived;
+        const stepBob = isWalking ? Math.abs(Math.sin(tick*0.35))*-3 : 0;
+        const d = walkPos.gp.dir;
+        const moving = isWalking && Math.hypot(d[0],d[1],d[2]) > 0.001;
+        // Fade out near end of arrival hold
+        const fadeOut = walkPos.arrived ? 1 - Math.max(0,(walkPos.arrivalT-0.7)/0.3) : 1;
+        return (
+          <g transform={`translate(${walkPos.x}, ${walkPos.y + stepBob}) rotate(${-camera.rotation})`} opacity={fadeOut} filter="url(#charGlow)">
+            {moving && (
+              <g opacity={0.4 + Math.sin(tick*0.35)*0.3}>
+                <ellipse cx="-4" cy="21" rx="5" ry="1.2" fill="white"/>
+                <ellipse cx="4" cy="21" rx="4" ry="1" fill="white" opacity="0.6"/>
+              </g>
+            )}
+            <circle cx="0" cy="19" r="22" fill={AGENT_C[handoff.from]} opacity="0.16"/>
+            <circle cx="0" cy="19" r="30" fill="none" stroke={AGENT_C[handoff.from]} strokeWidth="0.6" opacity={0.3 + Math.sin(tick*0.12)*0.15}/>
+            <C/>
+            <g transform="translate(0,-32)" opacity="0.95">
+              <rect x="-32" y="-10" width="64" height="14" rx="2"
+                fill={AGENT_C[handoff.from]} stroke={AGENT_C[handoff.from]} strokeWidth="1"/>
+              <text x="0" y="0" textAnchor="middle"
+                style={{fontFamily:"'DM Mono',monospace",fontSize:8,fontWeight:600,letterSpacing:'0.18em',fill:'white'}}>
+                {NAMES[handoff.from]}
+              </text>
+            </g>
+          </g>
+        );
+      })()}
+
+      {/* SPEECH BUBBLES during arrival — walker hands off to receiver */}
+      {handoff && walkPos && walkPos.arrived && (() => {
+        const recv = STATIONS[handoff.to];
+        const senderMsg = {
+          'pm-engineer': 'Spec ready ✨',
+          'engineer-reviewer': 'Code shipped',
+          'reviewer-deployer': 'Approved ✓',
+        }[`${handoff.from}-${handoff.to}`] || 'Here you go';
+        const recvMsg = {
+          'pm-engineer': 'On it!',
+          'engineer-reviewer': 'Reviewing…',
+          'reviewer-deployer': 'Shipping it',
+        }[`${handoff.from}-${handoff.to}`] || 'Got it';
+        // Bubble appearance phases: sender bubble first, then receiver
+        const t1 = Math.min(1, walkPos.arrivalT / 0.4);
+        const t2 = Math.min(1, Math.max(0, (walkPos.arrivalT - 0.4) / 0.4));
+        const Bubble = ({ x, y, text, color, scale, anchor='left' }) => (
+          <g transform={`translate(${x},${y}) scale(${scale})`} opacity={scale}>
+            <rect x={anchor==='left'?-2:-text.length*4-6} y="-12" width={text.length*4+8} height="16" rx="7"
+              fill="white" stroke={color} strokeWidth="1"/>
+            <path d={anchor==='left'?"M2 4 L0 8 L8 4 Z":"M-2 4 L0 8 L-8 4 Z"} fill="white" stroke={color} strokeWidth="1"/>
+            <text x={anchor==='left'?text.length*2+2:-text.length*2-2} y="-1" textAnchor="middle"
+              style={{fontFamily:"'DM Mono',monospace",fontSize:7,fontWeight:600,fill:color,letterSpacing:'0.04em'}}>
+              {text}
+            </text>
+          </g>
+        );
+        return (
+          <g>
+            {t1 > 0 && <Bubble x={walkPos.x+10} y={walkPos.y-30} text={senderMsg} color={AGENT_C[handoff.from]} scale={t1} anchor="left"/>}
+            {t2 > 0 && <Bubble x={recv.x-10} y={recv.y-30} text={recvMsg} color={AGENT_C[handoff.to]} scale={t2} anchor="right"/>}
+            {/* sparkle artifact crossing between */}
+            {t2 > 0 && (() => {
+              const px = walkPos.x + (recv.x - walkPos.x) * t2;
+              const py = walkPos.y + (recv.y - walkPos.y) * t2 - 8;
+              return (
+                <g transform={`translate(${px},${py})`}>
+                  <circle r="4" fill={AGENT_C[handoff.to]} opacity="0.8"/>
+                  <circle r="8" fill="none" stroke={AGENT_C[handoff.to]} strokeWidth="0.6" opacity="0.5">
+                    <animate attributeName="r" values="4;12;4" dur="0.8s" repeatCount="indefinite"/>
+                  </circle>
+                </g>
+              );
+            })()}
+          </g>
+        );
+      })()}
+
+      {/* Courier orb — only during walking, hides during arrival */}
+      {courierActive && handoff && walkPos && !walkPos.arrived && (
+        <g transform={`translate(${walkPos.x + 14}, ${walkPos.y - 8})`}>
+          <circle r="6" fill={AGENT_C[handoff.to]} opacity="0.3">
+            <animate attributeName="r" values="5;10;5" dur="0.8s" repeatCount="indefinite"/>
+          </circle>
+          <rect x="-3" y="-3" width="6" height="6" rx="0.5" fill={AGENT_C[handoff.to]}
+            transform="rotate(45)"/>
+        </g>
+      )}
+      </g>
+    </svg>
+  );
+}
+
+// ─── BANNER ───
+function Banner({ text, eyebrow, mode }) {
+  const ac = mode==='voting'?'#D4605E'
+            :mode==='building'?'#C9A84C'
+            :mode==='complete'?'#5BA3A3'
+            :mode==='flagged'?'#D4605E'
+            :mode==='revising'?'#C9A84C'
+            :'#5C5768';
+  return (
+    <header style={{background: mode==='flagged' ? 'rgba(212,96,94,0.16)' : mode==='revising' ? 'rgba(201,168,76,0.14)' : 'rgba(255,245,233,0.92)',backdropFilter:'blur(20px)',
+      borderBottom:'1px solid rgba(44,42,53,0.06)',padding:'12px 28px',
+      display:'flex',alignItems:'center',gap:14,zIndex:30,flexShrink:0}}>
+      <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:500,letterSpacing:'0.2em',color:ac,textTransform:'uppercase',padding:'4px 10px',border:`1.5px solid ${ac}`,borderRadius:3,lineHeight:1}}>{eyebrow}</span>
+      <span style={{flex:1,fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(14px,1.8vw,22px)',fontWeight:600,color:'#2C2A35',fontStyle:'italic',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{text}</span>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:500,letterSpacing:'0.14em',padding:'4px 10px',borderRadius:99,background:'rgba(91,163,163,0.1)',border:'1px solid rgba(91,163,163,0.25)',color:'#5BA3A3',display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+        <span style={{width:6,height:6,borderRadius:'50%',background:'#5BA3A3',animation:'dotPulse 1.5s ease-in-out infinite',display:'inline-block'}}/> LIVE
+      </div>
+    </header>
+  );
+}
+
+// ─── HUD ───
+function HUD({ timer, logs, focusedAgent }) {
+  const m=Math.floor(timer/60),s=timer%60;
+  const clock=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return (
+    <footer style={{background:'rgba(255,245,233,0.92)',backdropFilter:'blur(16px)',
+      borderTop:'1px solid rgba(44,42,53,0.06)',padding:'10px 28px',
+      display:'grid',gridTemplateColumns:'auto auto 1fr',gap:24,alignItems:'center',zIndex:30,flexShrink:0}}>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontFamily:"'DM Mono',monospace",fontVariantNumeric:'tabular-nums',fontSize:'clamp(22px,2.8vw,36px)',fontWeight:500,color:'#2C2A35',lineHeight:1}}>{clock}</div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.2em',color:'#5C5768',marginTop:2,textTransform:'uppercase'}}>Elapsed</div>
+      </div>
+      {focusedAgent ? (
+        <div style={{paddingLeft:20,borderLeft:'1px solid rgba(44,42,53,0.08)',minWidth:140}}>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.2em',color:AGENT_C[focusedAgent],textTransform:'uppercase',fontWeight:600}}>● Focused</div>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,color:'#2C2A35',fontStyle:'italic',lineHeight:1.1,marginTop:2}}>{NAMES[focusedAgent].toLowerCase().replace(/^./,c=>c.toUpperCase())}</div>
+          <div style={{fontSize:11,color:'#5C5768',marginTop:1}}>{ROLES[focusedAgent]}</div>
+        </div>
+      ) : <div/>}
+      <div style={{overflow:'hidden',display:'flex',flexDirection:'column',gap:2}}>
+        {logs.slice(-3).map((l,i) => (
+          <div key={l.id||i} style={{fontSize:12,color:'#5C5768',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',animation:'fadeUp 0.3s ease-out'}}>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:9,fontWeight:600,color:AGENT_C[l.agent]||'#5C5768',marginRight:8,letterSpacing:'0.12em',textTransform:'uppercase'}}>{NAMES[l.agent]||'SYS'}</span>
+            {l.msg}
+          </div>
+        ))}
+      </div>
+    </footer>
+  );
+}
+
+// ─── PROMPT CARD (during build) ───
+function PromptCard({ prompt }) {
+  if(!prompt) return null;
+  return (
+    <div style={{position:'absolute',top:18,left:'50%',transform:'translateX(-50%)',
+      background:'rgba(255,255,255,0.92)',backdropFilter:'blur(14px)',
+      border:'1px solid rgba(44,42,53,0.08)',borderRadius:10,
+      padding:'10px 22px',zIndex:25,maxWidth:'80%',
+      boxShadow:'0 4px 20px rgba(44,42,53,0.06)'}}>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:'0.22em',color:'#A080B8',textTransform:'uppercase',marginBottom:3,textAlign:'center'}}>Now Building</div>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,color:'#2C2A35',fontStyle:'italic',textAlign:'center'}}>{prompt}</div>
+    </div>
+  );
+}
+
+// ─── VOTE PANEL ───
+function VotePanel({ votes, voted, onVote, countdown, winner }) {
+  const total=votes.reduce((a,b)=>a+b,0)||1;
+  const vC=['#D4605E','#5BA3A3','#C9A84C'];
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:10,width:'min(560px,86%)',zIndex:25}}>
+      {OPTS.map((opt,i) => {
+        const pct=(votes[i]/total*100).toFixed(1);
+        const isW=winner===opt.id, isV=voted===opt.id;
+        return (
+          <button key={opt.id} onClick={()=>onVote(opt.id)} disabled={voted!==null||winner!==null}
+            style={{display:'flex',alignItems:'center',gap:14,padding:'14px 18px',
+              background:isW?'rgba(201,168,76,0.1)':isV?'rgba(91,163,163,0.1)':'rgba(255,255,255,0.85)',
+              border:`1.5px solid ${isW?'#C9A84C':isV?'#5BA3A3':'rgba(44,42,53,0.08)'}`,
+              borderRadius:12,cursor:voted?'default':'pointer',color:'#2C2A35',
+              fontFamily:'inherit',textAlign:'left',width:'100%',transition:'all 0.2s',
+              backdropFilter:'blur(12px)',boxShadow:'0 2px 8px rgba(44,42,53,0.06)'}}>
+            <span style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:700,fontSize:26,color:vC[i],minWidth:24}}>{opt.id}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>
+                {opt.label}
+                {isV&&<span style={{marginLeft:8,padding:'2px 7px',borderRadius:99,background:'#5BA3A3',color:'white',fontSize:9,fontWeight:600,fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em'}}>YOUR VOTE</span>}
+                {isW&&<span style={{marginLeft:8,padding:'2px 7px',borderRadius:99,background:'#C9A84C',color:'white',fontSize:9,fontWeight:600,fontFamily:"'DM Mono',monospace",letterSpacing:'0.1em'}}>WINNER</span>}
+              </div>
+              <div style={{height:4,background:'rgba(44,42,53,0.05)',borderRadius:99,overflow:'hidden'}}>
+                <div style={{height:'100%',width:`${pct}%`,background:vC[i],borderRadius:99,transition:'width 0.6s cubic-bezier(0.22,1,0.36,1)',opacity:0.6}}/>
+              </div>
+            </div>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:16,fontWeight:500,color:vC[i],minWidth:40,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{votes[i]}</span>
+          </button>
+        );
+      })}
+      {countdown>0&&!winner&&(
+        <div style={{display:'flex',justifyContent:'center',gap:8,marginTop:4,fontFamily:"'DM Mono',monospace",fontSize:13,color:'#5C5768'}}>
+          Closes in <span style={{fontSize:20,fontWeight:500,color:countdown<=5?'#D4605E':'#2C2A35'}}>{countdown}</span> sec
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IdleScreen() {
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:18,zIndex:25,textAlign:'center',padding:'30px 40px',background:'rgba(255,245,233,0.4)',backdropFilter:'blur(8px)',borderRadius:16}}>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:600,fontStyle:'italic',fontSize:'clamp(26px,4vw,44px)',lineHeight:1.1,color:'#2C2A35'}}>Choose what we build,<br/><span style={{color:'#D4605E'}}>together</span></div>
+      <div style={{fontSize:'clamp(12px,1.2vw,15px)',color:'#5C5768',maxWidth:'42ch',lineHeight:1.6}}>Four agents — Architect, Builder, Inspector, Courier — will design, code, review, and ship it live. Voting opens when the admin starts the round.</div>
+      <div style={{marginTop:4,padding:'10px 22px',borderRadius:99,background:'rgba(212,96,94,0.08)',border:'1px solid rgba(212,96,94,0.25)',color:'#D4605E',fontFamily:"'DM Mono',monospace",fontSize:11,fontWeight:600,letterSpacing:'0.18em',textTransform:'uppercase'}}>Awaiting voting</div>
+    </div>
+  );
+}
+
+function ResultCard({ url, elapsed, name, show }) {
+  if(!show) return null;
+  const cleanUrl = url ? url.replace(/^https?:\/\//,'') : '';
+  // Build a deterministic-looking short artifact slug from the project name
+  const slug = (name || 'project').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24).replace(/^-|-$/g,'') || 'project';
+  const ts = (() => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2,'0');
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
+  })();
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:14,padding:'28px 40px',background:'rgba(255,255,255,0.92)',backdropFilter:'blur(20px)',border:'1px solid rgba(91,163,163,0.25)',borderRadius:16,boxShadow:'0 8px 40px rgba(44,42,53,0.1)',zIndex:25,animation:'fadeUp 0.6s ease-out',maxWidth:'86vw'}}>
+      <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:600,letterSpacing:'0.2em',color:'#5BA3A3',textTransform:'uppercase'}}>Built in {elapsed} — Live now</span>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:700,fontSize:'clamp(22px,2.6vw,34px)',color:'#2C2A35',textAlign:'center',lineHeight:1.15,fontStyle:'italic'}}>{name || 'Project'}</div>
+      <a href={url || '#'} target="_blank" rel="noopener" style={{display:'inline-flex',alignItems:'center',gap:10,padding:'12px 24px',background:'#2C2A35',color:'#FFF5E9',borderRadius:8,textDecoration:'none',fontFamily:"'DM Mono',monospace",fontSize:'clamp(14px,1.6vw,20px)',fontWeight:500}}>{cleanUrl || 'open'} ↗</a>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:3,padding:'10px 14px',background:'rgba(44,42,53,0.04)',borderRadius:6,border:'1px solid rgba(44,42,53,0.06)',fontFamily:"'DM Mono',monospace",fontSize:11,color:'#5C5768',width:'100%',maxWidth:480}}>
+        <span><span style={{color:'#5BA3A3'}}>$</span> npm run build --prod</span>
+        <span style={{color:'#3E8E80'}}>✓ 142 tests passed · 0 failures</span>
+        <span>Deployed: {ts}</span>
+        <span>Bundle: <span style={{color:'#2C2A35'}}>{slug}-build-{Math.floor(Date.now()/1000).toString(36).slice(-6).toUpperCase()}.tar.gz</span></span>
+      </div>
+      <div style={{display:'flex',gap:18,fontFamily:"'DM Mono',monospace",fontSize:10,color:'#5C5768',letterSpacing:'0.06em',textTransform:'uppercase'}}>
+        <span><strong style={{color:'#2C2A35',marginRight:3}}>{elapsed}</strong>elapsed</span>
+        <span><strong style={{color:'#2C2A35',marginRight:3}}>0</strong>human edits</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── DEMO ENGINE ───
+function useDemoEngine() {
+  const [phase,setPhase]=useState('idle');
+  const [agents,setAgents]=useState({pm:'idle',engineer:'idle',reviewer:'idle',deployer:'idle'});
+  const [activeAgent,setActiveAgent]=useState(null);
+  const [focusedAgent,setFocusedAgent]=useState(null);
+  const [handoff,setHandoff]=useState(null);
+  const [courierActive,setCourierActive]=useState(false);
+  const [votes,setVotes]=useState([0,0,0]);
+  const [voted,setVoted]=useState(null);
+  const [countdown,setCountdown]=useState(30);
+  const [winner,setWinner]=useState(null);
+  const [timer,setTimer]=useState(0);
+  const [logs,setLogs]=useState([]);
+  const [showResult,setShowResult]=useState(false);
+  const [prompt,setPrompt]=useState(null);
+  const logId=useRef(0); const tRefs=useRef([]); const timerIv=useRef(null);
+
+  const addLog=useCallback((agent,msg)=>{setLogs(prev=>[...prev.slice(-8),{id:logId.current++,agent,msg}])},[]);
+
+  const focusOn = useCallback((agent) => {
+    setFocusedAgent(agent);
+  }, []);
+
+  const doHandoff=useCallback((from,to)=>{
+    setHandoff({from,to,startedAt:Date.now()});
+    setCourierActive(true);
+    setAgents(a=>({...a,[from]:'done'}));
+    setFocusedAgent(null);
+    const t1=setTimeout(()=>{
+      setCourierActive(false);
+      setHandoff(null);
+      setAgents(a=>({...a,[to]:'working'}));
+      setActiveAgent(to);
+      setTimeout(()=>setFocusedAgent(to), 200);
+    },4800);
+    tRefs.current.push(t1);
+  },[]);
+
+  // ─── SSE-driven state — voting + build come from /factory/api/live-stream ───
+  const [siteUrl,setSiteUrl]=useState('');
+  const [siteName,setSiteName]=useState('');
+  const [winnerLabel,setWinnerLabel]=useState(null);
+  // rejection: null | 'flagged' | 'revising' — drives the moneyshot banner
+  const [rejection,setRejection]=useState(null);
+  const cdIv=useRef(null);
+  const activeAgentRef=useRef(null);
+  const rejectTimerRef=useRef(null);
+  const MAP_AGENT={pm:'pm',coder:'engineer',engineer:'engineer',reviewer:'reviewer',deployer:'deployer'};
+
+  const setAgentWorking=useCallback((agent)=>{
+    const prev=activeAgentRef.current;
+    if(prev && prev!==agent){
+      doHandoff(prev,agent);
+      activeAgentRef.current=agent;
+    } else {
+      setAgents(a=>({...a,[agent]:'working'}));
+      setActiveAgent(agent);
+      setFocusedAgent(agent);
+      activeAgentRef.current=agent;
+    }
+  },[doHandoff]);
+
+  const handleEvent=useCallback((evt)=>{
+    switch(evt.type){
+      case 'voting_state':{
+        const vs=evt.votingState||evt;
+        const newVotes=(vs.options||[]).map(o=>o.votes||0);
+        setVotes(newVotes);
+        if(vs.status==='open'){
+          setPhase('voting');
+          setWinner(null);
+          setWinnerLabel(null);
+          setShowResult(false);
+          if(cdIv.current)clearInterval(cdIv.current);
+          const tickCd=()=>{
+            const remaining=Math.max(0,Math.ceil(((vs.endsAt||0)-Date.now())/1000));
+            setCountdown(remaining);
+          };
+          tickCd();
+          cdIv.current=setInterval(tickCd,250);
+        } else if(vs.status==='closed'){
+          setWinner(vs.winner);
+          if(vs.options){
+            const w=vs.options.find(o=>o.id===vs.winner);
+            if(w)setWinnerLabel(w.label);
+          }
+          if(cdIv.current){clearInterval(cdIv.current);cdIv.current=null;}
+          setCountdown(0);
+        } else { // idle
+          setPhase('idle');
+          setVoted(null);
+          try{localStorage.removeItem('factory_voted');}catch(_){}
+          setWinner(null);
+          setWinnerLabel(null);
+          setVotes([0,0,0]);
+          setCountdown(30);
+          setShowResult(false);
+          setPrompt(null);
+          setSiteUrl('');
+          setSiteName('');
+          if(cdIv.current){clearInterval(cdIv.current);cdIv.current=null;}
+        }
+        break;
+      }
+      case 'build_started':{
+        setPhase('building');
+        setTimer(0);
+        setPrompt(evt.fullPrompt||evt.brief||'Building');
+        setLogs([]);
+        setShowResult(false);
+        setSiteUrl('');
+        setSiteName(evt.brief||'');
+        setRejection(null);
+        if(rejectTimerRef.current){clearTimeout(rejectTimerRef.current);rejectTimerRef.current=null;}
+        setAgents({pm:'idle',engineer:'idle',reviewer:'idle',deployer:'idle'});
+        setActiveAgent(null);
+        setFocusedAgent(null);
+        setHandoff(null);
+        setCourierActive(false);
+        activeAgentRef.current=null;
+        if(timerIv.current)clearInterval(timerIv.current);
+        timerIv.current=setInterval(()=>setTimer(t=>t+1),1000);
+        addLog('system','Build started');
+        break;
+      }
+      case 'agent_status':{
+        const target=MAP_AGENT[evt.agent]||evt.agent;
+        if(evt.status==='working'){
+          setAgentWorking(target);
+          if(evt.message)addLog(target,evt.message);
+        } else if(evt.status==='done'){
+          setAgents(a=>({...a,[target]:'done'}));
+        } else {
+          setAgents(a=>({...a,[target]:'idle'}));
+        }
+        break;
+      }
+      case 'chat_message':{
+        const target=MAP_AGENT[evt.agent]||evt.agent||'system';
+        if(evt.message)addLog(target,evt.message);
+        break;
+      }
+      case 'review_result':
+        addLog('reviewer','Score '+evt.score+'/10'+(evt.passed?' ✓':''));
+        if(rejectTimerRef.current){clearTimeout(rejectTimerRef.current);rejectTimerRef.current=null;}
+        if(!evt.passed){
+          // The moneyshot — Reviewer flagged. Banner flips for 2.5s, then to "revising".
+          setRejection('flagged');
+          rejectTimerRef.current=setTimeout(()=>{
+            setRejection('revising');
+            rejectTimerRef.current=null;
+          },2600);
+        } else {
+          // Approved on this pass — clear rejection state if any
+          setRejection(null);
+        }
+        break;
+      case 'build_complete':{
+        if(timerIv.current){clearInterval(timerIv.current);timerIv.current=null;}
+        const elapsed=evt.elapsed!=null?evt.elapsed:timer;
+        setTimer(elapsed);
+        setSiteUrl(evt.siteUrl||'');
+        const name=(evt.plan&&evt.plan.projectName)||evt.brief||siteName||'Project';
+        setSiteName(name);
+        setAgents({pm:'celebrate',engineer:'celebrate',reviewer:'celebrate',deployer:'celebrate'});
+        setActiveAgent(null);
+        setFocusedAgent(null);
+        activeAgentRef.current=null;
+        setTimeout(()=>{
+          setPhase('complete');
+          setShowResult(true);
+        },1200);
+        break;
+      }
+      case 'spectator_count':
+      case 'celebrate':
+      case 'connected':
+      case 'heartbeat':
+        break;
+      case 'error':
+        addLog('system','Error: '+(evt.message||'unknown'));
+        break;
+    }
+  },[addLog,setAgentWorking,timer,siteName]);
+
+  // SSE connect with reconnect
+  useEffect(()=>{
+    let es=null,reconnectDelay=2000,stopped=false;
+    const connect=()=>{
+      if(stopped)return;
+      try{if(es)es.close();}catch(_){}
+      es=new EventSource('/factory/api/live-stream');
+      es.onopen=()=>{reconnectDelay=2000;};
+      es.onmessage=(e)=>{try{handleEvent(JSON.parse(e.data));}catch(_){}};
+      es.onerror=()=>{
+        try{es.close();}catch(_){}
+        es=null;
+        if(!stopped)setTimeout(connect,reconnectDelay);
+        reconnectDelay=Math.min(reconnectDelay*1.5,20000);
+      };
+    };
+    connect();
+    // Restore voted state from localStorage
+    try{
+      const v=localStorage.getItem('factory_voted');
+      if(v)setVoted(parseInt(v,10));
+    }catch(_){}
+    return ()=>{
+      stopped=true;
+      try{if(es)es.close();}catch(_){}
+      if(timerIv.current)clearInterval(timerIv.current);
+      if(cdIv.current)clearInterval(cdIv.current);
+      tRefs.current.forEach(clearTimeout);
+    };
+  },[handleEvent]);
+
+  const handleVote=useCallback((id)=>{
+    if(voted)return;
+    setVoted(id);
+    try{localStorage.setItem('factory_voted',String(id));}catch(_){}
+    fetch('/factory/api/vote',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({option:id})
+    }).catch(()=>{
+      setVoted(null);
+      try{localStorage.removeItem('factory_voted');}catch(_){}
+    });
+  },[voted]);
+
+  return {phase,agents,activeAgent,focusedAgent,handoff,courierActive,votes,voted,countdown,winner,winnerLabel,timer,logs,showResult,prompt,siteUrl,siteName,rejection,handleVote};
+}
+
+// ─── MAIN APP ───
+function MonumentApp() {
+  const d=useDemoEngine();
+  const m = Math.floor((d.timer||0)/60), s = (d.timer||0)%60;
+  const elapsedStr = m + ':' + String(s).padStart(2,'0');
+  const titleForBuild = d.winnerLabel || d.siteName || d.prompt || 'Project';
+  // During build, the rejection state takes over the banner — the moneyshot
+  const buildBanner = d.rejection==='flagged'
+    ? {text:'Reviewer flagged: confidence below threshold — sending back to Coder',eyebrow:'FLAGGED',mode:'flagged'}
+    : d.rejection==='revising'
+    ? {text:'Revising — re-running checks',eyebrow:'REVISING',mode:'revising'}
+    : {text:`Constructing: ${titleForBuild}`,eyebrow:'BUILDING',mode:'building'};
+  const bannerCfg={
+    idle:{text:'Awaiting voting — admin opens the round',eyebrow:'STAND BY',mode:'idle'},
+    voting:{text:d.winner?`Selected: ${d.winnerLabel||''}`:'Cast your vote — what shall we build?',eyebrow:d.winner?'WINNER':'VOTE',mode:d.winner?'complete':'voting'},
+    building:buildBanner,
+    complete:{text:'Construction complete',eyebrow:'DELIVERED',mode:'complete'},
+  }[d.phase];
+
+  return (
+    <div style={{display:'grid',gridTemplateRows:'auto 1fr auto',height:'100dvh',position:'relative',overflow:'hidden'}}>
+      <Banner {...bannerCfg}/>
+      <main style={{position:'relative',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',zIndex:2}}>
+        <Scene agents={d.agents} activeAgent={d.activeAgent} focusedAgent={d.focusedAgent}
+          handoff={d.handoff} courierActive={d.courierActive}/>
+        {d.phase==='building' && <PromptCard prompt={d.prompt}/>}
+        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',zIndex:20,pointerEvents:'none'}}>
+          <div style={{pointerEvents:'auto'}}>
+            {d.phase==='idle'&&<IdleScreen/>}
+            {d.phase==='voting'&&<VotePanel votes={d.votes} voted={d.voted} onVote={d.handleVote} countdown={d.countdown} winner={d.winner}/>}
+            {d.phase==='complete'&&<ResultCard url={d.siteUrl} name={d.siteName||d.winnerLabel} elapsed={elapsedStr} show={d.showResult}/>}
+          </div>
+        </div>
+      </main>
+      <HUD timer={d.timer} logs={d.logs} focusedAgent={d.focusedAgent}/>
+    </div>
+  );
+}
+
+window.MonumentApp = MonumentApp;

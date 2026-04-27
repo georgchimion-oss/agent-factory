@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Agent Factory — Miami Neon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Big+Shoulders+Display:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#0b0a3a;--indigo:#1f1466;--magenta:#b1247a;--coral:#ff8a5c;
+  --pink:#FF2D7B;--teal:#0FE4D4;--gold:#FFC977;--cream:#FFF1D9;
+  --pm:#4A9EFF;--eng:#10E0B0;--rev:#C58BFF;--ship:#FF8A5C;
+}
+html,body{width:100%;height:100dvh;overflow:hidden;background:var(--navy);color:var(--cream);font-family:'Outfit',sans-serif;-webkit-font-smoothing:antialiased}
+#root{width:100%;height:100%}
+
+/* === ANIMATIONS === */
+@keyframes breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.015)}}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(0.08)}}
+@keyframes walkBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes legSwing{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+@keyframes armSwing{from{transform:rotate(-18deg)}to{transform:rotate(18deg)}}
+@keyframes workBob{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-3px) rotate(-1deg)}75%{transform:translateY(-3px) rotate(1deg)}}
+@keyframes typing{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}50%{transform:rotate(0)}75%{transform:rotate(8deg)}}
+@keyframes inspect{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+@keyframes celebrate{0%{transform:translateY(0) scale(1)}30%{transform:translateY(-20px) scale(1.08)}50%{transform:translateY(-24px) scale(1.1)}70%{transform:translateY(-20px) scale(1.08)}100%{transform:translateY(0) scale(1)}}
+@keyframes celebrateArms{0%,100%{transform:rotate(0)}50%{transform:rotate(-60deg)}}
+@keyframes floatUp{0%{transform:translateY(0) scale(1);opacity:0.7}100%{transform:translateY(-60px) scale(0.4);opacity:0}}
+@keyframes gridScroll{from{background-position-y:0}to{background-position-y:20px}}
+@keyframes pulseDot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:0.5}}
+@keyframes courierFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-8px) rotate(2deg)}}
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes typewriter{from{width:0}to{width:100%}}
+@keyframes countdownPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04);text-shadow:0 0 30px var(--pink)}}
+@keyframes progressSurge{0%{width:var(--from)}100%{width:var(--to)}}
+@keyframes shineSweep{0%{left:-30%}100%{left:130%}}
+
+/* SVG character animation classes */
+.char-idle .char-body{animation:breathe 3.5s ease-in-out infinite}
+.char-idle .eyes{animation:blink 4s ease-in-out infinite}
+.char-working .char-body{animation:workBob 1.2s ease-in-out infinite}
+.char-working .eyes{animation:blink 3s ease-in-out infinite}
+.char-working[data-role="engineer"] .arm-r{animation:typing 0.5s ease-in-out infinite;transform-origin:56px 50px}
+.char-working[data-role="reviewer"] .head-group{animation:inspect 2s ease-in-out infinite}
+.char-walking .char-body{animation:walkBob 0.32s ease-in-out infinite}
+.char-walking .leg-l{animation:legSwing 0.32s ease-in-out infinite alternate;transform-origin:33px 76px}
+.char-walking .leg-r{animation:legSwing 0.32s ease-in-out infinite alternate-reverse;transform-origin:47px 76px}
+.char-walking .arm-l{animation:armSwing 0.32s ease-in-out infinite alternate-reverse;transform-origin:24px 48px}
+.char-walking .arm-r{animation:armSwing 0.32s ease-in-out infinite alternate;transform-origin:56px 48px}
+.char-done .char-body{filter:drop-shadow(0 0 12px var(--c))}
+.char-celebrate .char-body{animation:celebrate 0.8s ease-in-out infinite}
+.char-celebrate .arm-l,.char-celebrate .arm-r{animation:celebrateArms 0.8s ease-in-out infinite;transform-origin:40px 48px}
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="miami-neon.jsx"></script>
+<script type="text/babel">
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(window.MiamiNeonApp));
+</script>
+</body>
+</html>

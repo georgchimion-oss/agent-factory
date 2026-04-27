@@ -1,0 +1,3267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#F6F4EE" />
+<title>Meridian Compliance — Intake Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Serif:ital,wght@1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ---------- Tokens ---------- */
+  :root {
+    --bg:        #F6F4EE;            /* warm paper */
+    --bg-2:      #EFEBE0;            /* darker paper for rails */
+    --surface:   #FFFFFF;
+    --surface-2: #FBFAF5;
+    --ink:       #14171A;            /* near-black */
+    --ink-2:     #3B4046;
+    --ink-3:     #6B7079;
+    --ink-4:     #9CA0A8;
+    --rule:      #E4DFD2;            /* hairline */
+    --rule-2:    #D8D2C2;
+    --accent:    #0F766E;            /* deep teal */
+    --accent-ink:#0A4F4A;
+    --accent-soft:#E2EFEC;
+    --ok:        #2F7D5C;
+    --ok-soft:   #E1EEE6;
+    --warn:      #B7791F;
+    --warn-soft: #F5ECD7;
+    --bad:       #B23A3A;
+    --bad-soft:  #F2DEDB;
+    --info:      #2E5A8A;
+    --info-soft: #E0E8F2;
+
+    --radius:    4px;
+    --radius-lg: 8px;
+    --shadow-1:  0 1px 0 rgba(20,23,26,0.04), 0 1px 2px rgba(20,23,26,0.04);
+    --shadow-2:  0 1px 0 rgba(20,23,26,0.05), 0 8px 24px -12px rgba(20,23,26,0.12);
+
+    --mono:      'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans:      'IBM Plex Sans', system-ui, sans-serif;
+    --serif:     'IBM Plex Serif', Georgia, serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 13.5px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(15,118,110,0.04) 0, transparent 40%),
+      radial-gradient(circle at 100% 100%, rgba(20,23,26,0.03) 0, transparent 50%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  /* Subtle paper grain */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.35;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.09  0 0 0 0 0.1  0 0 0 0.04 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  ::selection { background: var(--accent); color: #fff; }
+
+  .mono { font-family: var(--mono); font-feature-settings: "ss01","cv11"; letter-spacing: -0.005em; }
+  .uc   { text-transform: uppercase; letter-spacing: 0.12em; font-size: 10.5px; font-weight: 600; color: var(--ink-3); }
+  .num  { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ---------- App shell ---------- */
+  .app {
+    position: relative; z-index: 1;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 0 28px 64px;
+  }
+
+  /* Top thin marquee */
+  .ribbon {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 28px;
+    background: var(--ink);
+    color: #DCD6C5;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid #000;
+  }
+  .ribbon .left { display: flex; gap: 18px; align-items: center; }
+  .ribbon .pulse { width: 6px; height: 6px; background: #6BD3B0; border-radius: 50%; box-shadow: 0 0 0 0 rgba(107,211,176,0.6); animation: pulse 2.4s infinite; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(107,211,176,0.55); }
+    70%  { box-shadow: 0 0 0 6px rgba(107,211,176,0); }
+    100% { box-shadow: 0 0 0 0 rgba(107,211,176,0); }
+  }
+  .ribbon .right { display: flex; gap: 18px; opacity: 0.85; }
+  .ribbon .right span b { color: #fff; font-weight: 500; }
+
+  /* ---------- Header ---------- */
+  header.brandbar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 24px;
+    padding: 28px 0 18px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .brandmark {
+    width: 38px; height: 38px;
+    border: 1.5px solid var(--ink);
+    border-radius: 50%;
+    display: grid; place-items: center;
+    position: relative;
+    background: var(--surface);
+  }
+  .brandmark::after {
+    content: ""; position: absolute; inset: 6px;
+    border: 1px solid var(--ink);
+    border-radius: 50%;
+    border-top-color: var(--accent);
+    border-right-color: var(--accent);
+  }
+  .brandmark::before {
+    content: ""; position: absolute;
+    width: 5px; height: 5px; background: var(--accent); border-radius: 50%;
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+  }
+  .brand h1 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.012em;
+  }
+  .brand h1 em {
+    font-style: italic; font-family: var(--serif); color: var(--ink-2); font-weight: 400;
+  }
+  .brand .sub {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-3);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--ink);
+    border-radius: 99px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--ink);
+    color: var(--bg);
+  }
+  .pill.ghost { background: transparent; color: var(--ink); }
+  .pill .dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; }
+  .pill.ghost .dot { background: var(--accent); }
+
+  .header-right { display: flex; align-items: center; gap: 20px; }
+  .org {
+    text-align: right;
+    line-height: 1.25;
+  }
+  .org .label { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; }
+  .org .name  { font-size: 13px; font-weight: 500; color: var(--ink); }
+
+  .operator {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 12px 6px 6px;
+    border: 1px solid var(--rule-2);
+    border-radius: 99px;
+    background: var(--surface);
+  }
+  .operator .avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, #0F766E 0%, #144842 100%);
+    color: #fff;
+    display: grid; place-items: center;
+    font-family: var(--mono); font-weight: 600; font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  .operator .who { line-height: 1.15; }
+  .operator .who .n { font-size: 12px; font-weight: 500; }
+  .operator .who .id { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+
+  /* ---------- Filter bar ---------- */
+  .filters {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    padding: 14px 0 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .filters .group { display: flex; align-items: center; gap: 6px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid var(--rule-2);
+    background: var(--surface);
+    border-radius: 99px;
+    font-size: 12px;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: var(--sans);
+  }
+  .chip:hover { border-color: var(--ink); color: var(--ink); }
+  .chip.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .chip .x { color: var(--ink-4); font-size: 11px; }
+  .chip svg { width: 11px; height: 11px; }
+  .filters .label-tiny { font-family: var(--mono); font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.1em; padding-right: 4px; }
+  .spacer { flex: 1; }
+  .search {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 12px;
+    border: 1px solid var(--rule-2);
+    background: var(--surface);
+    border-radius: 99px;
+    color: var(--ink-3);
+    font-size: 12px;
+  }
+  .search input { all: unset; width: 200px; font-family: var(--sans); font-size: 12px; color: var(--ink); }
+  .search .kbd {
+    font-family: var(--mono); font-size: 10px;
+    border: 1px solid var(--rule-2); padding: 1px 5px; border-radius: 3px;
+    color: var(--ink-3); background: var(--surface-2);
+  }
+
+  /* ---------- KPI strip ---------- */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .kpi {
+    padding: 22px 24px 22px 0;
+    border-right: 1px solid var(--rule);
+    position: relative;
+  }
+  .kpi:last-child { border-right: none; padding-right: 0; }
+  .kpi:not(:first-child) { padding-left: 24px; }
+  .kpi .h { display: flex; align-items: center; justify-content: space-between; }
+  .kpi .label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); }
+  .kpi .v {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 42px;
+    line-height: 1;
+    color: var(--ink);
+    margin-top: 12px;
+    letter-spacing: -0.02em;
+    font-feature-settings: "lnum","tnum";
+  }
+  .kpi .v small { font-family: var(--sans); font-style: normal; font-size: 14px; color: var(--ink-3); margin-left: 4px; font-weight: 500; }
+  .kpi .delta {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: var(--mono); font-size: 11px;
+    margin-top: 8px;
+  }
+  .kpi .delta.up   { color: var(--ok); }
+  .kpi .delta.down { color: var(--bad); }
+  .kpi .delta.flat { color: var(--ink-3); }
+  .kpi .spark { position: absolute; right: 0; top: 22px; width: 80px; height: 28px; opacity: 0.85; }
+  .kpi:last-child .spark { right: 0; }
+
+  /* ---------- Pipeline ---------- */
+  .section-h {
+    display: flex; align-items: end; justify-content: space-between;
+    padding: 26px 0 14px;
+  }
+  .section-h h2 {
+    margin: 0;
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+  .section-h h2 .num-tag {
+    font-family: var(--mono);
+    font-style: normal;
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  .pipeline {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+    box-shadow: var(--shadow-1);
+    position: relative;
+    overflow: hidden;
+  }
+  .pipeline::before {
+    content: "CASE.MS-2026-04-3318";
+    position: absolute; top: 14px; right: 18px;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-4);
+    letter-spacing: 0.08em;
+  }
+  .stepper {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0;
+    margin-top: 6px;
+    position: relative;
+  }
+  .step {
+    position: relative;
+    padding: 28px 12px 14px 0;
+  }
+  .step:not(:last-child)::after {
+    content: ""; position: absolute;
+    top: 38px; left: 18px; right: -2px;
+    height: 1px;
+    background: repeating-linear-gradient(to right, var(--rule-2) 0, var(--rule-2) 4px, transparent 4px, transparent 8px);
+  }
+  .step.done:not(:last-child)::after { background: var(--accent); }
+  .step.active:not(:last-child)::after {
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) 50%, var(--rule-2) 50%);
+  }
+  .step .node {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 1.5px solid var(--rule-2);
+    background: var(--surface);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--ink-3);
+    position: relative; z-index: 2;
+    transition: all 0.4s ease;
+  }
+  .step.done .node {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+  }
+  .step.done .node::after {
+    content: ""; position: absolute; inset: 0;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>") center/12px no-repeat;
+  }
+  .step.done .node-num { display: none; }
+  .step.active .node {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+    animation: ringPulse 2.6s ease-in-out infinite;
+  }
+  @keyframes ringPulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(15,118,110,0.18); }
+    50%      { box-shadow: 0 0 0 8px rgba(15,118,110,0.05); }
+  }
+  .step .meta {
+    margin-top: 14px;
+    font-size: 12px; line-height: 1.3;
+  }
+  .step .meta .name { color: var(--ink-2); font-weight: 500; }
+  .step.active .meta .name { color: var(--ink); font-weight: 600; }
+  .step.done .meta .name { color: var(--ink-3); }
+  .step .meta .stat {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-4);
+    margin-top: 3px;
+    letter-spacing: 0.05em;
+  }
+  .step.active .meta .stat { color: var(--accent-ink); }
+  .step.cond .node { border-style: dashed; }
+
+  /* ---------- Main grid ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: 280px 1fr 320px;
+    gap: 22px;
+    margin-top: 22px;
+  }
+
+  /* Card primitive */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-1);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .card .card-h {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface-2);
+  }
+  .card .card-h h3 {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+  .card .card-h .count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.08em;
+  }
+
+  /* ---------- Queue ---------- */
+  .queue { max-height: 100%; }
+  .queue .queue-list {
+    overflow-y: auto;
+    max-height: 920px;
+  }
+  .queue-item {
+    display: grid;
+    grid-template-columns: 8px 1fr;
+    gap: 12px;
+    padding: 14px 18px 14px 14px;
+    border-bottom: 1px solid var(--rule);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s ease;
+  }
+  .queue-item:last-child { border-bottom: none; }
+  .queue-item:hover { background: var(--surface-2); }
+  .queue-item.selected {
+    background: linear-gradient(to right, var(--accent-soft) 0%, var(--surface-2) 100%);
+  }
+  .queue-item .prio-bar {
+    width: 3px; border-radius: 2px;
+    background: var(--rule-2);
+    align-self: stretch;
+  }
+  .queue-item.p-high  .prio-bar { background: var(--bad); }
+  .queue-item.p-med   .prio-bar { background: var(--warn); }
+  .queue-item.p-low   .prio-bar { background: var(--ink-4); }
+  .queue-item .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .queue-item .top .who { font-size: 13px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; }
+  .queue-item .top .age { font-family: var(--mono); font-size: 10px; color: var(--ink-3); white-space: nowrap; }
+  .queue-item .meta {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .queue-item .id { font-family: var(--mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.04em; }
+  .queue-item .stage {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    padding: 1px 6px; border-radius: 3px;
+    letter-spacing: 0.04em;
+  }
+  .queue-item .type-tag {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--ink-3);
+    border: 1px solid var(--rule-2);
+    padding: 0 5px; border-radius: 3px;
+    letter-spacing: 0.04em;
+  }
+  .queue-item .footer {
+    display: flex; gap: 8px; align-items: center; margin-top: 6px;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+  }
+  .queue-item .op-mini {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--ink-2); color: #fff;
+    display: grid; place-items: center;
+    font-size: 8.5px; font-weight: 600;
+  }
+
+  /* ---------- Active case ---------- */
+  .case-card .case-h {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    padding: 22px 24px 20px;
+    border-bottom: 1px solid var(--rule);
+    align-items: start;
+  }
+  .case-h .who-block .id-row {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .case-h .who-block .id-row .case-id { color: var(--ink); font-weight: 500; }
+  .case-h .who-block .name {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 30px;
+    line-height: 1.05;
+    margin: 4px 0 8px;
+    letter-spacing: -0.012em;
+  }
+  .case-h .who-block .tags { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--rule-2);
+    color: var(--ink-2);
+    background: var(--surface);
+    font-weight: 500;
+  }
+  .tag.corp { color: #234E70; border-color: #C8D6E6; background: #EEF3F8; }
+  .tag.pep  { color: var(--bad); border-color: #E9C9C5; background: var(--bad-soft); }
+  .tag.tier-med { color: var(--warn); border-color: #E8D6A8; background: var(--warn-soft); }
+
+  .case-h .right-col { text-align: right; }
+  .case-h .right-col .stamp { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .case-h .right-col .stamp b { color: var(--ink); font-weight: 500; }
+  .case-h .right-col .age-large {
+    font-family: var(--serif); font-style: italic; font-weight: 500;
+    font-size: 32px; line-height: 1; color: var(--ink); margin-top: 8px;
+    letter-spacing: -0.012em;
+  }
+  .case-h .right-col .age-large small { font-family: var(--sans); font-style: normal; font-size: 12px; color: var(--ink-3); margin-left: 4px; font-weight: 500; }
+
+  /* Two column body inside case */
+  .case-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+  .case-body > section {
+    padding: 18px 22px;
+    border-right: 1px solid var(--rule);
+  }
+  .case-body > section:last-child { border-right: none; }
+  .sub-h {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .sub-h .t {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+  .sub-h .rule-ref {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+
+  /* Documents */
+  .doc-list { display: flex; flex-direction: column; gap: 8px; }
+  .doc {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    transition: all 0.2s ease;
+  }
+  .doc:hover { background: var(--surface); border-color: var(--rule-2); }
+  .doc .icon {
+    width: 32px; height: 40px;
+    background: var(--surface);
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+  .doc .icon::before {
+    content: ""; position: absolute;
+    top: 0; right: 0; width: 8px; height: 8px;
+    background: var(--bg);
+    border-left: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .doc .icon::after {
+    content: ""; position: absolute;
+    left: 6px; right: 6px;
+    top: 14px;
+    height: 12px;
+    background:
+      linear-gradient(to bottom,
+        var(--rule-2) 0, var(--rule-2) 1px, transparent 1px, transparent 4px,
+        var(--rule-2) 4px, var(--rule-2) 5px, transparent 5px, transparent 8px,
+        var(--rule-2) 8px, var(--rule-2) 9px, transparent 9px);
+  }
+  .doc .body { min-width: 0; }
+  .doc .body .name { font-size: 12.5px; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .doc .body .sub { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 2px; letter-spacing: 0.02em; }
+  .doc .status {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    padding: 3px 8px; border-radius: 3px;
+    white-space: nowrap;
+  }
+  .doc .status.ver  { color: var(--ok); background: var(--ok-soft); }
+  .doc .status.pen  { color: var(--warn); background: var(--warn-soft); }
+  .doc .status.fail { color: var(--bad); background: var(--bad-soft); }
+  .doc .status.proc { color: var(--info); background: var(--info-soft); }
+  .doc .status .led { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .doc .status.proc .led { animation: blink 1s infinite; }
+  @keyframes blink { 0%,40%,100% { opacity: 1; } 20% { opacity: 0.3; } }
+
+  .doc.processing { animation: docFlip 0.6s ease; }
+  @keyframes docFlip { 0% { transform: scale(0.98); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+
+  .doc-add {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px;
+    border: 1px dashed var(--rule-2);
+    border-radius: var(--radius);
+    color: var(--ink-3);
+    font-family: var(--mono); font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    cursor: pointer;
+    background: transparent;
+    width: 100%;
+    transition: all 0.15s ease;
+  }
+  .doc-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  /* Sanctions */
+  .screen-list { display: flex; flex-direction: column; gap: 6px; }
+  .screen-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+  }
+  .screen-row .name { font-size: 12.5px; font-weight: 500; }
+  .screen-row .name .src { font-family: var(--mono); font-size: 10px; color: var(--ink-3); display: block; margin-top: 2px; letter-spacing: 0.02em; font-weight: 400; }
+  .screen-row .ts { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+  .screen-row .res { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .screen-row .res.clear { color: var(--ok); background: var(--ok-soft); }
+  .screen-row .res.review { color: var(--warn); background: var(--warn-soft); }
+
+  /* Risk */
+  .risk-block {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface-2);
+  }
+  .risk-h {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 14px 16px;
+    background:
+      linear-gradient(to right, transparent 0, transparent 70%, rgba(15,118,110,0.06) 100%);
+    border-bottom: 1px solid var(--rule);
+  }
+  .risk-h .lab { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); }
+  .risk-h .tier {
+    font-family: var(--serif); font-style: italic; font-weight: 500;
+    font-size: 26px;
+    margin-top: 2px;
+    color: var(--ink);
+  }
+  .risk-h .tier .pip {
+    display: inline-flex; gap: 3px; vertical-align: middle; margin-left: 10px;
+  }
+  .risk-h .tier .pip span {
+    width: 8px; height: 14px; background: var(--rule-2); border-radius: 1px;
+    display: inline-block;
+  }
+  .risk-h .tier .pip span.on { background: var(--warn); }
+  .risk-h .score {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-3); text-align: right;
+  }
+  .risk-h .score .num { font-size: 22px; color: var(--ink); display: block; line-height: 1; margin-top: 4px; }
+  .risk-body {
+    padding: 12px 16px;
+    font-size: 12px; line-height: 1.55; color: var(--ink-2);
+  }
+  .risk-body .factors {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 16px;
+    margin-top: 10px;
+  }
+  .risk-body .factors .f {
+    display: flex; justify-content: space-between; gap: 8px;
+    padding: 5px 0;
+    border-top: 1px dashed var(--rule);
+    font-family: var(--mono); font-size: 10.5px;
+  }
+  .risk-body .factors .f span:first-child { color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; font-size: 9.5px; padding-top: 1px; }
+  .risk-body .factors .f span:last-child { color: var(--ink); font-weight: 500; }
+  .risk-body .factors .f.high span:last-child { color: var(--bad); }
+  .risk-body .factors .f.med span:last-child { color: var(--warn); }
+
+  /* Actions */
+  .actions {
+    display: flex; gap: 10px;
+    padding: 16px 24px 18px;
+    border-top: 1px solid var(--rule);
+    background: linear-gradient(to bottom, transparent, var(--bg-2));
+    align-items: center;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: -0.005em;
+    transition: all 0.15s ease;
+    background: var(--surface);
+  }
+  .btn.primary {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 4px 10px -4px rgba(15,118,110,0.4);
+  }
+  .btn.primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); transform: translateY(-1px); }
+  .btn.ghost {
+    background: transparent; color: var(--ink-2); border-color: var(--rule-2);
+  }
+  .btn.ghost:hover { border-color: var(--ink); color: var(--ink); }
+  .btn.warn {
+    background: transparent; color: var(--bad); border-color: #E5C9C5;
+  }
+  .btn.warn:hover { background: var(--bad-soft); border-color: var(--bad); }
+  .btn .arrow { width: 12px; height: 12px; }
+  .actions .req {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-3); letter-spacing: 0.04em;
+  }
+  .actions .req b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- Audit log ---------- */
+  .log-panel .log-h-extras {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+  }
+  .log-panel .log-h-extras .live {
+    width: 6px; height: 6px; background: var(--ok); border-radius: 50%;
+    animation: pulse 2s infinite;
+    box-shadow: 0 0 0 0 rgba(47,125,92,0.5);
+  }
+  .log-stream {
+    overflow-y: auto;
+    max-height: 920px;
+    padding: 4px 0 18px;
+    position: relative;
+  }
+  .log-stream::-webkit-scrollbar { width: 6px; }
+  .log-stream::-webkit-scrollbar-thumb { background: var(--rule-2); border-radius: 3px; }
+  .queue-list::-webkit-scrollbar { width: 6px; }
+  .queue-list::-webkit-scrollbar-thumb { background: var(--rule-2); border-radius: 3px; }
+
+  .log-entry {
+    position: relative;
+    display: grid;
+    grid-template-columns: 14px 1fr;
+    gap: 0;
+    padding: 12px 18px 12px 18px;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry .rail {
+    position: relative;
+    width: 14px;
+  }
+  .log-entry .rail::before {
+    content: ""; position: absolute;
+    left: 5px; top: 0; bottom: -13px;
+    width: 1px; background: var(--rule-2);
+  }
+  .log-entry:last-child .rail::before { bottom: 50%; }
+  .log-entry .dot-mark {
+    position: absolute; left: 2px; top: 4px;
+    width: 7px; height: 7px;
+    background: var(--surface); border: 1.5px solid var(--ink-3);
+    border-radius: 50%;
+    z-index: 2;
+  }
+  .log-entry.ok .dot-mark   { border-color: var(--ok); background: var(--ok); }
+  .log-entry.warn .dot-mark { border-color: var(--warn); background: var(--warn); }
+  .log-entry.info .dot-mark { border-color: var(--info); background: var(--info); }
+  .log-entry.act .dot-mark  { border-color: var(--accent); background: var(--accent); }
+  .log-entry.new .dot-mark {
+    box-shadow: 0 0 0 4px var(--accent-soft);
+    animation: dotIn 1.6s ease;
+  }
+  @keyframes dotIn {
+    0% { box-shadow: 0 0 0 0 rgba(15,118,110,0.5); }
+    60% { box-shadow: 0 0 0 8px rgba(15,118,110,0); }
+    100% { box-shadow: 0 0 0 4px var(--accent-soft); }
+  }
+  .log-entry .text { padding-left: 6px; min-width: 0; }
+  .log-entry .ts {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+  }
+  .log-entry .ts .op { color: var(--accent-ink); background: var(--accent-soft); padding: 1px 5px; border-radius: 2px; }
+  .log-entry .ev {
+    margin-top: 4px;
+    font-size: 12.5px; color: var(--ink); line-height: 1.4;
+    letter-spacing: -0.005em;
+  }
+  .log-entry .ev .code {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--accent-ink); background: var(--accent-soft);
+    padding: 1px 5px; border-radius: 2px;
+    margin-left: 4px;
+  }
+  .log-entry .ev .ref {
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-3);
+    display: block; margin-top: 3px;
+  }
+  .log-entry.entered { animation: slideIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* ---------- Footer ---------- */
+  footer.legal {
+    margin-top: 32px;
+    padding: 20px 0 0;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+    letter-spacing: 0.04em;
+    flex-wrap: wrap;
+  }
+  footer.legal .left { display: flex; gap: 16px; flex-wrap: wrap; }
+  footer.legal a { color: var(--ink-2); text-decoration: none; border-bottom: 1px dotted var(--rule-2); padding-bottom: 1px; }
+  footer.legal a:hover { color: var(--accent-ink); border-bottom-color: var(--accent); }
+
+  /* ---------- Mobile swipe deck ---------- */
+  .mobile-only { display: none; }
+  .mobile-tabs { display: none; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 1200px) {
+    .grid { grid-template-columns: 240px 1fr; }
+    .log-panel { grid-column: span 2; }
+    .log-stream { max-height: 360px; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .kpi:nth-child(2) { border-right: none; padding-right: 0; }
+    .kpi:nth-child(3) { padding-left: 0; border-top: 1px solid var(--rule); padding-top: 22px; }
+    .kpi:nth-child(4) { border-top: 1px solid var(--rule); padding-top: 22px; }
+  }
+
+  @media (max-width: 860px) {
+    .app { padding: 0 16px 64px; }
+    .ribbon { padding: 7px 16px; font-size: 10px; }
+    .ribbon .right span:nth-child(2) { display: none; }
+    header.brandbar { grid-template-columns: 1fr; gap: 12px; padding: 18px 0 14px; }
+    .header-right { justify-content: space-between; }
+    .filters { padding: 10px 0 12px; gap: 6px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+    .filters .label-tiny:not(:first-child) { display: none; }
+    .filters .spacer { display: none; }
+    .filters .search { display: none; }
+    .chip { white-space: nowrap; flex-shrink: 0; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .kpi { padding: 14px 14px 14px 0; }
+    .kpi:nth-child(2) { border-right: none; padding-right: 0; }
+    .kpi:nth-child(2n+1):not(:first-child) { padding-left: 0; padding-right: 14px; border-right: 1px solid var(--rule); }
+    .kpi:nth-child(2n) { padding-right: 0; }
+    .kpi:nth-child(3), .kpi:nth-child(4) { border-top: 1px solid var(--rule); padding-top: 14px; }
+    .kpi .v { font-size: 30px; }
+    .kpi .spark { width: 50px; height: 22px; }
+
+    .section-h h2 { font-size: 18px; }
+    .pipeline { padding: 14px 16px; overflow: visible; }
+    .pipeline::before { display: none; }
+    .stepper {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+    .step { padding: 10px 0 10px 36px; }
+    .step:not(:last-child)::after {
+      top: 26px; left: 11px; right: auto; bottom: -6px;
+      width: 1px; height: auto;
+      background: repeating-linear-gradient(to bottom, var(--rule-2) 0, var(--rule-2) 4px, transparent 4px, transparent 8px);
+    }
+    .step.done:not(:last-child)::after { background: var(--accent); }
+    .step.active:not(:last-child)::after {
+      background: linear-gradient(to bottom, var(--accent) 0%, var(--accent) 50%, var(--rule-2) 50%);
+    }
+    .step .node {
+      position: absolute; top: 8px; left: 0;
+    }
+    .step .meta { margin-top: 0; padding-top: 4px; }
+    .step .meta .stat { display: inline-block; margin-left: 8px; margin-top: 0; }
+
+    /* Mobile deck: case + queue swipeable */
+    .grid {
+      grid-template-columns: 1fr;
+      gap: 0;
+      margin-top: 12px;
+    }
+    .mobile-tabs {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      background: var(--surface);
+      margin: 12px 0 14px;
+      overflow: hidden;
+    }
+    .mobile-tabs button {
+      flex: 1;
+      background: transparent;
+      border: 0;
+      padding: 9px 10px;
+      font-family: var(--mono); font-size: 10.5px;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--ink-3);
+      cursor: pointer;
+      border-right: 1px solid var(--rule);
+    }
+    .mobile-tabs button:last-child { border-right: none; }
+    .mobile-tabs button.on {
+      background: var(--ink); color: var(--bg);
+    }
+    .pane { display: none; }
+    .pane.on { display: block; }
+    .queue-panel.pane, .case-card.pane, .log-panel.pane {
+      grid-column: 1;
+    }
+    .case-h { grid-template-columns: 1fr; padding: 16px 16px 14px; gap: 8px; }
+    .case-h .right-col { text-align: left; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .case-h .right-col .age-large { font-size: 24px; margin-top: 0; }
+    .case-h .who-block .name { font-size: 24px; }
+    .case-body { grid-template-columns: 1fr; }
+    .case-body > section { border-right: none; border-bottom: 1px solid var(--rule); padding: 14px 16px; }
+    .case-body > section:last-child { border-bottom: none; }
+    .actions { padding: 12px 16px 14px; flex-wrap: wrap; gap: 8px; }
+    .actions .btn { flex: 1; justify-content: center; padding: 10px 12px; font-size: 12.5px; }
+    .actions .req { width: 100%; text-align: center; margin: 4px 0 0; }
+    .risk-body .factors { grid-template-columns: 1fr; }
+
+    .queue .queue-list { max-height: none; }
+    .log-stream { max-height: none; }
+
+    footer.legal { font-size: 10px; gap: 6px; }
+    footer.legal .left { gap: 10px; }
+
+    .mobile-only { display: block; }
+  }
+
+  @media (max-width: 420px) {
+    .app { padding: 0 12px 48px; }
+    .case-h .who-block .name { font-size: 22px; line-height: 1.1; }
+    .kpi .v { font-size: 26px; }
+    .doc { grid-template-columns: 28px 1fr auto; padding: 9px 10px; gap: 10px; }
+    .doc .icon { width: 28px; height: 36px; }
+    .doc .body .name { font-size: 12px; }
+    .screen-row { grid-template-columns: 1fr auto; }
+    .screen-row .ts { display: none; }
+    .pill { font-size: 9.5px; padding: 3px 8px; }
+    .brand h1 { font-size: 16px; }
+    .operator .who { display: none; }
+    .org { display: none; }
+    .header-right { justify-content: flex-end; }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* ---------- Force visible scrollbars (macOS hides by default) ---------- */
+  html { scrollbar-color: rgba(0,0,0,0.25) rgba(0,0,0,0.04); scrollbar-width: thin; }
+  body::-webkit-scrollbar,
+  .queue-list::-webkit-scrollbar,
+  .log-stream::-webkit-scrollbar,
+  .case-card::-webkit-scrollbar,
+  .scrollable-container::-webkit-scrollbar {
+    width: 10px; height: 10px; display: block !important;
+  }
+  body::-webkit-scrollbar-track,
+  .queue-list::-webkit-scrollbar-track,
+  .log-stream::-webkit-scrollbar-track,
+  .case-card::-webkit-scrollbar-track,
+  .scrollable-container::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.04); border-radius: 99px;
+  }
+  body::-webkit-scrollbar-thumb,
+  .queue-list::-webkit-scrollbar-thumb,
+  .log-stream::-webkit-scrollbar-thumb,
+  .case-card::-webkit-scrollbar-thumb,
+  .scrollable-container::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.25); border-radius: 99px;
+  }
+  body::-webkit-scrollbar-thumb:hover,
+  .queue-list::-webkit-scrollbar-thumb:hover,
+  .log-stream::-webkit-scrollbar-thumb:hover,
+  .case-card::-webkit-scrollbar-thumb:hover,
+  .scrollable-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(0,0,0,0.4);
+  }
+
+  /* ---------- Universal focus + cursor + active feedback ---------- */
+  button, .chip, .queue-item, .doc, .doc-add, .screen-row, .step, .filters .search, .search input, footer.legal a {
+    cursor: pointer;
+  }
+  button:focus-visible,
+  .chip:focus-visible,
+  .queue-item:focus-visible,
+  .doc:focus-visible,
+  .doc-add:focus-visible,
+  .screen-row:focus-visible,
+  .step:focus-visible,
+  .search input:focus-visible,
+  .search:focus-within,
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .search:focus-within { box-shadow: 0 0 0 3px rgba(15,118,110,0.18); border-color: var(--accent); }
+
+  .btn:active, .chip:active, .doc-add:active, .queue-item:active, .doc:active, .screen-row:active, .step:active {
+    transform: scale(0.98);
+  }
+  .doc:hover { cursor: pointer; }
+  .screen-row { transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease; }
+  .screen-row:hover { background: var(--surface); border-color: var(--rule-2); }
+  .step { transition: transform 0.1s ease; }
+  .step.done, .step.active { cursor: pointer; }
+
+  .queue-item.selected {
+    background: linear-gradient(to right, var(--accent-soft) 0%, var(--surface-2) 100%);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  /* ---------- Tier tag colors (additions) ---------- */
+  .tag.tier-high { color: var(--bad); border-color: #E9C9C5; background: var(--bad-soft); }
+  .tag.tier-low  { color: var(--ok);  border-color: #C6DDD0; background: var(--ok-soft); }
+
+  /* ---------- Approval banner ---------- */
+  .approval-banner {
+    display: none;
+    padding: 14px 24px;
+    background: linear-gradient(to right, var(--ok-soft), rgba(225, 238, 230, 0.4));
+    border-bottom: 1px solid var(--ok);
+    border-top: 1px solid var(--ok);
+    color: var(--ok);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    align-items: center;
+    justify-content: space-between;
+    animation: bannerIn 0.4s ease;
+  }
+  .approval-banner.show { display: flex; }
+  .approval-banner .left { display: flex; align-items: center; gap: 10px; }
+  .approval-banner .check {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--ok); color: #fff;
+    display: grid; place-items: center;
+    font-weight: 700;
+  }
+  .approval-banner .label { text-transform: uppercase; font-weight: 700; letter-spacing: 0.14em; font-size: 13px; }
+  .approval-banner .meta { font-size: 11px; color: var(--ink-2); letter-spacing: 0.04em; }
+  @keyframes bannerIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* ---------- Document expansion ---------- */
+  .doc { flex-direction: column; align-items: stretch; }
+  .doc .doc-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .doc .doc-detail {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--rule);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-2);
+    line-height: 1.6;
+    letter-spacing: 0.02em;
+  }
+  .doc.expanded .doc-detail { display: block; animation: bannerIn 0.25s ease; }
+  .doc .doc-detail .row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
+  .doc .doc-detail .row span:first-child { color: var(--ink-3); text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.08em; }
+  .doc.expanded { background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  /* ---------- Sanctions row expansion ---------- */
+  .screen-row { flex-direction: column; align-items: stretch; }
+  .screen-row .row-head {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .screen-row .row-detail {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--rule);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-2);
+    line-height: 1.6;
+  }
+  .screen-row.expanded .row-detail { display: block; animation: bannerIn 0.25s ease; }
+  .screen-row .row-detail .row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
+  .screen-row .row-detail .row span:first-child { color: var(--ink-3); text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.08em; }
+  .screen-row.expanded { background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  /* ---------- Stepper dropdown ---------- */
+  .stage-dropdown {
+    display: none;
+    margin-top: 14px;
+    padding: 14px 16px;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+    animation: bannerIn 0.25s ease;
+  }
+  .stage-dropdown.show { display: block; }
+  .stage-dropdown .head {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono); font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--accent-ink); font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .stage-dropdown .close {
+    background: transparent; border: 0; cursor: pointer;
+    color: var(--accent-ink); font-family: var(--mono); font-size: 14px;
+    padding: 0 4px;
+  }
+  .stage-dropdown .entry {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--ink-2);
+    padding: 4px 0;
+    border-bottom: 1px dashed rgba(15,118,110,0.2);
+  }
+  .stage-dropdown .entry:last-child { border-bottom: none; }
+  .stage-dropdown .entry .tt { color: var(--accent-ink); margin-right: 8px; }
+
+  /* ---------- Filter / hidden states ---------- */
+  .queue-item.hidden, .log-entry.hidden { display: none; }
+  .log-entry.dimmed { opacity: 0.28; transition: opacity 0.2s ease; }
+  .step.flash-red .node { background: var(--bad) !important; border-color: var(--bad) !important; color: #fff !important; }
+  .tag.flash {
+    animation: flashRed 0.7s ease;
+  }
+  @keyframes flashRed {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(178,58,58,0); }
+    50% { box-shadow: 0 0 0 6px rgba(178,58,58,0.4); }
+  }
+  .operator.flash { animation: flashOp 0.7s ease; }
+  @keyframes flashOp {
+    0%, 100% { background: var(--surface); }
+    50% { background: var(--warn-soft); }
+  }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
+
+/* ---------- Top Navigation (view switcher) ---------- */
+  .topnav {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+    margin: 14px 0 0;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .topnav button {
+    flex: 1 1 auto;
+    min-width: max-content;
+    background: transparent;
+    border: 0;
+    padding: 13px 18px 12px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink-3);
+    cursor: pointer;
+    letter-spacing: -0.005em;
+    border-right: 1px solid var(--rule);
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+    white-space: nowrap;
+    position: relative;
+  }
+  .topnav button:last-child { border-right: none; }
+  .topnav button:hover { color: var(--ink); background: var(--surface-2); }
+  .topnav button.active {
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+  .topnav button .nav-badge {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    padding: 1px 6px;
+    border-radius: 99px;
+    background: var(--rule);
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+  .topnav button.active .nav-badge { background: var(--accent); color: #fff; }
+  .topnav button .nav-icon { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.85; }
+  .topnav button.active .nav-icon { opacity: 1; }
+
+  /* View sections */
+  .view-section { display: none; animation: viewIn 0.3s ease; }
+  .view-section.active { display: block; }
+  @keyframes viewIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* ---------- Generic full-width tables for new views ---------- */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-1);
+    margin-top: 18px;
+    overflow: hidden;
+  }
+  .panel-h {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface-2);
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .panel-h h3 {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+  .panel-h .count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.06em;
+  }
+  .panel-h .actions-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  table.feed-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  table.feed-table thead th {
+    text-align: left;
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    font-weight: 600;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  table.feed-table tbody td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink-2);
+    vertical-align: middle;
+  }
+  table.feed-table tbody tr:last-child td { border-bottom: none; }
+  table.feed-table tbody tr { transition: background 0.12s ease; }
+  table.feed-table tbody tr:hover { background: var(--surface-2); }
+  table.feed-table .case-id-cell {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+  table.feed-table .who-cell { font-weight: 500; color: var(--ink); }
+  table.feed-table .ts-cell { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); white-space: nowrap; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 10px;
+    padding: 3px 8px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge.ok    { color: var(--ok); background: var(--ok-soft); }
+  .badge.warn  { color: var(--warn); background: var(--warn-soft); }
+  .badge.bad   { color: var(--bad); background: var(--bad-soft); }
+  .badge.info  { color: var(--info); background: var(--info-soft); }
+  .badge.neutral { color: var(--ink-2); background: var(--bg-2); }
+  .badge.accent { color: var(--accent-ink); background: var(--accent-soft); }
+  .badge .led { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .row-actions .mini-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 4px 9px;
+    border-radius: 3px;
+    border: 1px solid var(--rule-2);
+    background: var(--surface);
+    color: var(--ink-2);
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    transition: all 0.12s ease;
+  }
+  .row-actions .mini-btn:hover { border-color: var(--ink); color: var(--ink); }
+  .row-actions .mini-btn.ok { color: var(--ok); border-color: #C6DDD0; }
+  .row-actions .mini-btn.ok:hover { background: var(--ok-soft); border-color: var(--ok); }
+  .row-actions .mini-btn.bad { color: var(--bad); border-color: #E5C9C5; }
+  .row-actions .mini-btn.bad:hover { background: var(--bad-soft); border-color: var(--bad); }
+  .row-actions .mini-btn.warn { color: var(--warn); border-color: #E8D6A8; }
+  .row-actions .mini-btn.warn:hover { background: var(--warn-soft); border-color: var(--warn); }
+
+  /* SLA progress bar */
+  .sla-bar {
+    display: inline-block;
+    width: 60px; height: 5px;
+    background: var(--rule);
+    border-radius: 99px;
+    overflow: hidden;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  .sla-bar .fill { display: block; height: 100%; background: var(--ok); transition: width 0.3s ease; }
+  .sla-bar.warn .fill { background: var(--warn); }
+  .sla-bar.bad .fill { background: var(--bad); }
+
+  /* ---------- Risk Models view ---------- */
+  .tier-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    padding: 18px 20px;
+  }
+  .tier-card {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    background: var(--surface-2);
+    position: relative;
+    overflow: hidden;
+  }
+  .tier-card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--rule-2);
+  }
+  .tier-card.tier-low::before { background: var(--ok); }
+  .tier-card.tier-med::before { background: var(--warn); }
+  .tier-card.tier-high::before { background: #D67A28; }
+  .tier-card.tier-edd::before { background: var(--bad); }
+  .tier-card.tier-proh::before { background: var(--ink); }
+  .tier-card .tier-name {
+    font-family: var(--serif); font-style: italic; font-weight: 500;
+    font-size: 22px;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .tier-card .tier-pct {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-3); letter-spacing: 0.04em;
+  }
+  .tier-card .tier-pct b {
+    color: var(--ink); font-weight: 600; font-size: 16px; margin-right: 4px;
+  }
+  .tier-card .tier-desc {
+    font-size: 12px; color: var(--ink-2); line-height: 1.45;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--rule);
+  }
+
+  .book-chart {
+    padding: 18px 20px 10px;
+    border-top: 1px solid var(--rule);
+  }
+  .book-chart .chart-h {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-3);
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .book-chart .chart-h .total { color: var(--ink); font-weight: 600; }
+  .book-chart .chart-bars { display: flex; flex-direction: column; gap: 10px; }
+  .book-chart .bar-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 60px;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+  }
+  .book-chart .bar-row .lab { color: var(--ink-2); font-weight: 500; }
+  .book-chart .bar-row .track {
+    height: 18px;
+    background: var(--bg-2);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .book-chart .bar-row .fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 8px;
+    font-family: var(--mono); font-size: 10px;
+    color: #fff; font-weight: 600; letter-spacing: 0.04em;
+  }
+  .book-chart .bar-row.low  .fill { background: var(--ok); }
+  .book-chart .bar-row.med  .fill { background: var(--warn); }
+  .book-chart .bar-row.high .fill { background: #D67A28; }
+  .book-chart .bar-row.edd  .fill { background: var(--bad); }
+  .book-chart .bar-row.proh .fill { background: var(--ink); }
+  .book-chart .bar-row .num { font-family: var(--mono); font-size: 11px; color: var(--ink-3); text-align: right; }
+
+  /* ---------- Empty state for filtered tables ---------- */
+  .empty-row td {
+    text-align: center;
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    padding: 30px !important;
+  }
+
+  /* ---------- Inline filter bar (for sub-views) ---------- */
+  .subfilter {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  .subfilter .label-tiny { font-family: var(--mono); font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.1em; padding-right: 4px; }
+  .subfilter .chip { padding: 4px 10px; font-size: 11.5px; }
+
+  /* Mobile tweaks for new views */
+  @media (max-width: 860px) {
+    .topnav { margin-top: 10px; border-radius: var(--radius); }
+    .topnav button { padding: 11px 14px; font-size: 12px; }
+    table.feed-table thead th, table.feed-table tbody td { padding: 9px 10px; font-size: 11.5px; }
+    table.feed-table .ts-cell { font-size: 10px; }
+    .panel-h { padding: 12px 14px; }
+    .tier-grid { grid-template-columns: 1fr; padding: 14px; }
+    .book-chart { padding: 14px; }
+    .book-chart .bar-row { grid-template-columns: 78px 1fr 50px; gap: 8px; font-size: 11px; }
+    /* Allow horizontal scroll on tables for narrow screens */
+    .panel.scroll-x { overflow-x: auto; }
+    .panel.scroll-x table.feed-table { min-width: 720px; }
+  }
+
+/* ============================================================
+   PROJECTOR READABILITY — bump small text at 1920px+ for big screens
+   ============================================================ */
+@media (min-width: 1920px) {
+  html { font-size: 17px; }
+  table, tbody, td, th { font-size: 14.5px !important; }
+  .pill, .chip, .badge, .tag, [class*="label"], [class*="-pct"],
+  [class*="-time"], [class*="-count"], [class*="-id"], [class*="status"],
+  .meta, .small, .tid, .ts, .who, .stamp { font-size: 13.5px !important; }
+  .feed-table td, .feed-table th, .queue td, .audit td { font-size: 14px !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- Top status ribbon -->
+<div class="ribbon" role="banner">
+  <div class="left">
+    <span class="pulse" aria-hidden="true"></span>
+    <span>MERIDIAN&nbsp;COMPLIANCE&nbsp;/&nbsp;CIP&nbsp;INTAKE&nbsp;/&nbsp;PROD-USE1</span>
+  </div>
+  <div class="right">
+    <span><b id="rib-time">14:32:18</b>&nbsp;UTC</span>
+    <span>BUILD&nbsp;<b>2026.04.24-r3</b></span>
+    <span>SLA&nbsp;<b>97.4%</b></span>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- Brand bar -->
+  <header class="brandbar">
+    <div class="brand">
+      <div class="brandmark" aria-hidden="true"></div>
+      <div>
+        <h1>Meridian <em>Compliance</em></h1>
+        <div class="sub">Customer Identification Program · BSA/AML Module</div>
+      </div>
+      <span class="pill" style="margin-left:18px"><span class="dot"></span> INTAKE PIPELINE</span>
+    </div>
+    <div class="header-right">
+      <div class="org">
+        <div class="label">Organization</div>
+        <div class="name">Norfolk Atlantic Bank, N.A.</div>
+      </div>
+      <div class="operator" title="Currently logged in operator">
+        <div class="avatar">EG</div>
+        <div class="who">
+          <div class="n">E. Gallagher</div>
+          <div class="id">operator-014 · L3 Analyst</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Top Navigation: 6 sections -->
+  <nav class="topnav" id="topnav" role="tablist" aria-label="Section navigation">
+    <button class="active" data-view="cases" role="tab" aria-selected="true">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
+      Cases <span class="nav-badge">11</span>
+    </button>
+    <button data-view="intake" role="tab" aria-selected="false">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      Intake Queue <span class="nav-badge">21</span>
+    </button>
+    <button data-view="sanctions" role="tab" aria-selected="false">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z"/></svg>
+      Sanctions <span class="nav-badge">12</span>
+    </button>
+    <button data-view="documents" role="tab" aria-selected="false">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+      Documents <span class="nav-badge">16</span>
+    </button>
+    <button data-view="risk" role="tab" aria-selected="false">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+      Risk Models
+    </button>
+    <button data-view="audit" role="tab" aria-selected="false">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      Audit Log
+    </button>
+  </nav>
+
+  <!-- ============================================================
+       VIEW: CASES (default) — pipeline + active case + queue + audit
+       ============================================================ -->
+  <section class="view-section active" data-view="cases">
+
+  <!-- Filters -->
+  <nav class="filters" aria-label="Case filters">
+    <span class="label-tiny">Stage</span>
+    <button class="chip active">All</button>
+    <button class="chip">Document Verification</button>
+    <button class="chip">OFAC Screen</button>
+    <button class="chip">EDD</button>
+
+    <span class="label-tiny" style="margin-left:6px">Risk</span>
+    <button class="chip">Low</button>
+    <button class="chip active">Medium</button>
+    <button class="chip">High</button>
+
+    <span class="label-tiny" style="margin-left:6px">Operator</span>
+    <button class="chip">operator-014 (me)</button>
+    <button class="chip">Team</button>
+
+    <span class="label-tiny" style="margin-left:6px">Range</span>
+    <button class="chip active">7d</button>
+
+    <span class="spacer"></span>
+
+    <div class="search">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input placeholder="Search case ID, client name, UBO…" aria-label="Search cases" />
+      <span class="kbd">⌘K</span>
+    </div>
+  </nav>
+
+  <!-- KPI strip -->
+  <section class="kpis" aria-label="Key metrics">
+    <div class="kpi">
+      <div class="h"><span class="label">Cases this week</span></div>
+      <div class="v">214</div>
+      <div class="delta up">▲ 18 <span style="color:var(--ink-3)">vs last week</span></div>
+      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,20 10,18 20,16 30,17 40,12 50,10 60,12 70,7 80,4" fill="none" stroke="#0F766E" stroke-width="1.5"/><polyline points="0,20 10,18 20,16 30,17 40,12 50,10 60,12 70,7 80,4 80,28 0,28" fill="rgba(15,118,110,0.08)" stroke="none"/></svg>
+    </div>
+    <div class="kpi">
+      <div class="h"><span class="label">Avg. time to decision</span></div>
+      <div class="v">2.4<small>h</small></div>
+      <div class="delta down">▼ 0.6h <span style="color:var(--ink-3)">vs SLA 4.0h</span></div>
+      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,4 10,9 20,7 30,12 40,10 50,14 60,16 70,18 80,20" fill="none" stroke="#0F766E" stroke-width="1.5"/></svg>
+    </div>
+    <div class="kpi">
+      <div class="h"><span class="label">Approval rate</span></div>
+      <div class="v">87.2<small>%</small></div>
+      <div class="delta flat">— 4.1% rejected, 8.7% in EDD</div>
+      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,12 10,11 20,13 30,10 40,9 50,11 60,8 70,9 80,8" fill="none" stroke="#0F766E" stroke-width="1.5"/></svg>
+    </div>
+    <div class="kpi">
+      <div class="h"><span class="label">Cases in EDD</span></div>
+      <div class="v">19</div>
+      <div class="delta up">▲ 3 <span style="color:var(--ink-3)">PEP-flagged: 4</span></div>
+      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,18 10,16 20,18 30,14 40,15 50,12 60,10 70,11 80,7" fill="none" stroke="#0F766E" stroke-width="1.5"/></svg>
+    </div>
+  </section>
+
+  <!-- Pipeline -->
+  <div class="section-h">
+    <h2>Pipeline progression <span class="num-tag">7 STAGES · BSA/AML §1010.230</span></h2>
+    <span class="mono" style="font-size:10.5px;color:var(--ink-3)">Stage 4 of 7 · Risk tier assignment in progress</span>
+  </div>
+  <div class="pipeline">
+    <div class="stepper" id="stepper">
+      <div class="step done" data-stage="1">
+        <div class="node"><span class="node-num">1</span></div>
+        <div class="meta"><span class="name">Identity Capture</span><span class="stat">CDD §1.1 · 14:08:02</span></div>
+      </div>
+      <div class="step done" data-stage="2">
+        <div class="node"><span class="node-num">2</span></div>
+        <div class="meta"><span class="name">Document Verification</span><span class="stat">5 of 5 verified</span></div>
+      </div>
+      <div class="step done" data-stage="3">
+        <div class="node"><span class="node-num">3</span></div>
+        <div class="meta"><span class="name">OFAC / Sanctions Screen</span><span class="stat">4 lists · 0 hits</span></div>
+      </div>
+      <div class="step active" data-stage="4">
+        <div class="node"><span class="node-num">4</span></div>
+        <div class="meta"><span class="name">Risk Tier Assignment</span><span class="stat">Computing… 62%</span></div>
+      </div>
+      <div class="step cond" data-stage="5">
+        <div class="node"><span class="node-num">5</span></div>
+        <div class="meta"><span class="name">Enhanced Due Diligence</span><span class="stat">Conditional · UBO ≥ 25%</span></div>
+      </div>
+      <div class="step" data-stage="6">
+        <div class="node"><span class="node-num">6</span></div>
+        <div class="meta"><span class="name">Final Review</span><span class="stat">L4 sign-off required</span></div>
+      </div>
+      <div class="step" data-stage="7">
+        <div class="node"><span class="node-num">7</span></div>
+        <div class="meta"><span class="name">Approved / Rejected</span><span class="stat">SLA: 90 min</span></div>
+      </div>
+    </div>
+    <div class="stage-dropdown" id="stageDropdown" role="region" aria-label="Stage detail">
+      <div class="head">
+        <span id="stageDropdownTitle">Stage detail</span>
+        <button class="close" type="button" id="stageDropdownClose" aria-label="Close">✕</button>
+      </div>
+      <div id="stageDropdownBody"></div>
+    </div>
+  </div>
+
+  <!-- Mobile tabs -->
+  <div class="mobile-tabs" role="tablist">
+    <button class="on" data-pane="case" role="tab">Active case</button>
+    <button data-pane="queue" role="tab">Queue · 11</button>
+    <button data-pane="log" role="tab">Audit log</button>
+  </div>
+
+  <!-- Main grid -->
+  <div class="grid">
+
+    <!-- Queue panel -->
+    <aside class="card queue-panel queue pane" data-pane="queue">
+      <div class="card-h">
+        <h3>Operator queue</h3>
+        <span class="count">11 active · 3 stale</span>
+      </div>
+      <div class="queue-list" id="queueList">
+      </div>
+    </aside>
+
+    <!-- Active case -->
+    <main class="card case-card pane on" data-pane="case">
+      <div class="case-h">
+        <div class="who-block">
+          <div class="id-row">
+            <span class="case-id">CASE&nbsp;·&nbsp;MS-2026-04-3318</span>
+            <span>·</span>
+            <span>Started 14:08:02 UTC · 2026-04-24</span>
+          </div>
+          <div class="name">Norfolk Holdings Ltd.</div>
+          <div class="tags">
+            <span class="tag corp">Corporate</span>
+            <span class="tag">Cayman Islands · KY</span>
+            <span class="tag">UBO × 3 disclosed</span>
+            <span class="tag tier-med">Tier · Medium</span>
+          </div>
+        </div>
+        <div class="right-col">
+          <div class="stamp"><b>SLA window</b> · 14:08 → 17:38</div>
+          <div class="age-large" id="caseAge">42<small>m elapsed</small></div>
+        </div>
+      </div>
+
+      <div class="approval-banner" id="approvalBanner" role="status" aria-live="polite">
+        <div class="left">
+          <div class="check">✓</div>
+          <div>
+            <div class="label">APPROVED</div>
+            <div class="meta" id="approvalMeta">CASE · — · DECISION TIME —</div>
+          </div>
+        </div>
+        <div class="meta" id="approvalRight">L4 sign-off recorded · BSA/AML §4.1</div>
+      </div>
+
+      <div class="case-body">
+
+        <!-- Documents -->
+        <section>
+          <div class="sub-h">
+            <span class="t">Document verification</span>
+            <span class="rule-ref">CIP §1010.220(a)(2)</span>
+          </div>
+          <div class="doc-list" id="docList">
+          </div>
+          <button class="doc-add" type="button">+ Request additional document</button>
+        </section>
+
+        <!-- Sanctions screen -->
+        <section>
+          <div class="sub-h">
+            <span class="t">Sanctions &amp; watchlist screen</span>
+            <span class="rule-ref">31 CFR §501 · OFAC</span>
+          </div>
+          <div class="screen-list" id="screenList"></div>
+
+          <div style="height:18px"></div>
+
+          <div class="sub-h">
+            <span class="t">Risk tier assignment</span>
+            <span class="rule-ref">RM-04 · BSA/AML Manual §3.2</span>
+          </div>
+          <div class="risk-block">
+            <div class="risk-h">
+              <div>
+                <div class="lab">Computed tier</div>
+                <div class="tier">Medium <span class="pip" aria-hidden="true"><span class="on"></span><span class="on"></span><span></span><span></span></span></div>
+              </div>
+              <div class="score">
+                <span style="text-transform:uppercase;letter-spacing:0.1em">Score</span>
+                <span class="num">62<span style="font-size:11px;color:var(--ink-3)">/100</span></span>
+              </div>
+            </div>
+            <div class="risk-body">
+              Entity registered in a <b>medium-risk jurisdiction</b> (KY, FATF compliant, opaque LLC structures). One UBO holds dual citizenship (UK / UAE). Source-of-funds documentation present but not yet attested. No sanctions hits across four reference lists. Recommendation: <b>proceed to Final Review with EDD waiver</b> conditional on utility bill verification.
+              <div class="factors">
+                <div class="f"><span>Geography</span><span>KY · Medium</span></div>
+                <div class="f"><span>Industry</span><span>Holdings · Low</span></div>
+                <div class="f med"><span>Structure</span><span>3 UBOs · Med</span></div>
+                <div class="f"><span>Funds source</span><span>Attested · Low</span></div>
+                <div class="f"><span>Volume</span><span>$2.4M ann · Low</span></div>
+                <div class="f med"><span>PEP exposure</span><span>1 indirect · Med</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="btnApprove" type="button">
+          Approve &amp; advance
+          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+        <button class="btn ghost" type="button">Request more info</button>
+        <button class="btn warn" type="button">Escalate to compliance</button>
+        <span class="req"><b>Required:</b>&nbsp;L4 sign-off · J. Whitfield</span>
+      </div>
+    </main>
+
+    <!-- Audit log -->
+    <aside class="card log-panel pane" data-pane="log">
+      <div class="card-h">
+        <h3>Audit log · MS-2026-04-3318</h3>
+        <span class="log-h-extras"><span class="live"></span> live · 12 entries</span>
+      </div>
+      <div class="log-stream" id="logStream">
+        <!-- populated by JS, plus seed entries below -->
+      </div>
+    </aside>
+
+  </div>
+  </section>
+  <!-- /VIEW: CASES -->
+
+  <!-- ============================================================
+       VIEW: INTAKE QUEUE — full-width SLA-sorted pending cases
+       ============================================================ -->
+  <section class="view-section" data-view="intake">
+    <div class="section-h">
+      <h2>Intake queue <span class="num-tag">21 PENDING · SORTED BY SLA BREACH</span></h2>
+      <span class="mono" style="font-size:10.5px;color:var(--ink-3)">3 BREACHED · 5 AT RISK · 13 ON TRACK</span>
+    </div>
+
+    <div class="panel scroll-x">
+      <div class="panel-h">
+        <h3>Pending intake — operator assignments</h3>
+        <div class="subfilter" id="intakeFilters">
+          <span class="label-tiny">SLA</span>
+          <button class="chip active" data-intake-sla="all">All</button>
+          <button class="chip" data-intake-sla="breach">Breached</button>
+          <button class="chip" data-intake-sla="risk">At risk</button>
+          <button class="chip" data-intake-sla="ok">On track</button>
+        </div>
+        <span class="count" id="intakeCount">21 cases</span>
+      </div>
+      <table class="feed-table" id="intakeTable">
+        <thead>
+          <tr>
+            <th>Case ID</th>
+            <th>Customer</th>
+            <th>Type</th>
+            <th>Days in pipeline</th>
+            <th>Current stage</th>
+            <th>Operator</th>
+            <th>SLA status</th>
+          </tr>
+        </thead>
+        <tbody id="intakeBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       VIEW: SANCTIONS — last 12 sanctions hits across all cases
+       ============================================================ -->
+  <section class="view-section" data-view="sanctions">
+    <div class="section-h">
+      <h2>Sanctions screening <span class="num-tag">12 RECENT HITS · 5 LISTS · 31 CFR §501</span></h2>
+      <span class="mono" style="font-size:10.5px;color:var(--ink-3)">Refresh: OFAC 06:00Z · EU 23:30Z · UN 00:00Z</span>
+    </div>
+
+    <div class="panel scroll-x">
+      <div class="panel-h">
+        <h3>Recent sanctions activity</h3>
+        <div class="subfilter" id="sanctionsFilters">
+          <span class="label-tiny">List</span>
+          <button class="chip active" data-sanc-list="all">All</button>
+          <button class="chip" data-sanc-list="OFAC SDN">OFAC SDN</button>
+          <button class="chip" data-sanc-list="EU Consolidated">EU Consolidated</button>
+          <button class="chip" data-sanc-list="UN Security Council">UN Security Council</button>
+          <button class="chip" data-sanc-list="PEP">PEP</button>
+          <button class="chip" data-sanc-list="FinCEN 314(a)">FinCEN 314(a)</button>
+        </div>
+        <span class="count" id="sanctionsCount">12 hits</span>
+      </div>
+      <table class="feed-table" id="sanctionsTable">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Customer</th>
+            <th>List</th>
+            <th>Match score</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="sanctionsBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       VIEW: DOCUMENTS — pending document validation queue
+       ============================================================ -->
+  <section class="view-section" data-view="documents">
+    <div class="section-h">
+      <h2>Document validation <span class="num-tag">16 PENDING · OCR + MANUAL REVIEW</span></h2>
+      <span class="mono" style="font-size:10.5px;color:var(--ink-3)">Avg OCR confidence: 91.4% · 3 below threshold</span>
+    </div>
+
+    <div class="panel scroll-x">
+      <div class="panel-h">
+        <h3>Documents awaiting validation</h3>
+        <div class="subfilter" id="docsFilters">
+          <span class="label-tiny">Status</span>
+          <button class="chip active" data-doc-st="all">All</button>
+          <button class="chip" data-doc-st="ocr">OCR running</button>
+          <button class="chip" data-doc-st="review">Manual review</button>
+          <button class="chip" data-doc-st="lowconf">Low confidence</button>
+        </div>
+        <span class="count" id="docsCount">16 documents</span>
+      </div>
+      <table class="feed-table" id="docsTable">
+        <thead>
+          <tr>
+            <th>Case ID</th>
+            <th>Customer</th>
+            <th>Document type</th>
+            <th>Uploaded</th>
+            <th>OCR confidence</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="docsBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       VIEW: RISK MODELS — tier framework + book composition
+       ============================================================ -->
+  <section class="view-section" data-view="risk">
+    <div class="section-h">
+      <h2>Risk tier framework <span class="num-tag">RM-04 · BSA/AML MANUAL §3.2</span></h2>
+      <span class="mono" style="font-size:10.5px;color:var(--ink-3)">Last calibration: 2026-03-18 · Quarterly review due 2026-06-15</span>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h">
+        <h3>Tier definitions</h3>
+        <span class="count">5 tier categories · 2,841 active customers</span>
+      </div>
+      <div class="tier-grid" id="tierGrid"></div>
+
+      <div class="book-chart">
+        <div class="chart-h">
+          <span>Book composition by tier</span>
+          <span class="total">Total active: 2,841</span>
+        </div>
+        <div class="chart-bars" id="chartBars"></div>
+      </div>
+    </div>
+
+    <div class="panel scroll-x">
+      <div class="panel-h">
+        <h3>Recent tier changes (last 30 days)</h3>
+        <span class="count">14 reassignments</span>
+      </div>
+      <table class="feed-table" id="tierChangesTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Case ID</th>
+            <th>Customer</th>
+            <th>From → To</th>
+            <th>Trigger</th>
+            <th>Approved by</th>
+          </tr>
+        </thead>
+        <tbody id="tierChangesBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       VIEW: AUDIT LOG — chronological event stream across all cases
+       ============================================================ -->
+  <section class="view-section" data-view="audit">
+    <div class="section-h">
+      <h2>Audit log <span class="num-tag">SOC 2 · IMMUTABLE · SHA-256 SIGNED</span></h2>
+      <span class="mono" style="font-size:10.5px;color:var(--ink-3)">Live feed · 142,318 entries (30d) · retention 7y</span>
+    </div>
+
+    <div class="panel scroll-x">
+      <div class="panel-h">
+        <h3>System-wide audit stream</h3>
+        <div class="subfilter" id="auditFilters">
+          <span class="label-tiny">Event</span>
+          <button class="chip active" data-audit-ev="all">All</button>
+          <button class="chip" data-audit-ev="DOC">Document</button>
+          <button class="chip" data-audit-ev="OCR">OCR</button>
+          <button class="chip" data-audit-ev="OFAC">OFAC</button>
+          <button class="chip" data-audit-ev="REVIEW">Operator review</button>
+          <button class="chip" data-audit-ev="TIER">Tier change</button>
+          <button class="chip" data-audit-ev="DECISION">Decision</button>
+        </div>
+        <span class="count" id="auditViewCount">22 events</span>
+      </div>
+      <table class="feed-table" id="auditTable">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Actor</th>
+            <th>Case ID</th>
+            <th>Event</th>
+            <th>Signed-by</th>
+          </tr>
+        </thead>
+        <tbody id="auditBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="legal">
+    <div class="left">
+      <span>© 2026 Meridian Compliance Systems, Inc.</span>
+      <a href="#">SOC 2 Type II</a>
+      <a href="#">FedRAMP Moderate</a>
+      <a href="#">BSA/AML Manual</a>
+      <a href="#">Audit export · v3.4</a>
+    </div>
+    <div class="right">
+      <span>Region&nbsp;us-east-1&nbsp;·&nbsp;p95&nbsp;218ms&nbsp;·&nbsp;encrypted&nbsp;at&nbsp;rest</span>
+    </div>
+  </footer>
+</div>
+
+<div id="demoToast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(120%);transition:transform .3s;background:#0F766E;color:#fff;padding:12px 20px;border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:9999;pointer-events:none;"></div>
+
+<script>
+(() => {
+  // ---- Live UTC clock in ribbon
+  const ribTime = document.getElementById('rib-time');
+  const z = n => String(n).padStart(2, '0');
+  const nowStamp = () => {
+    const d = new Date();
+    return z(d.getUTCHours()) + ':' + z(d.getUTCMinutes()) + ':' + z(d.getUTCSeconds());
+  };
+  const tick = () => { ribTime.textContent = nowStamp(); };
+  tick(); setInterval(tick, 1000);
+
+  // ---- Case age counter (drift forward from 42m)
+  const ageEl = document.getElementById('caseAge');
+  let baseSec = 42 * 60 + 18;
+  const renderAge = () => {
+    const m = Math.floor(baseSec / 60);
+    ageEl.innerHTML = m + '<small>m elapsed</small>';
+  };
+  let ageTimer = setInterval(() => { baseSec += 1; renderAge(); }, 1000);
+
+  // ---- Toast helper (kept for low-signal events: search "ready", filter empty etc.)
+  function demoToast(msg){
+    const t=document.getElementById('demoToast');
+    if(!t)return;
+    t.textContent=msg;
+    t.style.transform='translateX(-50%) translateY(0)';
+    clearTimeout(t._h);
+    t._h=setTimeout(()=>{t.style.transform='translateX(-50%) translateY(120%)';},1800);
+  }
+
+  // ============================================================
+  // ---- Case profiles (5 distinct, others derive from queue row)
+  // ============================================================
+  const STAGE_NAMES = ['Identity Capture','Document Verification','OFAC / Sanctions Screen','Risk Tier Assignment','Enhanced Due Diligence','Final Review','Approved / Rejected'];
+  const STAGE_TO_NUM = { 'ID CAP':1, 'DOC VRF':2, 'OFAC':3, 'RISK':4, 'EDD':5, 'FINAL':6, 'DONE':7 };
+
+  const PROFILES = {
+    'MS-2026-04-3318': {
+      name: 'Norfolk Holdings Ltd.', type: 'CORP',
+      started: '14:08:02 UTC · 2026-04-24', startedShort: '42m',
+      tier: 'Medium', stage: 4,
+      tags: [{cls:'corp', t:'Corporate'},{cls:'', t:'Cayman Islands · KY'},{cls:'', t:'UBO × 3 disclosed'}],
+      docs: [
+        { name:'Articles of Incorporation', sub:'articles_norfolk_2019.pdf · 4.2 MB', status:'ver', size:'4.2 MB', conf:'99.1%', uploaded:'14:09:31', fields:'12 fields extracted' },
+        { name:'Beneficial Ownership Disclosure', sub:'FinCEN BOI · 3 UBOs · OCR 98.4%', status:'ver', size:'1.1 MB', conf:'98.4%', uploaded:'14:10:02', fields:'18 fields · 3 UBOs parsed' },
+        { name:'Passport — UBO 1 (M. Aldridge)', sub:'GBR · MRZ checksum OK', status:'ver', size:'2.8 MB', conf:'99.6%', uploaded:'14:10:48', fields:'MRZ · DOB · expiry parsed' },
+        { name:'Form W-8BEN-E', sub:'FATCA · entity classification 4', status:'proc', size:'612 KB', conf:'pending', uploaded:'14:30:11', fields:'OCR running…' },
+        { name:'Utility Bill — Reg. Address', sub:'Maples Corp. Services · 03/2026', status:'pen', size:'—', conf:'—', uploaded:'awaiting client', fields:'—' },
+      ],
+      sanctions: [
+        { list:'OFAC SDN List', src:'U.S. Treasury · 2026-04-24 06:00 UTC', ts:'14:11:04', res:'clear', resTxt:'✓ Clear', detail:{ records:'9,841', rules:'name + DOB · fuzzy 0.85', hits:'0' } },
+        { list:'EU Consolidated Sanctions', src:'CFSP/CSDP · 2026-04-23 23:30 UTC', ts:'14:11:09', res:'clear', resTxt:'✓ Clear', detail:{ records:'2,488', rules:'name + nationality', hits:'0' } },
+        { list:'UN Security Council Sanctions', src:'1267/1989/2253 list', ts:'14:11:12', res:'clear', resTxt:'✓ Clear', detail:{ records:'1,034', rules:'name fuzzy 0.90', hits:'0' } },
+        { list:'PEP & Adverse Media', src:'Dow Jones RiskCenter · fuzzy 0.84', ts:'14:11:21', res:'review', resTxt:'⚠ Review', detail:{ records:'1.2M', rules:'name + spouse + adverse media', hits:'1 · reviewed by op-014' } },
+        { list:'FinCEN 314(a)', src:'Last refresh 2026-04-22', ts:'14:11:24', res:'clear', resTxt:'✓ Clear', detail:{ records:'318', rules:'exact name + DOB', hits:'0' } },
+      ],
+      audit: [
+        { t: '14:08:02', op: 'system',     k: 'info', ev: 'Case opened — entity intake form received via API',                                code: 'CIP-INIT-01', stage:1 },
+        { t: '14:08:14', op: 'operator-014', k: 'act',  ev: 'Operator E. Gallagher acquired case from queue',                                 code: 'Q.ASSIGN', stage:1 },
+        { t: '14:09:31', op: 'system',     k: 'info', ev: 'Document received: <b>articles_norfolk_2019.pdf</b>',                            code: 'DOC.RX', stage:2 },
+        { t: '14:09:33', op: 'system',     k: 'info', ev: 'OCR extraction completed · confidence 99.1%',                                    code: 'OCR.OK', stage:2 },
+        { t: '14:10:02', op: 'system',     k: 'ok',   ev: 'Beneficial Ownership disclosure parsed — 3 UBOs identified',                      code: 'BOI.PARSE', ref: 'FinCEN CDD Rule §1010.230(d)', stage:2 },
+        { t: '14:10:48', op: 'system',     k: 'info', ev: 'Passport MRZ checksum validated — UBO 1 (M. Aldridge, GBR)',                      code: 'MRZ.OK', stage:2 },
+        { t: '14:11:04', op: 'system',     k: 'ok',   ev: 'OFAC SDN screen returned <b>0 matches</b> across 9,841 records',                  code: 'OFAC.CLR', ref: '31 CFR §501 · refresh 2026-04-24 06:00Z', stage:3 },
+        { t: '14:11:24', op: 'system',     k: 'warn', ev: 'PEP fuzzy match flagged — score 0.84, name similarity to UBO 1 spouse',           code: 'PEP.RVW', ref: 'Dow Jones RiskCenter · review required', stage:3 },
+        { t: '14:14:10', op: 'operator-014', k: 'act',  ev: 'Operator override on PEP match — marked unrelated party, narrative attached',  code: 'OVR.PEP', stage:3 },
+        { t: '14:18:55', op: 'system',     k: 'info', ev: 'Risk model RM-04 invoked — computing factor weights',                            code: 'RM-04.CALC', stage:4 },
+        { t: '14:21:09', op: 'system',     k: 'ok',   ev: 'Risk tier assigned: <b>Medium · 62/100</b>',                                      code: 'RISK.ASGN', ref: 'BSA/AML Manual §3.2', stage:4 },
+        { t: '14:24:31', op: 'operator-014', k: 'info', ev: 'Operator review pending — awaiting utility bill re-upload',                    code: 'REV.PEND', stage:4 },
+      ],
+    },
+    'MS-2026-04-3294': {
+      name: 'Aleksandar Petrović', type: 'PEP',
+      started: '11:18:44 UTC · 2026-04-24', startedShort: '3h 14m',
+      tier: 'High', stage: 5,
+      tags: [{cls:'', t:'Individual'},{cls:'pep', t:'PEP · Tier 1'},{cls:'', t:'Serbia · RS'}],
+      docs: [
+        { name:'National ID — RS', sub:'biometric · MRZ OK', status:'ver', size:'1.4 MB', conf:'99.0%', uploaded:'11:20:11', fields:'name · DOB · biometric' },
+        { name:'Source of Wealth Statement', sub:'notarized · 14 pages', status:'ver', size:'3.6 MB', conf:'97.2%', uploaded:'11:25:41', fields:'income sources · holdings' },
+        { name:'Bank reference — Erste', sub:'electronic, signed', status:'pen', size:'—', conf:'pending', uploaded:'awaiting bank', fields:'—' },
+      ],
+      sanctions: [
+        { list:'OFAC SDN List', src:'U.S. Treasury · 2026-04-24 06:00 UTC', ts:'11:21:03', res:'clear', resTxt:'✓ Clear', detail:{ records:'9,841', rules:'name + DOB', hits:'0' } },
+        { list:'PEP & Adverse Media', src:'Dow Jones · fuzzy 0.95', ts:'11:21:14', res:'review', resTxt:'⚠ Review', detail:{ records:'1.2M', rules:'PEP class IIIA', hits:'2 · ministry roles 2009-2014' } },
+        { list:'EU Consolidated Sanctions', src:'CFSP/CSDP', ts:'11:21:18', res:'clear', resTxt:'✓ Clear', detail:{ records:'2,488', rules:'name fuzzy', hits:'0' } },
+      ],
+      audit: [
+        { t: '11:18:44', op: 'system',     k: 'info', ev: 'Case opened — high-risk PEP intake', code: 'CIP-INIT-01', stage:1 },
+        { t: '11:19:02', op: 'operator-022', k: 'act',  ev: 'Operator R. Castellanos acquired case', code: 'Q.ASSIGN', stage:1 },
+        { t: '11:21:14', op: 'system',     k: 'warn', ev: 'PEP class IIIA confirmed — escalation flagged', code: 'PEP.HIT', stage:3 },
+        { t: '12:02:18', op: 'operator-022', k: 'act',  ev: 'Escalated to L4 compliance — EDD initiated', code: 'ESC.L4', stage:5 },
+        { t: '12:14:09', op: 'system',     k: 'info', ev: 'Source-of-wealth narrative requested', code: 'SOW.REQ', stage:5 },
+      ],
+    },
+    'MS-2026-04-3309': {
+      name: 'Maria Santos', type: 'IND',
+      started: '13:29:05 UTC · 2026-04-24', startedShort: '1h 02m',
+      tier: 'Medium', stage: 2,
+      tags: [{cls:'', t:'Individual'},{cls:'', t:'Brazil · BR'},{cls:'', t:'Retail account'}],
+      docs: [
+        { name:"Driver's License — São Paulo", sub:'liveness OK', status:'fail', size:'1.2 MB', conf:'74%', uploaded:'13:30:11', fields:'low confidence on DOB · re-scan needed' },
+        { name:'Proof of address', sub:'utility bill 02/2026', status:'ver', size:'820 KB', conf:'96.4%', uploaded:'13:31:48', fields:'address · billing date' },
+        { name:'Tax ID — CPF', sub:'cross-checked Receita', status:'ver', size:'140 KB', conf:'100%', uploaded:'13:32:02', fields:'CPF · status active' },
+      ],
+      sanctions: [
+        { list:'OFAC SDN List', src:'U.S. Treasury', ts:'13:33:14', res:'clear', resTxt:'✓ Clear', detail:{ records:'9,841', rules:'name + DOB', hits:'0' } },
+        { list:'PEP & Adverse Media', src:'Dow Jones · fuzzy 0.84', ts:'13:33:20', res:'clear', resTxt:'✓ Clear', detail:{ records:'1.2M', rules:'fuzzy 0.84', hits:'0' } },
+      ],
+      audit: [
+        { t: '13:29:05', op: 'system',     k: 'info', ev: 'Case opened — retail individual, BR resident', code: 'CIP-INIT-01', stage:1 },
+        { t: '13:29:47', op: 'operator-014', k: 'act',  ev: 'Operator E. Gallagher acquired case', code: 'Q.ASSIGN', stage:1 },
+        { t: '13:30:11', op: 'system',     k: 'warn', ev: "Driver's license OCR confidence below threshold (0.74 < 0.85)", code: 'OCR.LOW', stage:2 },
+        { t: '13:34:02', op: 'operator-014', k: 'info', ev: 'DL re-scan requested from client', code: 'DOC.REQ', stage:2 },
+      ],
+    },
+    'MS-2026-04-3303': {
+      name: 'Astoria Realty LLC', type: 'CORP',
+      started: '12:46:11 UTC · 2026-04-24', startedShort: '1h 45m',
+      tier: 'Low', stage: 6,
+      tags: [{cls:'corp', t:'Corporate'},{cls:'', t:'New York · US'},{cls:'', t:'UBO × 2'}],
+      docs: [
+        { name:'Articles of Organization', sub:'NY DOS · filed 2018', status:'ver', size:'2.6 MB', conf:'99.4%', uploaded:'12:48:11', fields:'EIN · members' },
+        { name:'EIN Verification', sub:'IRS letter', status:'ver', size:'190 KB', conf:'100%', uploaded:'12:48:42', fields:'EIN matched' },
+        { name:'Operating Agreement', sub:'redacted, 28 pages', status:'ver', size:'5.1 MB', conf:'97.8%', uploaded:'12:50:09', fields:'profit split · UBO % parsed' },
+      ],
+      sanctions: [
+        { list:'OFAC SDN List', src:'U.S. Treasury', ts:'12:51:00', res:'clear', resTxt:'✓ Clear', detail:{ records:'9,841', rules:'name + EIN', hits:'0' } },
+        { list:'FinCEN 314(a)', src:'Last refresh 2026-04-22', ts:'12:51:08', res:'clear', resTxt:'✓ Clear', detail:{ records:'318', rules:'EIN exact', hits:'0' } },
+      ],
+      audit: [
+        { t: '12:46:11', op: 'system',     k: 'info', ev: 'Case opened — corporate intake', code: 'CIP-INIT-01', stage:1 },
+        { t: '12:47:02', op: 'operator-014', k: 'act',  ev: 'Operator E. Gallagher acquired case', code: 'Q.ASSIGN', stage:1 },
+        { t: '12:51:00', op: 'system',     k: 'ok',   ev: 'Sanctions screens clear across 4 lists', code: 'OFAC.CLR', stage:3 },
+        { t: '13:02:18', op: 'system',     k: 'ok',   ev: 'Risk tier: Low · 28/100', code: 'RISK.ASGN', stage:4 },
+        { t: '13:14:33', op: 'operator-014', k: 'act',  ev: 'Forwarded to L4 — final review', code: 'L4.FWD', stage:6 },
+      ],
+    },
+    'MS-2026-04-3322': {
+      name: 'Bayswater Trust No. 4', type: 'TRUST',
+      started: '14:00:09 UTC · 2026-04-24', startedShort: '28m',
+      tier: 'Low', stage: 3,
+      tags: [{cls:'', t:'Trust'},{cls:'', t:'Jersey · JE'},{cls:'', t:'4 beneficiaries'}],
+      docs: [
+        { name:'Trust Deed', sub:'JE registered · 2014', status:'ver', size:'7.8 MB', conf:'98.0%', uploaded:'14:01:42', fields:'settlor · trustees · class' },
+        { name:'Beneficiary Register', sub:'sealed copy', status:'ver', size:'412 KB', conf:'99.1%', uploaded:'14:02:03', fields:'4 entries' },
+        { name:'Trustee Resolution', sub:'opening account', status:'pen', size:'—', conf:'—', uploaded:'awaiting trustee sign', fields:'—' },
+      ],
+      sanctions: [
+        { list:'OFAC SDN List', src:'U.S. Treasury', ts:'14:02:14', res:'clear', resTxt:'✓ Clear', detail:{ records:'9,841', rules:'name + DOB on settlor + trustees', hits:'0' } },
+        { list:'EU Consolidated Sanctions', src:'CFSP/CSDP', ts:'14:02:17', res:'clear', resTxt:'✓ Clear', detail:{ records:'2,488', rules:'name fuzzy', hits:'0' } },
+      ],
+      audit: [
+        { t: '14:00:09', op: 'system',     k: 'info', ev: 'Case opened — trust intake', code: 'CIP-INIT-01', stage:1 },
+        { t: '14:00:48', op: 'operator-007', k: 'act',  ev: 'Operator J. Velez acquired case', code: 'Q.ASSIGN', stage:1 },
+        { t: '14:02:14', op: 'system',     k: 'ok',   ev: 'OFAC + EU sanctions clear', code: 'OFAC.CLR', stage:3 },
+      ],
+    },
+  };
+
+  // ---- Queue rows (data-driven so filters can run on data attributes)
+  const QUEUE = [
+    { id:'MS-2026-04-3318', who:'Norfolk Holdings Ltd', age:'42m', type:'CORP', stage:'RISK', op:'EG', opColor:'', opNote:'operator-014 · medium priority', prio:'med' },
+    { id:'MS-2026-04-3294', who:'Aleksandar Petrović', age:'3h 14m', type:'PEP', stage:'EDD', op:'RC', opColor:'#7B2D26', opNote:'operator-022 · urgent · PEP', prio:'high' },
+    { id:'MS-2026-04-3309', who:'Maria Santos', age:'1h 02m', type:'IND', stage:'DOC VRF', op:'EG', opColor:'', opNote:'operator-014 · DL re-scan needed', prio:'med' },
+    { id:'MS-2026-04-3322', who:'Bayswater Trust No. 4', age:'28m', type:'TRUST', stage:'OFAC', op:'JV', opColor:'#2E5A8A', opNote:'operator-007 · normal', prio:'low' },
+    { id:'MS-2026-04-3315', who:'Daniel Okafor', age:'52m', type:'IND', stage:'ID CAP', op:'SR', opColor:'#5C3F8A', opNote:'operator-031 · liveness pending', prio:'med' },
+    { id:'MS-2026-04-3271', who:'Vanguard Capital Reserve', age:'5h 41m', type:'CORP', stage:'EDD', op:'RC', opColor:'#7B2D26', opNote:'operator-022 · UBO ambiguity', prio:'high' },
+    { id:'MS-2026-04-3327', who:'Lin Wei-chen', age:'14m', type:'IND', stage:'RISK', op:'MK', opColor:'#1F5C3A', opNote:'operator-019 · CRS jurisdiction', prio:'med' },
+    { id:'MS-2026-04-3303', who:'Astoria Realty LLC', age:'1h 45m', type:'CORP', stage:'FINAL', op:'EG', opColor:'', opNote:'operator-014 · L4 review', prio:'low' },
+    { id:'MS-2026-04-3325', who:'Henrik Mortensen', age:'22m', type:'IND', stage:'OFAC', op:'JV', opColor:'#2E5A8A', opNote:'operator-007 · screening', prio:'med' },
+    { id:'MS-2026-04-3245', who:'Karim Boutros', age:'8h 03m', type:'PEP', stage:'EDD', op:'RC', opColor:'#7B2D26', opNote:'operator-022 · escalated · stale', prio:'high' },
+    { id:'MS-2026-04-3320', who:'Robert & Jean Halloway', age:'36m', type:'JOINT', stage:'DOC VRF', op:'MK', opColor:'#1F5C3A', opNote:'operator-019 · joint account', prio:'low' },
+  ];
+
+  const queueList = document.getElementById('queueList');
+  const renderQueue = () => {
+    queueList.innerHTML = '';
+    QUEUE.forEach(q => {
+      const div = document.createElement('div');
+      const tier = q.prio === 'high' ? 'High' : (q.prio === 'low' ? 'Low' : 'Medium');
+      div.className = 'queue-item p-' + q.prio;
+      div.dataset.caseId = q.id;
+      div.dataset.stage = q.stage;
+      div.dataset.tier = tier;
+      div.dataset.who = q.who;
+      div.innerHTML = `
+        <div class="prio-bar"></div>
+        <div>
+          <div class="top"><span class="who">${q.who}</span><span class="age">${q.age}</span></div>
+          <div class="meta">
+            <span class="id">${q.id}</span>
+            <span class="type-tag">${q.type}</span>
+            <span class="stage">${q.stage}</span>
+          </div>
+          <div class="footer"><div class="op-mini"${q.opColor?` style="background:${q.opColor}"`:''}>${q.op}</div><span>${q.opNote}</span></div>
+        </div>`;
+      queueList.appendChild(div);
+    });
+  };
+  renderQueue();
+
+  // ============================================================
+  // ---- Audit log rendering
+  // ============================================================
+  const logStream = document.getElementById('logStream');
+  const renderEntry = (e, isNew = false) => {
+    const div = document.createElement('div');
+    div.className = 'log-entry ' + (e.k || '') + (isNew ? ' new entered' : '');
+    if (e.stage != null) div.dataset.stage = e.stage;
+    div.innerHTML = `
+      <div class="rail"><div class="dot-mark"></div></div>
+      <div class="text">
+        <div class="ts">
+          <span>${e.t}&nbsp;UTC</span>
+          <span class="op">${e.op}</span>
+        </div>
+        <div class="ev">${e.ev}<span class="code">${e.code}</span>${e.ref ? `<span class="ref">↪ ${e.ref}</span>` : ''}</div>
+      </div>`;
+    return div;
+  };
+  const updateLogCount = () => {
+    const ct = logStream.querySelectorAll('.log-entry').length;
+    const ext = document.querySelector('.log-panel .log-h-extras');
+    if (ext) ext.innerHTML = '<span class="live"></span> live · ' + ct + ' entries';
+  };
+  function pushAudit(text, code, kind, stageNum){
+    const e = { t: nowStamp(), op: 'operator-014', k: kind || 'act', ev: text, code: code || 'OP.LOG', stage: stageNum };
+    const node = renderEntry(e, true);
+    logStream.appendChild(node);
+    logStream.scrollTo({ top: logStream.scrollHeight, behavior: 'smooth' });
+    setTimeout(() => node.classList.remove('new'), 1700);
+    updateLogCount();
+  }
+
+  // ============================================================
+  // ---- Pipeline stepper rendering
+  // ============================================================
+  const stepper = document.getElementById('stepper');
+  const stageStats = {
+    1: 'CDD §1.1 · 14:08:02',
+    2: '5 of 5 verified',
+    3: '4 lists · 0 hits',
+    4: 'Computing… 62%',
+    5: 'Conditional · UBO ≥ 25%',
+    6: 'L4 sign-off required',
+    7: 'SLA: 90 min',
+  };
+  const setStage = (activeStage, doneThrough) => {
+    stepper.querySelectorAll('.step').forEach(s => {
+      const n = parseInt(s.dataset.stage);
+      s.classList.remove('done', 'active');
+      if (n < activeStage || n <= doneThrough) s.classList.add('done');
+      else if (n === activeStage) s.classList.add('active');
+    });
+  };
+
+  // ============================================================
+  // ---- Document + sanctions render
+  // ============================================================
+  const docList = document.getElementById('docList');
+  const screenList = document.getElementById('screenList');
+  const renderDocs = (docs) => {
+    docList.innerHTML = '';
+    docs.forEach((d, i) => {
+      const node = document.createElement('div');
+      node.className = 'doc';
+      node.dataset.idx = i;
+      const statusLabel = d.status === 'ver' ? 'Verified' : (d.status === 'pen' ? 'Pending' : (d.status === 'fail' ? 'Re-scan' : 'OCR'));
+      node.innerHTML = `
+        <div class="doc-row">
+          <div class="icon"></div>
+          <div class="body">
+            <div class="name">${d.name}</div>
+            <div class="sub">${d.sub}</div>
+          </div>
+          <span class="status ${d.status}"><span class="led"></span>${statusLabel}</span>
+        </div>
+        <div class="doc-detail">
+          <div class="row"><span>File size</span><span>${d.size}</span></div>
+          <div class="row"><span>OCR confidence</span><span>${d.conf}</span></div>
+          <div class="row"><span>Uploaded</span><span>${d.uploaded}</span></div>
+          <div class="row"><span>Extraction</span><span>${d.fields}</span></div>
+        </div>`;
+      docList.appendChild(node);
+    });
+  };
+  const renderSanctions = (sanc) => {
+    screenList.innerHTML = '';
+    sanc.forEach((s) => {
+      const node = document.createElement('div');
+      node.className = 'screen-row';
+      node.innerHTML = `
+        <div class="row-head">
+          <div class="name">${s.list}<span class="src">${s.src}</span></div>
+          <span class="ts">${s.ts}</span>
+          <span class="res ${s.res}">${s.resTxt}</span>
+        </div>
+        <div class="row-detail">
+          <div class="row"><span>Records scanned</span><span>${s.detail.records}</span></div>
+          <div class="row"><span>Screening rules</span><span>${s.detail.rules}</span></div>
+          <div class="row"><span>Hits</span><span>${s.detail.hits}</span></div>
+          <div class="row"><span>Run at</span><span>${s.ts} UTC</span></div>
+        </div>`;
+      screenList.appendChild(node);
+    });
+  };
+
+  // ============================================================
+  // ---- Load case (full content swap)
+  // ============================================================
+  let currentProfile = null;
+  const caseIdEl = document.querySelector('.case-h .who-block .id-row .case-id');
+  const caseStartedEl = caseIdEl?.parentElement?.querySelector(':scope > span:last-child');
+  const caseNameEl = document.querySelector('.case-h .who-block .name');
+  const caseTagsEl = document.querySelector('.case-h .who-block .tags');
+  const pipelineHeader = document.querySelector('.section-h h2 + span') || document.querySelector('.section-h .mono');
+  const pipelineCaseId = document.querySelector('.pipeline');
+
+  const tierClassFor = (t) => t === 'High' ? 'tier-high' : (t === 'Low' ? 'tier-low' : 'tier-med');
+
+  const loadCase = (id, fallback) => {
+    let p = PROFILES[id];
+    if (!p && fallback) {
+      const tier = fallback.tier || 'Medium';
+      p = {
+        name: fallback.who, type: fallback.type, started: '— UTC · 2026-04-24',
+        tier, stage: STAGE_TO_NUM[fallback.stage] || 1,
+        tags: [{cls: fallback.type==='CORP'?'corp':'', t: fallback.type==='CORP'?'Corporate':(fallback.type==='PEP'?'Individual · PEP':(fallback.type==='TRUST'?'Trust':'Individual'))}, {cls:'', t:'Pending profile sync'}],
+        docs: [
+          { name:'Identity Document', sub:'awaiting sync', status:'pen', size:'—', conf:'—', uploaded:'—', fields:'—' },
+          { name:'Proof of Address', sub:'awaiting sync', status:'pen', size:'—', conf:'—', uploaded:'—', fields:'—' },
+        ],
+        sanctions: [
+          { list:'OFAC SDN List', src:'U.S. Treasury', ts:'—', res:'clear', resTxt:'✓ Clear', detail:{ records:'9,841', rules:'name + DOB', hits:'0' } },
+        ],
+        audit: [
+          { t: nowStamp(), op: 'system', k: 'info', ev: 'Case loaded from queue · profile sync pending', code: 'CASE.LOAD', stage: 1 },
+        ],
+      };
+    }
+    if (!p) return;
+    currentProfile = { id, ...p };
+
+    // Header
+    if (caseIdEl) caseIdEl.textContent = 'CASE · ' + id;
+    if (caseStartedEl) caseStartedEl.textContent = 'Started ' + p.started;
+    if (caseNameEl) caseNameEl.textContent = p.name;
+
+    // Tags + tier
+    if (caseTagsEl) {
+      caseTagsEl.innerHTML = '';
+      p.tags.forEach(tg => {
+        const el = document.createElement('span');
+        el.className = 'tag' + (tg.cls ? ' '+tg.cls : '');
+        el.textContent = tg.t;
+        caseTagsEl.appendChild(el);
+      });
+      const tierEl = document.createElement('span');
+      tierEl.className = 'tag ' + tierClassFor(p.tier);
+      tierEl.textContent = 'Tier · ' + p.tier;
+      tierEl.dataset.role = 'tier';
+      caseTagsEl.appendChild(tierEl);
+    }
+
+    // Pipeline case-id pseudo overlay (the ::before content) — use data-attr if needed
+    if (pipelineCaseId) pipelineCaseId.style.setProperty('--case-id', '"CASE.'+id+'"');
+
+    // Docs / sanctions
+    renderDocs(p.docs);
+    renderSanctions(p.sanctions);
+
+    // Stage
+    setStage(p.stage, p.stage - 1);
+
+    // Risk text
+    const riskScore = p.tier === 'High' ? '84/100' : (p.tier === 'Low' ? '28/100' : '62/100');
+    const riskNum = document.querySelector('.risk-h .score .num');
+    if (riskNum) riskNum.innerHTML = (riskScore.split('/')[0]) + '<span style="font-size:11px;color:var(--ink-3)">/100</span>';
+    const tierLabel = document.querySelector('.risk-h .tier');
+    if (tierLabel) {
+      const onCount = p.tier === 'High' ? 4 : (p.tier === 'Low' ? 1 : 2);
+      const pips = Array.from({length:4}, (_,i) => `<span${i<onCount?' class="on"':''}></span>`).join('');
+      tierLabel.innerHTML = p.tier + ' <span class="pip" aria-hidden="true">'+pips+'</span>';
+    }
+
+    // Audit log
+    logStream.innerHTML = '';
+    p.audit.forEach(e => logStream.appendChild(renderEntry(e)));
+    updateLogCount();
+    const logH = document.querySelector('.log-panel .card-h h3');
+    if (logH) logH.textContent = 'Audit log · ' + id;
+
+    // Reset approval banner / approve button
+    const banner = document.getElementById('approvalBanner');
+    if (banner) banner.classList.remove('show');
+    const btn = document.getElementById('btnApprove');
+    if (btn) {
+      btn.disabled = false;
+      btn.style.background = '';
+      btn.style.borderColor = '';
+      btn.innerHTML = `Approve &amp; advance <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+    }
+
+    // Reset stage dropdown
+    document.getElementById('stageDropdown')?.classList.remove('show');
+    clearLogFilter();
+
+    // Reset doc / sanction expansions: handled by render
+  };
+
+  // Bootstrap with default case
+  loadCase('MS-2026-04-3318');
+  // Mark first queue row selected
+  setTimeout(() => {
+    const first = queueList.querySelector('.queue-item');
+    first?.classList.add('selected');
+  }, 0);
+
+  // ============================================================
+  // ---- Streaming demo entries (only for Norfolk default case)
+  // ============================================================
+  const futureEntries = [
+    { op: 'system',     k: 'info', ev: 'OCR completed on <b>Form W-8BEN-E</b> · entity class IV confirmed', code: 'OCR.OK', stage:2 },
+    { op: 'system',     k: 'ok',   ev: 'EU Consolidated Sanctions refresh — list updated to 2026-04-24', code: 'EU.SYNC', stage:3 },
+    { op: 'operator-014', k: 'act',  ev: 'Drafted approval narrative — “Medium tier, EDD waived, monitor quarterly”', code: 'NAR.DRFT', stage:4 },
+    { op: 'system',     k: 'info', ev: 'Webhook fired to <b>core-banking-prod</b> · CIP record provisioned', code: 'HK.OK', ref: 'sha:9af2c3 · 200 OK · 142ms', stage:6 },
+    { op: 'system',     k: 'warn', ev: 'Utility bill OCR confidence below threshold (0.71 < 0.85) — manual review queued', code: 'OCR.LOW', stage:2 },
+  ];
+  let idx = 0;
+  const stream = () => {
+    if (idx >= futureEntries.length) return;
+    if (!currentProfile || currentProfile.id !== 'MS-2026-04-3318') { setTimeout(stream, 4500); return; }
+    const e = { ...futureEntries[idx++], t: nowStamp() };
+    const node = renderEntry(e, true);
+    logStream.appendChild(node);
+    setTimeout(() => node.classList.remove('new'), 1700);
+    logStream.scrollTo({ top: logStream.scrollHeight, behavior: 'smooth' });
+    updateLogCount();
+    setTimeout(stream, 4200 + Math.random() * 2400);
+  };
+  setTimeout(stream, 3500);
+
+  // ---- Document W-8 status flip after a few seconds (only for Norfolk)
+  setTimeout(() => {
+    if (!currentProfile || currentProfile.id !== 'MS-2026-04-3318') return;
+    const w8 = Array.from(docList.querySelectorAll('.doc')).find(d => d.querySelector('.body .name')?.textContent.includes('W-8BEN-E'));
+    if (!w8) return;
+    const status = w8.querySelector('.status');
+    if (!status) return;
+    status.classList.remove('proc');
+    status.classList.add('ver');
+    status.innerHTML = '<span class="led"></span>Verified';
+    w8.classList.add('processing');
+    setTimeout(() => w8.classList.remove('processing'), 700);
+    // also bump profile data
+    const d = currentProfile.docs.find(x => x.name.includes('W-8BEN-E'));
+    if (d) { d.status = 'ver'; d.conf = '96.8%'; }
+  }, 6500);
+
+  // ---- Auto stepper progression (only for Norfolk)
+  setTimeout(() => {
+    if (!currentProfile || currentProfile.id !== 'MS-2026-04-3318') return;
+    const s4 = stepper.querySelector('[data-stage="4"]');
+    const s5 = stepper.querySelector('[data-stage="5"]');
+    if (s4 && s4.classList.contains('active') && s5) {
+      s4.classList.remove('active');
+      s4.classList.add('done');
+      s4.querySelector('.meta .stat').textContent = 'Tier · Medium · 14:21';
+      s5.classList.add('active');
+      s5.querySelector('.meta .stat').textContent = 'Reviewing UBO 1 · 14:32';
+      currentProfile.stage = 5;
+    }
+  }, 14500);
+
+  // ============================================================
+  // ---- Approve button: dramatic green-flip across all stages
+  // ============================================================
+  const approveBtn = document.getElementById('btnApprove');
+  approveBtn?.addEventListener('click', () => {
+    if (approveBtn.disabled) return;
+    approveBtn.disabled = true;
+    approveBtn.style.background = 'var(--ok)';
+    approveBtn.style.borderColor = 'var(--ok)';
+    approveBtn.innerHTML = '✓ Approved';
+
+    // Flip each pipeline stage to "done" sequentially (~1.5s drama)
+    const steps = Array.from(stepper.querySelectorAll('.step'));
+    steps.forEach(s => s.classList.remove('active'));
+    const flipDelay = 200;
+    steps.forEach((s, i) => {
+      setTimeout(() => {
+        s.classList.add('done');
+        if (i < steps.length - 1) {
+          s.classList.add('active');
+          setTimeout(() => s.classList.remove('active'), flipDelay);
+        } else {
+          s.classList.add('active');
+          const stat = s.querySelector('.meta .stat');
+          if (stat) stat.textContent = 'APPROVED · ' + nowStamp();
+        }
+      }, i * flipDelay);
+    });
+
+    // Audit log entries (sequential)
+    const entries = [
+      ['Operator review complete', 'REV.OK', 'act', 6],
+      ['Compliance sign-off', 'L4.SIGN', 'act', 6],
+      ['Final approval recorded', 'APV.RECORD', 'ok', 7],
+      ['Case closed: APPROVED', 'CASE.CLOSED', 'ok', 7],
+    ];
+    entries.forEach((e, i) => setTimeout(() => pushAudit(e[0], e[1], e[2], e[3]), 400 + i * 350));
+
+    // Banner
+    setTimeout(() => {
+      const banner = document.getElementById('approvalBanner');
+      const meta = document.getElementById('approvalMeta');
+      const id = currentProfile?.id || 'MS-2026-04-3318';
+      const decision = nowStamp();
+      if (meta) meta.textContent = 'CASE · ' + id + ' · DECISION ' + decision + ' UTC';
+      banner?.classList.add('show');
+    }, 1700);
+  });
+
+  // ============================================================
+  // ---- Request more info: doc flip + stage regress
+  // ============================================================
+  const reqInfoBtn = Array.from(document.querySelectorAll('.actions .btn.ghost')).find(b => b.textContent.trim() === 'Request more info');
+  reqInfoBtn?.addEventListener('click', () => {
+    if (reqInfoBtn.disabled) return;
+    // Find the utility bill doc card and flip to Pending / Re-requested
+    const utility = Array.from(docList.querySelectorAll('.doc')).find(d => /utility/i.test(d.querySelector('.body .name')?.textContent || ''));
+    if (utility) {
+      const status = utility.querySelector('.status');
+      if (status) {
+        status.className = 'status pen';
+        status.innerHTML = '<span class="led"></span>Re-requested';
+      }
+      const sub = utility.querySelector('.body .sub');
+      if (sub) sub.textContent = 'Re-request sent · awaiting client upload';
+      utility.classList.add('processing');
+      setTimeout(() => utility.classList.remove('processing'), 700);
+    } else {
+      // Fall back: flip first verified doc to pending
+      const v = docList.querySelector('.doc .status.ver');
+      if (v) { v.className = 'status pen'; v.innerHTML = '<span class="led"></span>Pending'; }
+    }
+
+    // Stage regress: doc verification (stage 2) becomes active again
+    const s2 = stepper.querySelector('[data-stage="2"]');
+    const sActive = stepper.querySelector('.step.active');
+    if (sActive && sActive !== s2) sActive.classList.remove('active');
+    if (s2) {
+      s2.classList.remove('done');
+      s2.classList.add('active');
+      const stat = s2.querySelector('.meta .stat');
+      if (stat) stat.textContent = 'Re-verification pending · ' + nowStamp();
+    }
+
+    pushAudit('Additional documentation requested: utility bill <30 days', 'DOC.REREQ', 'warn', 2);
+
+    reqInfoBtn.disabled = true;
+    const orig = reqInfoBtn.textContent;
+    reqInfoBtn.textContent = 'Request sent · 3s';
+    setTimeout(() => { reqInfoBtn.disabled = false; reqInfoBtn.textContent = orig; }, 3000);
+  });
+
+  // ============================================================
+  // ---- Escalate to compliance: operator swap, risk bump, EDD jump
+  // ============================================================
+  const escBtn = Array.from(document.querySelectorAll('.actions .btn.warn')).find(b => b.textContent.trim() === 'Escalate to compliance');
+  const opChip = document.querySelector('.operator');
+  escBtn?.addEventListener('click', () => {
+    // Operator swap with flash
+    if (opChip) {
+      opChip.classList.add('flash');
+      setTimeout(() => {
+        const av = opChip.querySelector('.avatar');
+        const n = opChip.querySelector('.who .n');
+        const idn = opChip.querySelector('.who .id');
+        if (av) av.textContent = 'JW';
+        if (n) n.textContent = 'J. Whitfield';
+        if (idn) idn.textContent = 'operator-001 · L4 Compliance Lead';
+      }, 200);
+      setTimeout(() => opChip.classList.remove('flash'), 800);
+    }
+
+    // Risk tier bump to High with red flash
+    const tierTag = caseTagsEl?.querySelector('[data-role="tier"]');
+    if (tierTag) {
+      tierTag.classList.add('flash');
+      setTimeout(() => {
+        tierTag.className = 'tag tier-high flash';
+        tierTag.dataset.role = 'tier';
+        tierTag.textContent = 'Tier · High';
+      }, 200);
+      setTimeout(() => tierTag.classList.remove('flash'), 900);
+    }
+    // Update risk-h
+    const riskTier = document.querySelector('.risk-h .tier');
+    if (riskTier) riskTier.innerHTML = 'High <span class="pip" aria-hidden="true"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></span>';
+    const riskScore = document.querySelector('.risk-h .score .num');
+    if (riskScore) riskScore.innerHTML = '84<span style="font-size:11px;color:var(--ink-3)">/100</span>';
+
+    // Move active to Stage 5 EDD
+    stepper.querySelectorAll('.step').forEach(s => {
+      const n = parseInt(s.dataset.stage);
+      s.classList.remove('active');
+      if (n < 5) s.classList.add('done');
+      if (n === 5) s.classList.add('active');
+    });
+    const s5 = stepper.querySelector('[data-stage="5"]');
+    if (s5) {
+      const stat = s5.querySelector('.meta .stat');
+      if (stat) stat.textContent = 'EDD escalated · ' + nowStamp();
+    }
+
+    pushAudit('Case escalated to compliance L4 · J. Whitfield assigned', 'ESC.L4', 'warn', 5);
+    pushAudit('Risk tier upgraded: Medium → High', 'RISK.BUMP', 'warn', 4);
+    pushAudit('Enhanced Due Diligence initiated — UBO source-of-funds review required', 'EDD.START', 'warn', 5);
+  });
+
+  // ============================================================
+  // ---- Queue rows: full case swap
+  // ============================================================
+  queueList.addEventListener('click', (ev) => {
+    const qi = ev.target.closest('.queue-item');
+    if (!qi) return;
+    queueList.querySelectorAll('.queue-item').forEach(q => q.classList.remove('selected'));
+    qi.classList.add('selected');
+    const id = qi.dataset.caseId;
+    const fallback = QUEUE.find(q => q.id === id);
+    loadCase(id, fallback);
+  });
+
+  // ============================================================
+  // ---- Stepper click: inline dropdown w/ stage entries + log filter
+  // ============================================================
+  const stageDropdown = document.getElementById('stageDropdown');
+  const stageDropdownTitle = document.getElementById('stageDropdownTitle');
+  const stageDropdownBody = document.getElementById('stageDropdownBody');
+  const stageDropdownClose = document.getElementById('stageDropdownClose');
+
+  const filterLogToStage = (stageNum) => {
+    const entries = logStream.querySelectorAll('.log-entry');
+    entries.forEach(e => {
+      const st = parseInt(e.dataset.stage);
+      if (st === stageNum) e.classList.remove('dimmed');
+      else e.classList.add('dimmed');
+    });
+  };
+  const clearLogFilter = () => {
+    logStream.querySelectorAll('.log-entry').forEach(e => e.classList.remove('dimmed'));
+  };
+
+  let openStage = null;
+  const showStageDropdown = (s) => {
+    const stageNum = parseInt(s.dataset.stage);
+    const name = s.querySelector('.meta .name')?.textContent?.trim() || 'Stage';
+    stageDropdownTitle.textContent = 'Stage ' + stageNum + ' · ' + name;
+    const stageEntries = currentProfile?.audit?.filter(e => e.stage === stageNum) || [];
+    stageDropdownBody.innerHTML = stageEntries.length
+      ? stageEntries.map(e => `<div class="entry"><span class="tt">${e.t}</span>${e.ev.replace(/<[^>]+>/g,'')} <span style="color:var(--ink-3)">[${e.code}]</span></div>`).join('')
+      : '<div class="entry" style="color:var(--ink-3)">No audit entries recorded for this stage yet.</div>';
+    stageDropdown.classList.add('show');
+    filterLogToStage(stageNum);
+    openStage = stageNum;
+  };
+  const hideStageDropdown = () => {
+    stageDropdown.classList.remove('show');
+    clearLogFilter();
+    openStage = null;
+  };
+  stageDropdownClose?.addEventListener('click', hideStageDropdown);
+
+  stepper.addEventListener('click', (ev) => {
+    const s = ev.target.closest('.step');
+    if (!s) return;
+    if (!s.classList.contains('done') && !s.classList.contains('active')) return;
+    const stageNum = parseInt(s.dataset.stage);
+    if (openStage === stageNum) hideStageDropdown();
+    else showStageDropdown(s);
+  });
+
+  // ============================================================
+  // ---- Document cards: inline expand
+  // ============================================================
+  docList.addEventListener('click', (ev) => {
+    const d = ev.target.closest('.doc');
+    if (!d) return;
+    const wasExpanded = d.classList.contains('expanded');
+    docList.querySelectorAll('.doc.expanded').forEach(x => x.classList.remove('expanded'));
+    if (!wasExpanded) d.classList.add('expanded');
+  });
+
+  // ============================================================
+  // ---- Sanctions rows: inline expand
+  // ============================================================
+  screenList.addEventListener('click', (ev) => {
+    const r = ev.target.closest('.screen-row');
+    if (!r) return;
+    const wasExpanded = r.classList.contains('expanded');
+    screenList.querySelectorAll('.screen-row.expanded').forEach(x => x.classList.remove('expanded'));
+    if (!wasExpanded) r.classList.add('expanded');
+  });
+
+  // ============================================================
+  // ---- Add document: actually add card, then auto-flip to Verified
+  // ============================================================
+  const addBtn = document.querySelector('.doc-add');
+  let addCounter = 0;
+  addBtn?.addEventListener('click', () => {
+    if (addBtn.disabled) return;
+    const docNames = ['Beneficial Ownership Certificate','Source of Funds Letter','Bank Reference','Tax Residency Certificate'];
+    const docName = docNames[addCounter % docNames.length];
+    addCounter++;
+    const node = document.createElement('div');
+    node.className = 'doc processing';
+    node.innerHTML = `
+      <div class="doc-row">
+        <div class="icon"></div>
+        <div class="body">
+          <div class="name">${docName}</div>
+          <div class="sub">requested · awaiting client upload</div>
+        </div>
+        <span class="status pen"><span class="led"></span>Pending</span>
+      </div>
+      <div class="doc-detail">
+        <div class="row"><span>File size</span><span>—</span></div>
+        <div class="row"><span>OCR confidence</span><span>—</span></div>
+        <div class="row"><span>Uploaded</span><span>—</span></div>
+        <div class="row"><span>Extraction</span><span>—</span></div>
+      </div>`;
+    docList.appendChild(node);
+    setTimeout(() => node.classList.remove('processing'), 700);
+
+    addBtn.disabled = true;
+    const origLabel = addBtn.textContent;
+    addBtn.textContent = 'Request sent · awaiting upload';
+
+    pushAudit('Request sent for additional document — ' + docName, 'DOC.REQ', 'act', 2);
+
+    // After 4 sec: Pending → Received
+    setTimeout(() => {
+      const status = node.querySelector('.status');
+      if (status) { status.className = 'status proc'; status.innerHTML = '<span class="led"></span>Received'; }
+      node.classList.add('processing');
+      setTimeout(() => node.classList.remove('processing'), 700);
+      // Update detail
+      const detailRows = node.querySelectorAll('.doc-detail .row span:last-child');
+      if (detailRows[0]) detailRows[0].textContent = (1 + Math.random()*3).toFixed(1) + ' MB';
+      if (detailRows[2]) detailRows[2].textContent = nowStamp();
+    }, 2000);
+
+    // After ~3.5 sec: Received → Verified
+    setTimeout(() => {
+      const status = node.querySelector('.status');
+      if (status) { status.className = 'status ver'; status.innerHTML = '<span class="led"></span>Verified'; }
+      node.classList.add('processing');
+      setTimeout(() => node.classList.remove('processing'), 700);
+      const detailRows = node.querySelectorAll('.doc-detail .row span:last-child');
+      if (detailRows[1]) detailRows[1].textContent = (94 + Math.random()*5).toFixed(1) + '%';
+      if (detailRows[3]) detailRows[3].textContent = 'fields parsed · OK';
+      pushAudit('Document verified: ' + docName, 'DOC.VER', 'ok', 2);
+
+      addBtn.disabled = false;
+      addBtn.textContent = origLabel;
+    }, 4000);
+  });
+
+  // ============================================================
+  // ---- Filter chips: real queue filtering
+  // ============================================================
+  const stageMap = {
+    'Document Verification':'DOC VRF','OFAC Screen':'OFAC','EDD':'EDD'
+  };
+  const tierMap = { 'Low':'Low', 'Medium':'Medium', 'High':'High' };
+
+  const groupOf = (chip) => {
+    let n = chip; let label = '';
+    while (n) {
+      n = n.previousElementSibling;
+      if (n && n.classList?.contains('label-tiny')) { label = n.textContent.trim(); break; }
+    }
+    return label;
+  };
+
+  const collectActive = (group) => {
+    const all = Array.from(document.querySelectorAll('.filters .chip'));
+    return all.filter(c => c.classList.contains('active') && groupOf(c) === group).map(c => c.textContent.trim());
+  };
+
+  const applyQueueFilters = () => {
+    const stageActive = collectActive('Stage'); // e.g. ['All'] or ['EDD','OFAC Screen']
+    const riskActive  = collectActive('Risk');
+    const opActive    = collectActive('Operator');
+
+    const stageFilter = stageActive.includes('All') || stageActive.length === 0 ? null : stageActive.map(s => stageMap[s]).filter(Boolean);
+    const riskFilter  = riskActive.length === 0 ? null : riskActive.filter(r => tierMap[r]);
+    const opFilter    = opActive.includes('operator-014 (me)') ? 'EG' : null;
+
+    // Plus search
+    const q = (document.querySelector('.search input')?.value || '').trim().toLowerCase();
+
+    let visible = 0;
+    queueList.querySelectorAll('.queue-item').forEach(qi => {
+      const stage = qi.dataset.stage;
+      const tier  = qi.dataset.tier;
+      const op    = qi.querySelector('.op-mini')?.textContent?.trim();
+      const who   = (qi.dataset.who || '').toLowerCase();
+      const id    = (qi.dataset.caseId || '').toLowerCase();
+
+      let show = true;
+      if (stageFilter && !stageFilter.includes(stage)) show = false;
+      if (riskFilter && !riskFilter.includes(tier)) show = false;
+      if (opFilter && op !== opFilter) show = false;
+      if (q && !who.includes(q) && !id.includes(q)) show = false;
+
+      qi.classList.toggle('hidden', !show);
+      if (show) visible++;
+    });
+
+    const count = document.querySelector('.queue-panel .card-h .count');
+    if (count) count.textContent = visible + ' of ' + QUEUE.length + ' visible';
+  };
+
+  // Filter chips: toggle within group, then apply
+  document.querySelectorAll('.filters .chip').forEach(c => {
+    c.addEventListener('click', () => {
+      const group = groupOf(c);
+      const sibs = Array.from(document.querySelectorAll('.filters .chip')).filter(x => groupOf(x) === group);
+      const label = c.textContent.trim();
+      if (label === 'All') {
+        sibs.forEach(s => s.classList.remove('active'));
+        c.classList.add('active');
+      } else {
+        // remove "All" if a specific filter is now active
+        sibs.forEach(s => { if (s.textContent.trim() === 'All') s.classList.remove('active'); });
+        c.classList.toggle('active');
+        // If nothing active in this group, set "All"
+        const anyActive = sibs.some(s => s.classList.contains('active'));
+        if (!anyActive) {
+          const all = sibs.find(s => s.textContent.trim() === 'All');
+          all?.classList.add('active');
+        }
+      }
+      applyQueueFilters();
+    });
+  });
+
+  // ============================================================
+  // ---- Search input: real-time filter (debounced)
+  // ============================================================
+  const searchInput = document.querySelector('.search input');
+  let searchT;
+  searchInput?.addEventListener('input', () => {
+    clearTimeout(searchT);
+    searchT = setTimeout(applyQueueFilters, 300);
+  });
+  searchInput?.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') { searchInput.value=''; applyQueueFilters(); }
+  });
+
+  // Initial filter pass
+  applyQueueFilters();
+
+  // ============================================================
+  // ---- Top-nav view switcher (6 sections)
+  // ============================================================
+  const topnav = document.getElementById('topnav');
+  const switchView = (target) => {
+    document.querySelectorAll('.view-section').forEach(s => s.classList.toggle('active', s.dataset.view === target));
+    document.querySelectorAll('#topnav button').forEach(b => {
+      const on = b.dataset.view === target;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    // Re-render bar fills if entering risk view (for animation)
+    if (target === 'risk') setTimeout(animateBars, 30);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  topnav?.addEventListener('click', (ev) => {
+    const b = ev.target.closest('button[data-view]');
+    if (!b) return;
+    switchView(b.dataset.view);
+  });
+
+  // ============================================================
+  // ---- Intake Queue data + render
+  // ============================================================
+  const INTAKE = [
+    { id:'MS-2026-04-3245', who:'Karim Boutros',           type:'PEP',        days: 8, stage:'EDD',     op:'operator-022', sla:'breach', slaTxt:'Breached · 8d' },
+    { id:'MS-2026-04-3252', who:'Tropic Strand Holdings',  type:'Corporate',  days: 7, stage:'EDD',     op:'operator-022', sla:'breach', slaTxt:'Breached · 6d' },
+    { id:'MS-2026-04-3258', who:'Yuki Nakashima',          type:'PEP',        days: 6, stage:'EDD',     op:'operator-001', sla:'breach', slaTxt:'Breached · 4d' },
+    { id:'MS-2026-04-3271', who:'Vanguard Capital Reserve',type:'Corporate',  days: 5, stage:'EDD',     op:'operator-022', sla:'risk',   slaTxt:'At risk · 11h left' },
+    { id:'MS-2026-04-3276', who:'Henry Ashford-Pike',      type:'Individual', days: 4, stage:'OFAC',    op:'operator-019', sla:'risk',   slaTxt:'At risk · 6h left' },
+    { id:'MS-2026-04-3281', who:'Hekla Foundation',        type:'Trust',      days: 4, stage:'RISK',    op:'operator-007', sla:'risk',   slaTxt:'At risk · 9h left' },
+    { id:'MS-2026-04-3289', who:'Aurelia Industrial GmbH', type:'Corporate',  days: 3, stage:'DOC VRF', op:'operator-014', sla:'risk',   slaTxt:'At risk · 14h left' },
+    { id:'MS-2026-04-3294', who:'Aleksandar Petrović',     type:'PEP',        days: 3, stage:'EDD',     op:'operator-022', sla:'risk',   slaTxt:'At risk · 18h left' },
+    { id:'MS-2026-04-3303', who:'Astoria Realty LLC',      type:'Corporate',  days: 2, stage:'FINAL',   op:'operator-014', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3306', who:'Pinewood Family Trust',   type:'Trust',      days: 2, stage:'OFAC',    op:'operator-007', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3309', who:'Maria Santos',            type:'Individual', days: 2, stage:'DOC VRF', op:'operator-014', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3312', who:'Nikolas Eriksson',        type:'Individual', days: 1, stage:'ID CAP',  op:'operator-031', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3315', who:'Daniel Okafor',           type:'Individual', days: 1, stage:'ID CAP',  op:'operator-031', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3318', who:'Norfolk Holdings Ltd.',   type:'Corporate',  days: 1, stage:'RISK',    op:'operator-014', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3320', who:'Robert & Jean Halloway',  type:'Individual', days: 1, stage:'DOC VRF', op:'operator-019', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3322', who:'Bayswater Trust No. 4',   type:'Trust',      days: 1, stage:'OFAC',    op:'operator-007', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3325', who:'Henrik Mortensen',        type:'Individual', days: 1, stage:'OFAC',    op:'operator-007', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3327', who:'Lin Wei-chen',            type:'Individual', days: 1, stage:'RISK',    op:'operator-019', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3331', who:'Cordillera Asset Mgmt.',  type:'Corporate',  days: 1, stage:'DOC VRF', op:'operator-014', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3334', who:'Sofia Bianchi',           type:'Individual', days: 0, stage:'ID CAP',  op:'operator-031', sla:'ok',     slaTxt:'On track' },
+    { id:'MS-2026-04-3338', who:'Westbridge Mutual Trust', type:'Trust',      days: 0, stage:'ID CAP',  op:'operator-007', sla:'ok',     slaTxt:'On track' },
+  ];
+  const slaPctOf = (it) => it.sla === 'breach' ? 100 : (it.sla === 'risk' ? 78 : Math.min(20 + it.days * 8, 55));
+  const renderIntake = (filter='all') => {
+    const body = document.getElementById('intakeBody');
+    const cnt  = document.getElementById('intakeCount');
+    if (!body) return;
+    const rows = INTAKE.filter(r => filter === 'all' ? true : r.sla === filter);
+    if (!rows.length) {
+      body.innerHTML = '<tr class="empty-row"><td colspan="7">No cases match the current filter.</td></tr>';
+    } else {
+      body.innerHTML = rows.map(r => {
+        const slaClass = r.sla === 'breach' ? 'bad' : (r.sla === 'risk' ? 'warn' : 'ok');
+        const pct = slaPctOf(r);
+        return `<tr data-case="${r.id}">
+          <td class="case-id-cell">${r.id}</td>
+          <td class="who-cell">${r.who}</td>
+          <td><span class="badge neutral">${r.type}</span></td>
+          <td class="num">${r.days}d</td>
+          <td><span class="badge accent">${r.stage}</span></td>
+          <td class="ts-cell">${r.op}</td>
+          <td><span class="sla-bar ${slaClass}"><span class="fill" style="width:${pct}%"></span></span><span class="badge ${slaClass}"><span class="led"></span>${r.slaTxt}</span></td>
+        </tr>`;
+      }).join('');
+    }
+    if (cnt) cnt.textContent = rows.length + ' of ' + INTAKE.length + ' cases';
+  };
+  renderIntake();
+  document.getElementById('intakeFilters')?.addEventListener('click', (ev) => {
+    const c = ev.target.closest('[data-intake-sla]');
+    if (!c) return;
+    document.querySelectorAll('#intakeFilters .chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    renderIntake(c.dataset.intakeSla);
+  });
+  // Click row in intake → jump to Cases view if that case has a profile
+  document.getElementById('intakeBody')?.addEventListener('click', (ev) => {
+    const tr = ev.target.closest('tr[data-case]');
+    if (!tr) return;
+    const id = tr.dataset.case;
+    const fb = QUEUE.find(q => q.id === id);
+    if (fb) { switchView('cases'); loadCase(id, fb); queueList.querySelectorAll('.queue-item').forEach(qi => qi.classList.toggle('selected', qi.dataset.caseId === id)); }
+  });
+
+  // ============================================================
+  // ---- Sanctions hits data + render
+  // ============================================================
+  const SANCTIONS_HITS = [
+    { ts:'14:32:04', who:'Aleksandar Petrović',     list:'PEP',                 score:0.95, action:'escalated', actionTxt:'Escalated' },
+    { ts:'14:28:18', who:'Karim Boutros',            list:'OFAC SDN',            score:0.91, action:'frozen',    actionTxt:'Frozen' },
+    { ts:'14:21:09', who:'Norfolk Holdings Ltd.',    list:'PEP',                 score:0.84, action:'cleared',   actionTxt:'Cleared' },
+    { ts:'14:11:24', who:'Norfolk Holdings Ltd.',    list:'FinCEN 314(a)',       score:0.00, action:'cleared',   actionTxt:'Cleared' },
+    { ts:'13:54:42', who:'Tropic Strand Holdings',   list:'EU Consolidated',     score:0.88, action:'escalated', actionTxt:'Escalated' },
+    { ts:'13:42:11', who:'Yuki Nakashima',           list:'PEP',                 score:0.93, action:'escalated', actionTxt:'Escalated' },
+    { ts:'13:14:02', who:'Cordillera Asset Mgmt.',   list:'OFAC SDN',            score:0.72, action:'cleared',   actionTxt:'Cleared (false positive)' },
+    { ts:'12:58:30', who:'Vanguard Capital Reserve', list:'UN Security Council', score:0.65, action:'cleared',   actionTxt:'Cleared' },
+    { ts:'12:41:06', who:'Henry Ashford-Pike',       list:'PEP',                 score:0.81, action:'cleared',   actionTxt:'Cleared' },
+    { ts:'12:18:48', who:'Hekla Foundation',         list:'EU Consolidated',     score:0.79, action:'cleared',   actionTxt:'Cleared' },
+    { ts:'11:52:17', who:'Aurelia Industrial GmbH',  list:'OFAC SDN',            score:0.68, action:'cleared',   actionTxt:'Cleared' },
+    { ts:'11:33:54', who:'Bayswater Trust No. 4',    list:'FinCEN 314(a)',       score:0.00, action:'cleared',   actionTxt:'Cleared' },
+  ];
+  const renderSanctionsView = (filter='all') => {
+    const body = document.getElementById('sanctionsBody');
+    const cnt  = document.getElementById('sanctionsCount');
+    if (!body) return;
+    const rows = SANCTIONS_HITS.filter(r => filter === 'all' ? true : r.list === filter);
+    if (!rows.length) {
+      body.innerHTML = '<tr class="empty-row"><td colspan="5">No sanctions activity for this list.</td></tr>';
+    } else {
+      body.innerHTML = rows.map(r => {
+        const aClass = r.action === 'frozen' ? 'bad' : (r.action === 'escalated' ? 'warn' : 'ok');
+        const scoreCls = r.score >= 0.85 ? 'bad' : (r.score >= 0.70 ? 'warn' : 'ok');
+        return `<tr>
+          <td class="ts-cell">${r.ts} UTC</td>
+          <td class="who-cell">${r.who}</td>
+          <td><span class="badge neutral">${r.list}</span></td>
+          <td><span class="badge ${scoreCls}">${(r.score*100).toFixed(0)}%</span></td>
+          <td><span class="badge ${aClass}"><span class="led"></span>${r.actionTxt}</span></td>
+        </tr>`;
+      }).join('');
+    }
+    if (cnt) cnt.textContent = rows.length + ' of ' + SANCTIONS_HITS.length + ' hits';
+  };
+  renderSanctionsView();
+  document.getElementById('sanctionsFilters')?.addEventListener('click', (ev) => {
+    const c = ev.target.closest('[data-sanc-list]');
+    if (!c) return;
+    document.querySelectorAll('#sanctionsFilters .chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    renderSanctionsView(c.dataset.sancList);
+  });
+
+  // ============================================================
+  // ---- Documents validation queue + render
+  // ============================================================
+  const DOC_QUEUE = [
+    { caseId:'MS-2026-04-3318', who:'Norfolk Holdings Ltd.',   type:'W-8BEN-E',         uploaded:'14:30:11', conf:0.91, status:'ocr',     statusTxt:'OCR running' },
+    { caseId:'MS-2026-04-3318', who:'Norfolk Holdings Ltd.',   type:'Utility Bill',     uploaded:'awaiting', conf:0.00, status:'review',  statusTxt:'Awaiting upload' },
+    { caseId:'MS-2026-04-3309', who:'Maria Santos',            type:'Driver License',   uploaded:'13:30:11', conf:0.74, status:'lowconf', statusTxt:'Low confidence' },
+    { caseId:'MS-2026-04-3294', who:'Aleksandar Petrović',     type:'Passport',         uploaded:'11:20:11', conf:0.99, status:'review',  statusTxt:'Manual review' },
+    { caseId:'MS-2026-04-3294', who:'Aleksandar Petrović',     type:'FinCEN BOI',       uploaded:'11:25:41', conf:0.97, status:'review',  statusTxt:'Manual review' },
+    { caseId:'MS-2026-04-3322', who:'Bayswater Trust No. 4',   type:'Articles',         uploaded:'14:01:42', conf:0.98, status:'ocr',     statusTxt:'OCR running' },
+    { caseId:'MS-2026-04-3315', who:'Daniel Okafor',           type:'Passport',         uploaded:'13:42:08', conf:0.88, status:'review',  statusTxt:'Manual review' },
+    { caseId:'MS-2026-04-3271', who:'Vanguard Capital Reserve',type:'FinCEN BOI',       uploaded:'09:14:22', conf:0.69, status:'lowconf', statusTxt:'Low confidence' },
+    { caseId:'MS-2026-04-3327', who:'Lin Wei-chen',            type:'Passport',         uploaded:'14:18:55', conf:0.96, status:'ocr',     statusTxt:'OCR running' },
+    { caseId:'MS-2026-04-3289', who:'Aurelia Industrial GmbH', type:'Articles',         uploaded:'10:08:03', conf:0.94, status:'review',  statusTxt:'Manual review' },
+    { caseId:'MS-2026-04-3325', who:'Henrik Mortensen',        type:'Driver License',   uploaded:'14:10:42', conf:0.92, status:'ocr',     statusTxt:'OCR running' },
+    { caseId:'MS-2026-04-3245', who:'Karim Boutros',           type:'Source of Wealth', uploaded:'04:14:11', conf:0.81, status:'review',  statusTxt:'Manual review' },
+    { caseId:'MS-2026-04-3252', who:'Tropic Strand Holdings',  type:'W-8BEN-E',         uploaded:'08:33:02', conf:0.78, status:'lowconf', statusTxt:'Low confidence' },
+    { caseId:'MS-2026-04-3306', who:'Pinewood Family Trust',   type:'Articles',         uploaded:'12:48:17', conf:0.95, status:'ocr',     statusTxt:'OCR running' },
+    { caseId:'MS-2026-04-3320', who:'R. & J. Halloway',        type:'Utility Bill',     uploaded:'13:55:41', conf:0.93, status:'review',  statusTxt:'Manual review' },
+    { caseId:'MS-2026-04-3331', who:'Cordillera Asset Mgmt.',  type:'FinCEN BOI',       uploaded:'13:18:08', conf:0.96, status:'review',  statusTxt:'Manual review' },
+  ];
+  const renderDocsView = (filter='all') => {
+    const body = document.getElementById('docsBody');
+    const cnt  = document.getElementById('docsCount');
+    if (!body) return;
+    const rows = DOC_QUEUE.filter(r => filter === 'all' ? true : r.status === filter);
+    if (!rows.length) {
+      body.innerHTML = '<tr class="empty-row"><td colspan="7">No documents in this state.</td></tr>';
+    } else {
+      body.innerHTML = rows.map((r, i) => {
+        const stCls = r.status === 'lowconf' ? 'bad' : (r.status === 'review' ? 'warn' : 'info');
+        const confCls = r.conf >= 0.90 ? 'ok' : (r.conf >= 0.80 ? 'warn' : (r.conf > 0 ? 'bad' : 'neutral'));
+        const confTxt = r.conf > 0 ? (r.conf*100).toFixed(1) + '%' : '—';
+        return `<tr data-doc-row="${i}">
+          <td class="case-id-cell">${r.caseId}</td>
+          <td class="who-cell">${r.who}</td>
+          <td>${r.type}</td>
+          <td class="ts-cell">${r.uploaded}</td>
+          <td><span class="badge ${confCls}">${confTxt}</span></td>
+          <td><span class="badge ${stCls}"><span class="led"></span>${r.statusTxt}</span></td>
+          <td><div class="row-actions">
+            <button class="mini-btn ok" data-doc-act="approve">Approve</button>
+            <button class="mini-btn bad" data-doc-act="reject">Reject</button>
+            <button class="mini-btn warn" data-doc-act="rerequest">Re-request</button>
+          </div></td>
+        </tr>`;
+      }).join('');
+    }
+    if (cnt) cnt.textContent = rows.length + ' of ' + DOC_QUEUE.length + ' documents';
+  };
+  renderDocsView();
+  document.getElementById('docsFilters')?.addEventListener('click', (ev) => {
+    const c = ev.target.closest('[data-doc-st]');
+    if (!c) return;
+    document.querySelectorAll('#docsFilters .chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    renderDocsView(c.dataset.docSt);
+  });
+  document.getElementById('docsBody')?.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('[data-doc-act]');
+    if (!btn) return;
+    const tr = btn.closest('tr');
+    const act = btn.dataset.docAct;
+    const cell = tr.querySelector('td:nth-child(6)');
+    if (!cell) return;
+    if (act === 'approve')  cell.innerHTML = '<span class="badge ok"><span class="led"></span>Approved</span>';
+    if (act === 'reject')   cell.innerHTML = '<span class="badge bad"><span class="led"></span>Rejected</span>';
+    if (act === 'rerequest')cell.innerHTML = '<span class="badge warn"><span class="led"></span>Re-requested</span>';
+    tr.querySelectorAll('.mini-btn').forEach(b => b.disabled = true);
+    tr.style.opacity = '0.7';
+  });
+
+  // ============================================================
+  // ---- Risk Models view + bar animation
+  // ============================================================
+  const TIERS = [
+    { key:'low',  cls:'tier-low',  name:'Low',        pct:46.2, count:1313, desc:'Established US/EU residents, transparent corporate structure, low-volume retail. Standard CDD applies. Quarterly monitoring.' },
+    { key:'med',  cls:'tier-med',  name:'Medium',     pct:31.5, count:895,  desc:'Mid-volume cases, multi-jurisdictional residency, moderate-complexity corporate. Enhanced periodic review every 90 days.' },
+    { key:'high', cls:'tier-high', name:'High',       pct:14.8, count:421,  desc:'High-net-worth, opaque ownership, high-risk geographies (FATF grey list). Monthly transaction monitoring + quarterly EDD refresh.' },
+    { key:'edd',  cls:'tier-edd',  name:'EDD',        pct: 6.7, count:190,  desc:'PEPs, sanctioned-adjacent UBOs, complex trust layering. Continuous monitoring + L4 sign-off on every transaction > $50k.' },
+    { key:'proh', cls:'tier-proh', name:'Prohibited', pct: 0.8, count:22,   desc:'Sanctioned individuals/entities, restricted jurisdictions (per OFAC SDN), institutional risk threshold breach. Onboarding rejected.' },
+  ];
+  const tierGrid = document.getElementById('tierGrid');
+  if (tierGrid) {
+    tierGrid.innerHTML = TIERS.map(t => `
+      <div class="tier-card ${t.cls}">
+        <div class="tier-name">${t.name}</div>
+        <div class="tier-pct"><b>${t.pct.toFixed(1)}%</b>of book · ${t.count.toLocaleString()} customers</div>
+        <div class="tier-desc">${t.desc}</div>
+      </div>
+    `).join('');
+  }
+  const chartBars = document.getElementById('chartBars');
+  if (chartBars) {
+    chartBars.innerHTML = TIERS.map(t => `
+      <div class="bar-row ${t.key}">
+        <span class="lab">${t.name}</span>
+        <span class="track"><span class="fill" data-pct="${t.pct}" style="width:0%">${t.pct.toFixed(1)}%</span></span>
+        <span class="num">${t.count.toLocaleString()}</span>
+      </div>
+    `).join('');
+  }
+  function animateBars(){
+    document.querySelectorAll('#chartBars .fill').forEach(f => {
+      const pct = parseFloat(f.dataset.pct || '0');
+      f.style.width = (pct * 1.8) + '%'; // scaled to fill visually since max is ~46%
+    });
+  }
+
+  const TIER_CHANGES = [
+    { date:'2026-04-23', id:'MS-2026-04-3294', who:'Aleksandar Petrović',     from:'Medium', to:'High',   trigger:'PEP class IIIA confirmed',          approver:'J. Whitfield (L4)' },
+    { date:'2026-04-22', id:'MS-2026-04-3245', who:'Karim Boutros',           from:'High',   to:'EDD',    trigger:'Sanctions adjacency · UBO',         approver:'J. Whitfield (L4)' },
+    { date:'2026-04-21', id:'MS-2026-04-3271', who:'Vanguard Capital Reserve',from:'Medium', to:'High',   trigger:'UBO ambiguity · 18% unknown',       approver:'M. Khoury (L3)' },
+    { date:'2026-04-20', id:'MS-2026-04-3198', who:'Sterling Pacific Group',  from:'High',   to:'Medium', trigger:'EDD waiver granted · L4 review',    approver:'J. Whitfield (L4)' },
+    { date:'2026-04-19', id:'MS-2026-04-3252', who:'Tropic Strand Holdings',  from:'Medium', to:'High',   trigger:'EU Consolidated · partial match',   approver:'M. Khoury (L3)' },
+    { date:'2026-04-18', id:'MS-2026-04-3148', who:'Wakefield Trust',         from:'Low',    to:'Medium', trigger:'Volume threshold · $2.4M / yr',     approver:'E. Gallagher (L3)' },
+    { date:'2026-04-17', id:'MS-2026-04-3089', who:'Reinhart Industrials',    from:'Medium', to:'Low',    trigger:'Annual review · risk profile drop', approver:'J. Whitfield (L4)' },
+    { date:'2026-04-15', id:'MS-2026-04-3258', who:'Yuki Nakashima',          from:'Medium', to:'EDD',    trigger:'PEP spouse · ministry tier IIA',    approver:'J. Whitfield (L4)' },
+  ];
+  const tcBody = document.getElementById('tierChangesBody');
+  if (tcBody) {
+    tcBody.innerHTML = TIER_CHANGES.map(c => {
+      const cls = c.to === 'EDD' || c.to === 'Prohibited' ? 'bad' : (c.to === 'High' ? 'warn' : (c.to === 'Low' ? 'ok' : 'neutral'));
+      return `<tr>
+        <td class="ts-cell">${c.date}</td>
+        <td class="case-id-cell">${c.id}</td>
+        <td class="who-cell">${c.who}</td>
+        <td><span class="badge neutral">${c.from}</span> → <span class="badge ${cls}">${c.to}</span></td>
+        <td>${c.trigger}</td>
+        <td class="ts-cell">${c.approver}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ============================================================
+  // ---- Audit Log (system-wide) + filter
+  // ============================================================
+  const AUDIT_FEED = [
+    { ts:'14:32:18', actor:'system',        caseId:'MS-2026-04-3318', cat:'OCR',      ev:'OCR completed on W-8BEN-E · confidence 96.8%',           hash:'sha256:9af2c3…b14e' },
+    { ts:'14:31:44', actor:'operator-014',  caseId:'MS-2026-04-3318', cat:'REVIEW',   ev:'Operator review · narrative drafted',                    hash:'sha256:c81f9d…772a' },
+    { ts:'14:30:11', actor:'system',        caseId:'MS-2026-04-3318', cat:'DOC',      ev:'Document received · W-8BEN-E (612 KB)',                  hash:'sha256:14e8b7…9d20' },
+    { ts:'14:28:18', actor:'system',        caseId:'MS-2026-04-3245', cat:'OFAC',     ev:'OFAC SDN screen · MATCH 0.91 · account frozen',          hash:'sha256:87b1ee…3a45' },
+    { ts:'14:24:31', actor:'operator-014',  caseId:'MS-2026-04-3318', cat:'REVIEW',   ev:'Operator review pending · awaiting utility bill',        hash:'sha256:0fa192…cc11' },
+    { ts:'14:21:09', actor:'system',        caseId:'MS-2026-04-3318', cat:'TIER',     ev:'Risk tier assigned · Medium · 62/100',                   hash:'sha256:b09e34…7e91' },
+    { ts:'14:18:55', actor:'system',        caseId:'MS-2026-04-3318', cat:'TIER',     ev:'Risk model RM-04 invoked',                               hash:'sha256:5f2ab8…d703' },
+    { ts:'14:14:10', actor:'operator-014',  caseId:'MS-2026-04-3318', cat:'REVIEW',   ev:'PEP override · marked unrelated party',                  hash:'sha256:e1c4d9…2188' },
+    { ts:'14:11:24', actor:'system',        caseId:'MS-2026-04-3318', cat:'OFAC',     ev:'PEP fuzzy match · score 0.84 · review queued',           hash:'sha256:7a3b41…fc55' },
+    { ts:'14:11:04', actor:'system',        caseId:'MS-2026-04-3318', cat:'OFAC',     ev:'OFAC SDN screen · 0 matches across 9,841 records',       hash:'sha256:3e89c2…ab47' },
+    { ts:'14:10:48', actor:'system',        caseId:'MS-2026-04-3318', cat:'DOC',      ev:'Passport MRZ checksum validated · UBO 1',                hash:'sha256:9d4a16…81fa' },
+    { ts:'14:10:02', actor:'system',        caseId:'MS-2026-04-3318', cat:'DOC',      ev:'BOI parsed · 3 UBOs identified',                         hash:'sha256:bb2014…c0d1' },
+    { ts:'14:09:33', actor:'system',        caseId:'MS-2026-04-3318', cat:'OCR',      ev:'OCR extraction · articles_norfolk_2019.pdf · 99.1%',     hash:'sha256:104e9b…a77e' },
+    { ts:'14:09:31', actor:'system',        caseId:'MS-2026-04-3318', cat:'DOC',      ev:'Document received · articles_norfolk_2019.pdf',          hash:'sha256:d7f823…1145' },
+    { ts:'14:08:14', actor:'operator-014',  caseId:'MS-2026-04-3318', cat:'REVIEW',   ev:'Operator E. Gallagher acquired case from queue',         hash:'sha256:2b91ef…cc32' },
+    { ts:'14:02:14', actor:'system',        caseId:'MS-2026-04-3322', cat:'OFAC',     ev:'OFAC + EU sanctions clear (trustees + settlor)',         hash:'sha256:8d6422…4f01' },
+    { ts:'13:34:02', actor:'operator-014',  caseId:'MS-2026-04-3309', cat:'DOC',      ev:'DL re-scan requested from client',                       hash:'sha256:51c903…ee27' },
+    { ts:'13:30:11', actor:'system',        caseId:'MS-2026-04-3309', cat:'OCR',      ev:'OCR confidence below threshold · 0.74 < 0.85',           hash:'sha256:7fb014…d84b' },
+    { ts:'13:14:33', actor:'operator-014',  caseId:'MS-2026-04-3303', cat:'DECISION', ev:'Forwarded to L4 · final review',                         hash:'sha256:60af28…3e91' },
+    { ts:'13:02:18', actor:'system',        caseId:'MS-2026-04-3303', cat:'TIER',     ev:'Risk tier assigned · Low · 28/100',                      hash:'sha256:ad2c84…9078' },
+    { ts:'12:14:09', actor:'operator-022',  caseId:'MS-2026-04-3294', cat:'DECISION', ev:'Source-of-wealth narrative requested · EDD',             hash:'sha256:bf4a16…02cd' },
+    { ts:'12:02:18', actor:'operator-022',  caseId:'MS-2026-04-3294', cat:'DECISION', ev:'Escalated to L4 compliance · EDD initiated',             hash:'sha256:cc917d…4488' },
+  ];
+  const renderAuditView = (filter='all') => {
+    const body = document.getElementById('auditBody');
+    const cnt  = document.getElementById('auditViewCount');
+    if (!body) return;
+    const rows = AUDIT_FEED.filter(r => filter === 'all' ? true : r.cat === filter);
+    if (!rows.length) {
+      body.innerHTML = '<tr class="empty-row"><td colspan="5">No events in this category.</td></tr>';
+    } else {
+      body.innerHTML = rows.map(r => {
+        const cls = r.cat === 'OFAC' ? 'warn' : (r.cat === 'TIER' ? 'accent' : (r.cat === 'DECISION' ? 'ok' : (r.cat === 'OCR' ? 'info' : 'neutral')));
+        const actorCls = r.actor === 'system' ? 'neutral' : 'accent';
+        return `<tr>
+          <td class="ts-cell">${r.ts} UTC</td>
+          <td><span class="badge ${actorCls}">${r.actor}</span></td>
+          <td class="case-id-cell">${r.caseId}</td>
+          <td>${r.ev} <span class="badge ${cls}" style="margin-left:6px">${r.cat}</span></td>
+          <td class="ts-cell">${r.hash}</td>
+        </tr>`;
+      }).join('');
+    }
+    if (cnt) cnt.textContent = rows.length + ' of ' + AUDIT_FEED.length + ' events';
+  };
+  renderAuditView();
+  document.getElementById('auditFilters')?.addEventListener('click', (ev) => {
+    const c = ev.target.closest('[data-audit-ev]');
+    if (!c) return;
+    document.querySelectorAll('#auditFilters .chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    renderAuditView(c.dataset.auditEv);
+  });
+
+  // ============================================================
+  // ---- Mobile tab switcher
+  // ============================================================
+  document.querySelectorAll('.mobile-tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.pane;
+      document.querySelectorAll('.mobile-tabs button').forEach(b => b.classList.toggle('on', b === btn));
+      document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === target));
+      window.scrollTo({ top: document.querySelector('.mobile-tabs').offsetTop - 8, behavior: 'smooth' });
+    });
+  });
+
+})();
+</script>
+
+</body>
+</html>

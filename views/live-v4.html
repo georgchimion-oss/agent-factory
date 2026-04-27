@@ -1,0 +1,1797 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>AGENT FACTORY — MIAMI</title>
+<meta name="theme-color" content="#0b0a3a" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Limelight&family=Big+Shoulders+Display:wght@400;600;800;900&family=Outfit:wght@300;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600;700&display=swap"
+  rel="stylesheet"
+/>
+
+<style>
+  /* --------------------------------------------------------------------
+     MIAMI — Agent Factory spectator, variant 4
+     Sunset gradient + neon deco + animated horizon. Single file.
+  -------------------------------------------------------------------- */
+  :root {
+    --navy:    #0b0a3a;
+    --indigo:  #1f1466;
+    --magenta: #b1247a;
+    --pink:    #ff2d7b;
+    --coral:   #ff8a5c;
+    --teal:    #0fe4d4;
+    --cream:   #fff1d9;
+    --gold:    #ffc977;
+    --ink:     #131233;
+
+    --c-pm:       var(--pink);
+    --c-coder:    var(--teal);
+    --c-reviewer: var(--coral);
+    --c-deployer: var(--gold);
+
+    --shadow-neon-pink: 0 0 24px rgba(255,45,123,.55), 0 0 48px rgba(255,45,123,.25);
+    --shadow-neon-teal: 0 0 24px rgba(15,228,212,.55), 0 0 48px rgba(15,228,212,.25);
+    --shadow-neon-coral:0 0 24px rgba(255,138,92,.55), 0 0 48px rgba(255,138,92,.25);
+    --shadow-neon-gold: 0 0 24px rgba(255,201,119,.55), 0 0 48px rgba(255,201,119,.25);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { background: #000; }
+  body {
+    min-height: 100dvh;
+    color: var(--cream);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    position: relative;
+    background:
+      radial-gradient(80% 60% at 50% 110%, rgba(255,138,92,.65), transparent 60%),
+      radial-gradient(70% 50% at 50% 95%,  rgba(255,45,123,.55), transparent 65%),
+      radial-gradient(60% 60% at 50% 70%,  rgba(177,36,122,.55), transparent 70%),
+      linear-gradient(180deg, #050530 0%, #0b0a3a 35%, #2b1054 60%, #6e1c5f 80%, #ff6a4a 100%);
+    background-attachment: fixed;
+    background-size: 100% 100%;
+    animation: skyDrift 60s ease-in-out infinite alternate;
+  }
+
+  @keyframes skyDrift {
+    0%   { background-position: 50% 100%, 50% 95%, 50% 70%, 0 0; filter: hue-rotate(0deg) saturate(1); }
+    50%  { background-position: 52% 96%, 48% 92%, 52% 65%, 0 0; filter: hue-rotate(-8deg) saturate(1.05); }
+    100% { background-position: 50% 92%, 50% 88%, 50% 60%, 0 0; filter: hue-rotate(6deg) saturate(1.08); }
+  }
+
+  /* Sun (sets/rises slowly) */
+  .sun {
+    position: fixed;
+    left: 50%;
+    bottom: 24vh;
+    width: 36vmin;
+    height: 36vmin;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%,
+      #ffe6c2 0%,
+      #ffb472 28%,
+      #ff6f8b 60%,
+      rgba(255,45,123,.0) 75%);
+    filter: blur(.5px);
+    pointer-events: none;
+    z-index: 0;
+    animation: sunCycle 60s ease-in-out infinite alternate;
+    box-shadow: 0 0 120px rgba(255,138,92,.45);
+  }
+  @keyframes sunCycle {
+    0%   { bottom: 18vh; opacity: .92; }
+    100% { bottom: 30vh; opacity: 1;   }
+  }
+  /* horizontal cuts across the sun for that retrowave look */
+  .sun::before, .sun::after {
+    content: ""; position: absolute; left: 0; right: 0; height: 6%;
+    background: linear-gradient(180deg, transparent, rgba(11,10,58,.8) 50%, transparent);
+    pointer-events: none;
+  }
+  .sun::before { bottom: 12%; }
+  .sun::after  { bottom: 28%; height: 4%; }
+
+  /* Horizon ocean */
+  .ocean {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    height: 28vh;
+    z-index: 0; pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255,138,92,.0) 0%, rgba(255,138,92,.15) 14%, rgba(177,36,122,.45) 60%, rgba(11,10,58,.85) 100%);
+  }
+  .ocean::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cream), transparent);
+    box-shadow: 0 0 18px rgba(255,241,217,.6);
+    opacity: .7;
+  }
+  /* horizon grid */
+  .grid {
+    position: fixed; left: -10%; right: -10%; bottom: 0;
+    height: 22vh; z-index: 0; pointer-events: none;
+    perspective: 600px;
+    opacity: .55;
+  }
+  .grid::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(90deg, rgba(15,228,212,.55) 1px, transparent 1px),
+      linear-gradient(0deg,  rgba(255,45,123,.55) 1px, transparent 1px);
+    background-size: 6vmin 6vmin;
+    transform: rotateX(72deg) translateZ(0);
+    transform-origin: 50% 0%;
+    mask-image: linear-gradient(180deg, transparent 0%, #000 30%, #000 100%);
+    animation: gridScroll 4s linear infinite;
+  }
+  @keyframes gridScroll {
+    0%   { background-position: 0 0; }
+    100% { background-position: 0 6vmin; }
+  }
+
+  /* Reflection ripples (faint horizontal shimmer just under horizon) */
+  .ripples {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 22vh;
+    pointer-events: none; z-index: 0; opacity: .35;
+    background:
+      repeating-linear-gradient(
+        180deg,
+        transparent 0 18px,
+        rgba(255,241,217,.18) 18px 19px,
+        transparent 19px 32px
+      );
+    mask-image: linear-gradient(180deg, rgba(0,0,0,.0), rgba(0,0,0,.9) 40%, rgba(0,0,0,0) 100%);
+    animation: rippleShift 9s ease-in-out infinite alternate;
+  }
+  @keyframes rippleShift { 0%{transform:translateY(0)} 100%{transform:translateY(6px)} }
+
+  /* Palms — SVG silhouettes, sway gently */
+  .palm {
+    position: fixed; bottom: 0; z-index: 1; pointer-events: none;
+    filter: drop-shadow(0 0 14px rgba(11,10,58,.7));
+    transform-origin: 50% 100%;
+  }
+  .palm.left  { left:  -2vmin; height: 62vh; animation: swayL 9s ease-in-out infinite alternate; }
+  .palm.right { right: -2vmin; height: 58vh; animation: swayR 11s ease-in-out infinite alternate; }
+  @keyframes swayL { 0%{transform:rotate(-1.2deg)} 100%{transform:rotate(1.2deg)} }
+  @keyframes swayR { 0%{transform:rotate(1.4deg)}  100%{transform:rotate(-1.4deg)} }
+
+  /* Scanline / grain overlay */
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; z-index: 50;
+    mix-blend-mode: overlay; opacity: .035;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.6) 0 1px, transparent 1px 3px);
+  }
+  .vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 49;
+    background: radial-gradient(120% 80% at 50% 50%, transparent 55%, rgba(0,0,0,.55) 100%);
+  }
+
+  /* ---------- Layout ---------- */
+  .page {
+    position: relative; z-index: 5;
+    padding: 28px clamp(20px, 4vw, 48px) 80px;
+    padding-right: clamp(180px, 13vw, 220px); /* leave room for the postcard QR */
+    max-width: 1640px; margin: 0 auto;
+  }
+
+  /* Header */
+  header.deco {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 24px;
+    padding: 14px 22px;
+    border: 1px solid rgba(255,241,217,.22);
+    border-radius: 4px;
+    background:
+      linear-gradient(180deg, rgba(11,10,58,.55), rgba(11,10,58,.35));
+    backdrop-filter: blur(8px) saturate(1.1);
+    -webkit-backdrop-filter: blur(8px) saturate(1.1);
+    box-shadow:
+      inset 0 1px 0 rgba(255,241,217,.12),
+      0 14px 40px rgba(0,0,0,.35);
+    position: relative;
+  }
+  header.deco::before, header.deco::after {
+    content: ""; position: absolute; top: 50%; width: 22px; height: 22px;
+    border: 1px solid rgba(255,241,217,.45);
+    transform: translateY(-50%) rotate(45deg);
+  }
+  header.deco::before { left: -11px; background: var(--navy); }
+  header.deco::after  { right: -11px; background: var(--navy); }
+
+  .brand {
+    display: flex; align-items: center; gap: 14px;
+    min-width: 0;
+  }
+  .brand-mark {
+    width: 38px; height: 38px; flex: none;
+    display: grid; place-items: center;
+    border: 1.5px solid var(--cream);
+    color: var(--cream);
+    font-family: 'Limelight', serif;
+    font-size: 20px;
+    box-shadow: var(--shadow-neon-pink);
+    transform: rotate(45deg);
+    background: linear-gradient(135deg, rgba(255,45,123,.25), rgba(15,228,212,.18));
+  }
+  .brand-mark span { transform: rotate(-45deg); }
+  .brand-titles {
+    display: flex; flex-direction: column; min-width: 0;
+  }
+  .brand-eyebrow {
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: .42em;
+    font-size: 10px;
+    color: var(--teal);
+    text-transform: uppercase;
+    text-shadow: 0 0 14px rgba(15,228,212,.4);
+  }
+  .brand-title {
+    font-family: 'Limelight', serif;
+    font-size: clamp(20px, 2.4vw, 30px);
+    color: var(--cream);
+    letter-spacing: .12em;
+    line-height: 1;
+    text-shadow: 0 0 22px rgba(255,241,217,.35);
+    white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .brand-title em {
+    font-style: normal;
+    color: var(--pink);
+    text-shadow: 0 0 22px rgba(255,45,123,.7);
+  }
+
+  .timer {
+    text-align: center;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: clamp(28px, 4.8vw, 56px);
+    color: var(--cream);
+    letter-spacing: .04em;
+    line-height: 1;
+    padding: 4px 18px;
+    border-left: 1px solid rgba(255,241,217,.18);
+    border-right: 1px solid rgba(255,241,217,.18);
+    text-shadow: 0 0 22px rgba(255,138,92,.45);
+    transition: text-shadow .4s ease, color .3s ease;
+  }
+  .timer.flex {
+    color: var(--gold);
+    text-shadow: 0 0 28px rgba(255,201,119,.85), 0 0 60px rgba(255,138,92,.6);
+  }
+  .timer-label {
+    display: block;
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    letter-spacing: .42em;
+    color: rgba(255,241,217,.55);
+    text-shadow: none;
+    margin-top: 8px;
+  }
+
+  .meta {
+    display: flex; align-items: center; justify-content: flex-end; gap: 14px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 11px;
+    letter-spacing: .28em;
+    text-transform: uppercase;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid rgba(255,241,217,.22);
+    border-radius: 999px;
+    color: var(--cream);
+    background: rgba(11,10,58,.45);
+  }
+  .pill .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #6b7280;
+    box-shadow: 0 0 0 0 rgba(15,228,212,0);
+  }
+  .pill[data-state="live"] .dot   { background: var(--teal); animation: pulseDot 1.6s ease-in-out infinite; }
+  .pill[data-state="lost"] .dot   { background: var(--pink); animation: pulseDot 1.2s ease-in-out infinite; }
+  .pill[data-state="reconnect"] .dot { background: var(--coral); animation: pulseDot 1s ease-in-out infinite; }
+  @keyframes pulseDot {
+    0%   { box-shadow: 0 0 0 0 rgba(15,228,212,.55); }
+    70%  { box-shadow: 0 0 0 10px rgba(15,228,212,0); }
+    100% { box-shadow: 0 0 0 0 rgba(15,228,212,0); }
+  }
+
+  /* Postcard QR */
+  .postcard {
+    position: fixed;
+    top: 22px; right: 22px;
+    z-index: 30;
+    width: 148px;
+    transform: rotate(3deg);
+    transition: transform .4s ease;
+  }
+  .postcard:hover { transform: rotate(0deg) scale(1.02); }
+  .postcard-frame {
+    background: linear-gradient(150deg, var(--cream) 0%, #ffe9c4 60%, #ffd1c0 100%);
+    border-radius: 4px;
+    padding: 10px 10px 12px;
+    box-shadow:
+      0 22px 40px rgba(0,0,0,.45),
+      0 2px 0 rgba(0,0,0,.15);
+    color: var(--ink);
+    position: relative;
+    border: 4px solid var(--cream);
+  }
+  .postcard-frame::before {
+    content: "";
+    position: absolute; inset: 6px;
+    border: 1px dashed rgba(11,10,58,.35);
+    pointer-events: none;
+    border-radius: 2px;
+  }
+  .postcard-stamp {
+    position: absolute; top: -6px; right: -6px;
+    width: 36px; height: 44px;
+    background:
+      repeating-linear-gradient(45deg, var(--pink) 0 6px, #ff5d99 6px 12px);
+    border: 2px dashed var(--cream);
+    transform: rotate(8deg);
+    display: grid; place-items: center;
+    font-family: 'Limelight', serif;
+    font-size: 11px;
+    color: var(--cream);
+    letter-spacing: .1em;
+    box-shadow: 0 4px 10px rgba(0,0,0,.35);
+  }
+  .qr {
+    background: var(--cream);
+    width: 100%; aspect-ratio: 1/1;
+    display: grid; place-items: center;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .qr canvas, .qr svg { width: 100%; height: 100%; display: block; }
+  .postcard-caption {
+    margin-top: 8px;
+    text-align: center;
+    font-family: 'Limelight', serif;
+    font-size: 14px;
+    color: var(--ink);
+    letter-spacing: .14em;
+  }
+  .postcard-caption small {
+    display: block;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 500;
+    font-size: 9px;
+    letter-spacing: .32em;
+    color: rgba(11,10,58,.6);
+    margin-top: 4px;
+  }
+
+  /* ---------- Stage ---------- */
+  .stage {
+    margin-top: 28px;
+    position: relative;
+  }
+  .stage-frame {
+    border: 1px solid rgba(255,241,217,.18);
+    border-radius: 6px;
+    padding: 28px clamp(16px, 3vw, 40px) 36px;
+    background:
+      linear-gradient(180deg, rgba(11,10,58,.35), rgba(11,10,58,.1) 60%, rgba(11,10,58,.0));
+    box-shadow:
+      inset 0 1px 0 rgba(255,241,217,.08);
+    overflow: hidden;
+  }
+  .stage-eyebrow {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    letter-spacing: .4em;
+    text-transform: uppercase;
+    color: rgba(255,241,217,.6);
+    margin-bottom: 18px;
+  }
+  .stage-eyebrow strong {
+    color: var(--cream);
+    font-weight: 600;
+    letter-spacing: .2em;
+  }
+
+  .agents {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    z-index: 2;
+  }
+  .conn-svg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 1;
+  }
+
+  .tile {
+    position: relative;
+    border-radius: 6px;
+    padding: 22px 18px 20px;
+    background:
+      linear-gradient(180deg, rgba(11,10,58,.55), rgba(11,10,58,.25));
+    border: 1px solid rgba(255,241,217,.16);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    transition: transform .3s ease, border-color .3s ease, box-shadow .35s ease;
+    overflow: hidden;
+  }
+  .tile::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    border-radius: inherit;
+    border: 1px solid transparent;
+    transition: border-color .35s ease, box-shadow .35s ease;
+  }
+  .tile-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    letter-spacing: .32em;
+    text-transform: uppercase;
+    color: rgba(255,241,217,.7);
+  }
+  .tile-head .ix {
+    font-family: 'Limelight', serif;
+    color: var(--cream);
+    letter-spacing: .04em;
+    font-size: 12px;
+  }
+  .icon-wrap {
+    display: grid; place-items: center;
+    aspect-ratio: 1/1;
+    margin: 0 auto 14px;
+    width: 70%;
+    max-width: 130px;
+    position: relative;
+  }
+  .icon-wrap svg {
+    width: 100%; height: 100%;
+    overflow: visible;
+  }
+  .icon-wrap svg .stroke {
+    fill: none;
+    stroke: var(--accent, var(--cream));
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 0px transparent);
+    transition: filter .35s ease, stroke-width .35s ease, opacity .35s ease;
+    opacity: .55;
+  }
+  .icon-wrap svg .glow {
+    fill: none;
+    stroke: var(--accent, var(--cream));
+    stroke-width: 0.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    filter: blur(6px);
+    transition: opacity .4s ease;
+  }
+
+  .tile-name {
+    font-family: 'Big Shoulders Display', 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: .04em;
+    color: var(--cream);
+    text-align: center;
+  }
+  .tile-role {
+    text-align: center;
+    margin-top: 4px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 11px;
+    letter-spacing: .28em;
+    text-transform: uppercase;
+    color: rgba(255,241,217,.55);
+  }
+  .tile-status {
+    margin-top: 14px;
+    text-align: center;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: rgba(255,241,217,.7);
+    min-height: 1.6em;
+    letter-spacing: .04em;
+  }
+
+  /* Per-agent neon palette */
+  .tile[data-agent="pm"]       { --accent: var(--c-pm); }
+  .tile[data-agent="coder"]    { --accent: var(--c-coder); }
+  .tile[data-agent="reviewer"] { --accent: var(--c-reviewer); }
+  .tile[data-agent="deployer"] { --accent: var(--c-deployer); }
+
+  /* States */
+  .tile[data-state="idle"]    .icon-wrap svg .stroke { opacity: .35; }
+  .tile[data-state="working"] {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 0 1px var(--accent) inset,
+      0 0 28px color-mix(in oklab, var(--accent) 40%, transparent),
+      0 0 60px color-mix(in oklab, var(--accent) 18%, transparent);
+    animation: tilePulse 1.6s ease-in-out infinite;
+  }
+  .tile[data-state="working"] .icon-wrap svg .stroke {
+    opacity: 1;
+    stroke-width: 2;
+    filter:
+      drop-shadow(0 0 6px color-mix(in oklab, var(--accent) 80%, transparent))
+      drop-shadow(0 0 14px color-mix(in oklab, var(--accent) 50%, transparent));
+  }
+  .tile[data-state="working"] .icon-wrap svg .glow { opacity: .9; }
+  .tile[data-state="done"] {
+    border-color: color-mix(in oklab, var(--accent) 70%, white 0%);
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--accent) 70%, transparent) inset,
+      0 0 18px color-mix(in oklab, var(--accent) 30%, transparent);
+  }
+  .tile[data-state="done"] .icon-wrap svg .stroke {
+    opacity: 1; stroke-width: 1.8;
+    filter: drop-shadow(0 0 6px color-mix(in oklab, var(--accent) 60%, transparent));
+  }
+  .tile[data-state="done"]::after {
+    content: "✓";
+    position: absolute; top: 12px; right: 14px;
+    font-family: 'Limelight', serif;
+    font-size: 14px;
+    color: var(--accent);
+    text-shadow: 0 0 10px color-mix(in oklab, var(--accent) 60%, transparent);
+  }
+
+  @keyframes tilePulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 1px var(--accent) inset,
+        0 0 24px color-mix(in oklab, var(--accent) 35%, transparent),
+        0 0 48px color-mix(in oklab, var(--accent) 14%, transparent);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px var(--accent) inset,
+        0 0 36px color-mix(in oklab, var(--accent) 55%, transparent),
+        0 0 80px color-mix(in oklab, var(--accent) 24%, transparent);
+    }
+  }
+
+  /* Connection ping */
+  .ping-line {
+    stroke-dasharray: 6 6;
+    stroke-dashoffset: 0;
+    animation: dashFlow 1.4s linear infinite;
+  }
+  @keyframes dashFlow {
+    to { stroke-dashoffset: -120; }
+  }
+  .ping-dot {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: pingPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pingPulse {
+    0%,100% { opacity: .35; transform: scale(.8); }
+    50%     { opacity: 1;   transform: scale(1.4); }
+  }
+
+  /* ---------- Lower deck ---------- */
+  .deck {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: 1.4fr .9fr;
+    gap: 22px;
+  }
+
+  .feed {
+    position: relative;
+    border: 1px solid rgba(255,241,217,.18);
+    border-radius: 6px;
+    background:
+      linear-gradient(180deg, rgba(11,10,58,.55), rgba(11,10,58,.25));
+    overflow: hidden;
+    min-height: 320px;
+  }
+  .feed-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(255,241,217,.12);
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    letter-spacing: .42em;
+    text-transform: uppercase;
+    color: rgba(255,241,217,.6);
+  }
+  .feed-head strong { color: var(--cream); font-weight: 600; }
+  .feed-list {
+    list-style: none; margin: 0; padding: 8px 0;
+    max-height: 420px; overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,241,217,.25) transparent;
+  }
+  .feed-list::-webkit-scrollbar { width: 6px; }
+  .feed-list::-webkit-scrollbar-thumb { background: rgba(255,241,217,.25); border-radius: 3px; }
+
+  .feed-item {
+    display: grid;
+    grid-template-columns: 60px 110px 1fr;
+    gap: 14px;
+    padding: 10px 18px;
+    border-bottom: 1px dashed rgba(255,241,217,.08);
+    align-items: baseline;
+    animation: feedIn .45s ease both;
+  }
+  @keyframes feedIn {
+    from { opacity: 0; transform: translateX(-6px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .feed-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: rgba(255,241,217,.45);
+    letter-spacing: .04em;
+  }
+  .feed-agent {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10.5px;
+    letter-spacing: .26em;
+    text-transform: uppercase;
+    color: var(--agent-color, var(--cream));
+    text-shadow: 0 0 8px color-mix(in oklab, var(--agent-color, var(--cream)) 40%, transparent);
+  }
+  .feed-msg {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: rgba(255,241,217,.92);
+    line-height: 1.55;
+  }
+  .feed-item.system .feed-agent { color: rgba(255,241,217,.6); }
+  .feed-item.system .feed-msg   { color: rgba(255,241,217,.7); font-style: italic; }
+  .feed-item.review .feed-msg b { color: var(--coral); font-weight: 600; }
+  .feed-item.error  .feed-agent { color: var(--pink); }
+  .feed-item.error  .feed-msg   { color: var(--pink); }
+
+  /* Aside: review + result */
+  .aside { display: flex; flex-direction: column; gap: 22px; }
+
+  .panel {
+    border: 1px solid rgba(255,241,217,.18);
+    border-radius: 6px;
+    background:
+      linear-gradient(180deg, rgba(11,10,58,.55), rgba(11,10,58,.25));
+    padding: 18px 20px;
+  }
+  .panel-eyebrow {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    letter-spacing: .42em;
+    text-transform: uppercase;
+    color: rgba(255,241,217,.55);
+    margin-bottom: 10px;
+  }
+  .review-score {
+    display: flex; align-items: baseline; gap: 8px;
+    font-family: 'Limelight', serif;
+    color: var(--coral);
+    text-shadow: 0 0 18px rgba(255,138,92,.55);
+  }
+  .review-score .num {
+    font-size: 56px; line-height: 1;
+  }
+  .review-score .of {
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    letter-spacing: .3em;
+    color: rgba(255,241,217,.55);
+  }
+  .review-feedback {
+    margin-top: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    color: rgba(255,241,217,.8);
+    line-height: 1.55;
+  }
+  .review-bar {
+    margin-top: 14px;
+    height: 6px; border-radius: 999px;
+    background: rgba(255,241,217,.12);
+    overflow: hidden;
+    position: relative;
+  }
+  .review-bar i {
+    display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--pink), var(--coral), var(--gold));
+    transition: width 1.2s cubic-bezier(.2,.8,.2,1);
+    box-shadow: 0 0 14px rgba(255,138,92,.6);
+  }
+
+  /* Result card — emerges from horizon */
+  .result-card {
+    position: relative;
+    transform: translateY(40px);
+    opacity: 0;
+    transition: transform .9s cubic-bezier(.2,.8,.2,1), opacity .9s ease;
+  }
+  .result-card.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  .result-eyebrow {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    letter-spacing: .42em;
+    text-transform: uppercase;
+    color: var(--teal);
+    text-shadow: 0 0 10px rgba(15,228,212,.45);
+  }
+  .result-title {
+    font-family: 'Limelight', serif;
+    font-size: clamp(22px, 3vw, 30px);
+    color: var(--cream);
+    letter-spacing: .08em;
+    margin: 6px 0 4px;
+    text-shadow: 0 0 22px rgba(255,241,217,.4);
+  }
+  .result-built-in {
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    letter-spacing: .28em;
+    text-transform: uppercase;
+    color: rgba(255,241,217,.7);
+  }
+  .result-built-in b {
+    color: var(--gold);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    letter-spacing: .04em;
+  }
+  .result-link {
+    display: inline-flex; align-items: center; gap: 10px;
+    margin-top: 14px;
+    padding: 12px 16px;
+    border-radius: 4px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: linear-gradient(90deg, var(--cream), var(--gold));
+    text-decoration: none;
+    box-shadow:
+      0 0 0 1px rgba(255,201,119,.6),
+      0 12px 30px rgba(255,138,92,.35),
+      0 0 32px rgba(255,201,119,.4);
+    transition: transform .3s ease, box-shadow .3s ease;
+  }
+  .result-link:hover { transform: translateY(-1px); }
+  .result-link svg { width: 14px; height: 14px; }
+
+  /* Idle splash on result panel */
+  .result-idle {
+    color: rgba(255,241,217,.55);
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  .result-idle b {
+    color: var(--cream);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-size: 11px;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  /* ---------- Fireworks canvas ---------- */
+  .fx {
+    position: fixed; inset: 0; pointer-events: none; z-index: 40;
+  }
+
+  /* ---------- Footer ---------- */
+  .deco-footer {
+    margin-top: 26px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    letter-spacing: .42em;
+    text-transform: uppercase;
+    color: rgba(255,241,217,.4);
+  }
+  .deco-footer .rule {
+    flex: 1; height: 1px;
+    margin: 0 18px;
+    background: linear-gradient(90deg, transparent, rgba(255,241,217,.2), transparent);
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 960px) {
+    .deck { grid-template-columns: 1fr; }
+    .agents { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  }
+  @media (max-width: 640px) {
+    .page { padding: 18px 16px 64px; padding-top: 130px; }
+    header.deco {
+      grid-template-columns: 1fr;
+      gap: 14px; padding: 14px 16px;
+      text-align: center;
+    }
+    header.deco::before, header.deco::after { display: none; }
+    .meta { justify-content: center; }
+    .timer { border: none; padding: 0; }
+    .timer-label { margin-top: 4px; }
+    .postcard { width: 96px; top: 12px; right: 12px; }
+    .postcard-stamp { width: 26px; height: 32px; font-size: 9px; }
+    .postcard-caption { font-size: 11px; }
+    .postcard-caption small { font-size: 8px; letter-spacing: .26em; }
+    .palm.left  { height: 36vh; opacity: .7; }
+    .palm.right { height: 32vh; opacity: .55; }
+    .stage-frame { padding: 18px 14px 22px; }
+    .agents { gap: 10px; }
+    .tile { padding: 16px 12px 14px; }
+    .tile-name { font-size: 18px; }
+    .tile-role { font-size: 10px; letter-spacing: .22em; }
+    .icon-wrap { width: 64%; }
+    .feed-item { grid-template-columns: 50px 1fr; gap: 6px; padding: 10px 14px; }
+    .feed-time { grid-column: 1 / 2; }
+    .feed-agent { grid-column: 2 / 3; }
+    .feed-msg { grid-column: 1 / 3; margin-top: 2px; font-size: 13.5px; }
+    .grid { display: none; }
+  }
+  @media (max-width: 380px) {
+    .brand-title { font-size: 18px; }
+    .brand-eyebrow { font-size: 9px; letter-spacing: .32em; }
+    .timer { font-size: 36px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body { animation: none; }
+    .sun, .ripples, .grid::before, .palm.left, .palm.right { animation: none; }
+    .tile[data-state="working"] { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Sky atmosphere -->
+<div class="sun" aria-hidden="true"></div>
+<div class="grid" aria-hidden="true"></div>
+<div class="ocean" aria-hidden="true"></div>
+<div class="ripples" aria-hidden="true"></div>
+
+<!-- Palms (SVG silhouettes) -->
+<svg class="palm left" viewBox="0 0 220 600" aria-hidden="true">
+  <defs>
+    <linearGradient id="palmGradL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0a3a"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#palmGradL)">
+    <path d="M104,600 C100,520 96,440 92,360 C88,280 86,200 90,120 C92,90 96,60 100,40 L112,40 C116,80 118,140 116,200 C114,280 110,360 108,440 C106,500 105,560 108,600 Z"/>
+    <!-- fronds -->
+    <path d="M100,40 C70,30 30,30 0,60 C40,40 78,38 100,52 Z"/>
+    <path d="M100,40 C130,28 175,30 215,55 C175,42 138,40 110,52 Z"/>
+    <path d="M100,42 C70,55 32,80 8,130 C50,90 80,68 104,60 Z"/>
+    <path d="M100,42 C130,55 170,82 200,140 C158,90 130,70 108,60 Z"/>
+    <path d="M100,46 C68,66 38,110 22,170 C56,118 82,90 104,72 Z"/>
+    <path d="M104,46 C140,68 172,114 188,170 C150,118 124,90 108,72 Z"/>
+    <!-- coconuts -->
+    <circle cx="98" cy="58" r="6"/>
+    <circle cx="116" cy="58" r="5"/>
+    <circle cx="106" cy="68" r="5"/>
+  </g>
+</svg>
+
+<svg class="palm right" viewBox="0 0 220 600" aria-hidden="true">
+  <defs>
+    <linearGradient id="palmGradR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0a3a"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#palmGradR)">
+    <path d="M118,600 C122,520 126,440 130,360 C134,280 136,200 132,120 C130,90 126,60 122,40 L110,40 C106,80 104,140 106,200 C108,280 112,360 114,440 C116,500 117,560 114,600 Z"/>
+    <path d="M122,40 C152,30 192,30 220,60 C180,40 142,38 122,52 Z"/>
+    <path d="M122,40 C92,28 47,30 7,55 C47,42 84,40 112,52 Z"/>
+    <path d="M122,42 C152,55 190,80 214,130 C172,90 142,68 118,60 Z"/>
+    <path d="M122,42 C92,55 52,82 22,140 C64,90 92,70 114,60 Z"/>
+    <path d="M122,46 C154,66 184,110 200,170 C166,118 140,90 118,72 Z"/>
+    <path d="M118,46 C82,68 50,114 34,170 C72,118 98,90 114,72 Z"/>
+    <circle cx="124" cy="58" r="6"/>
+    <circle cx="106" cy="58" r="5"/>
+    <circle cx="116" cy="68" r="5"/>
+  </g>
+</svg>
+
+<!-- Postcard QR (top-right) -->
+<aside class="postcard" aria-label="Scan to view on your phone">
+  <div class="postcard-frame">
+    <div class="postcard-stamp">SCAN</div>
+    <div class="qr" id="qr"></div>
+    <div class="postcard-caption">MIAMI, FL <small>FACTORY · LIVE</small></div>
+  </div>
+</aside>
+
+<!-- Page -->
+<main class="page">
+
+  <header class="deco">
+    <div class="brand">
+      <div class="brand-mark"><span>F</span></div>
+      <div class="brand-titles">
+        <span class="brand-eyebrow">Live · Spectator</span>
+        <span class="brand-title">AGENT <em>FACTORY</em></span>
+      </div>
+    </div>
+    <div>
+      <div class="timer" id="timer" aria-live="polite">00:00</div>
+      <span class="timer-label" id="timerLabel">BUILD ELAPSED</span>
+    </div>
+    <div class="meta">
+      <span class="pill" id="audiencePill" aria-label="Spectator count">
+        <span class="dot" style="background:var(--coral)"></span>
+        <span><b id="audienceCount">0</b>&nbsp;ON&nbsp;THE&nbsp;ROOFTOP</span>
+      </span>
+      <span class="pill" id="connPill" data-state="idle">
+        <span class="dot"></span>
+        <span id="connLabel">CONNECTING</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- Stage -->
+  <section class="stage">
+    <div class="stage-frame">
+      <div class="stage-eyebrow">
+        <span><strong>The Crew</strong> · Sunset Shift</span>
+        <span id="stagePhase">Standing by</span>
+      </div>
+
+      <!-- SVG connection lines -->
+      <svg class="conn-svg" id="conn" aria-hidden="true"></svg>
+
+      <div class="agents" id="agents">
+
+        <!-- PM -->
+        <article class="tile" data-agent="pm" data-state="idle">
+          <div class="tile-head"><span>01 / Plan</span><span class="ix">P · M</span></div>
+          <div class="icon-wrap">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <!-- pyramid / blueprint -->
+              <polygon class="glow"  points="50,12 88,84 12,84"/>
+              <polygon class="stroke" points="50,12 88,84 12,84"/>
+              <line class="stroke" x1="50" y1="12" x2="50" y2="84"/>
+              <line class="stroke" x1="32" y1="56" x2="68" y2="56"/>
+              <line class="stroke" x1="22" y1="70" x2="78" y2="70"/>
+              <circle class="stroke" cx="50" cy="12" r="2.5"/>
+            </svg>
+          </div>
+          <div class="tile-name">Project Manager</div>
+          <div class="tile-role">Strategy · Spec</div>
+          <div class="tile-status" data-status="pm">Awaiting brief</div>
+        </article>
+
+        <!-- Coder -->
+        <article class="tile" data-agent="coder" data-state="idle">
+          <div class="tile-head"><span>02 / Build</span><span class="ix">E · N · G</span></div>
+          <div class="icon-wrap">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <!-- gear cluster -->
+              <g>
+                <circle class="glow"  cx="42" cy="50" r="20"/>
+                <circle class="stroke" cx="42" cy="50" r="20"/>
+                <g class="stroke">
+                  <line x1="42" y1="22" x2="42" y2="30"/>
+                  <line x1="42" y1="70" x2="42" y2="78"/>
+                  <line x1="14" y1="50" x2="22" y2="50"/>
+                  <line x1="62" y1="50" x2="70" y2="50"/>
+                  <line x1="22" y1="30" x2="28" y2="36"/>
+                  <line x1="56" y1="64" x2="62" y2="70"/>
+                  <line x1="22" y1="70" x2="28" y2="64"/>
+                  <line x1="56" y1="36" x2="62" y2="30"/>
+                </g>
+                <circle class="stroke" cx="42" cy="50" r="6"/>
+              </g>
+              <!-- code brackets -->
+              <polyline class="stroke" points="74,32 86,42 74,52"/>
+              <polyline class="stroke" points="74,58 86,68 74,78"/>
+              <line class="stroke" x1="68" y1="80" x2="92" y2="28"/>
+            </svg>
+          </div>
+          <div class="tile-name">Engineer</div>
+          <div class="tile-role">HTML · CSS · JS</div>
+          <div class="tile-status" data-status="coder">Idle</div>
+        </article>
+
+        <!-- Reviewer -->
+        <article class="tile" data-agent="reviewer" data-state="idle">
+          <div class="tile-head"><span>03 / QA</span><span class="ix">R · V · W</span></div>
+          <div class="icon-wrap">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <!-- magnifying glass + checks -->
+              <circle class="glow"  cx="42" cy="44" r="22"/>
+              <circle class="stroke" cx="42" cy="44" r="22"/>
+              <line class="stroke" x1="59" y1="60" x2="84" y2="84"/>
+              <polyline class="stroke" points="32,46 40,54 54,38"/>
+              <line class="stroke" x1="22" y1="70" x2="32" y2="70" opacity=".7"/>
+              <line class="stroke" x1="62" y1="78" x2="78" y2="78" opacity=".7"/>
+            </svg>
+          </div>
+          <div class="tile-name">Reviewer</div>
+          <div class="tile-role">Quality · Score</div>
+          <div class="tile-status" data-status="reviewer">Idle</div>
+        </article>
+
+        <!-- Deployer -->
+        <article class="tile" data-agent="deployer" data-state="idle">
+          <div class="tile-head"><span>04 / Ship</span><span class="ix">D · P · L</span></div>
+          <div class="icon-wrap">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <!-- rocket / paper plane -->
+              <path class="glow"  d="M16,80 L86,18 L70,86 L52,64 Z"/>
+              <path class="stroke" d="M16,80 L86,18 L70,86 L52,64 Z"/>
+              <line class="stroke" x1="52" y1="64" x2="86" y2="18"/>
+              <line class="stroke" x1="40" y1="84" x2="52" y2="74" opacity=".75"/>
+              <line class="stroke" x1="28" y1="88" x2="44" y2="76" opacity=".55"/>
+              <circle class="stroke" cx="86" cy="18" r="2"/>
+            </svg>
+          </div>
+          <div class="tile-name">Deployer</div>
+          <div class="tile-role">PRODUCTION · DNS · SSL</div>
+          <div class="tile-status" data-status="deployer">Idle</div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Lower deck -->
+  <section class="deck">
+    <div class="feed">
+      <div class="feed-head">
+        <span><strong>Live Transcript</strong></span>
+        <span id="feedCount">0 events</span>
+      </div>
+      <ul class="feed-list" id="feed" aria-live="polite">
+        <li class="feed-item system">
+          <span class="feed-time">--:--</span>
+          <span class="feed-agent">SYSTEM</span>
+          <span class="feed-msg">Awaiting first build of the evening.</span>
+        </li>
+      </ul>
+    </div>
+
+    <aside class="aside">
+
+      <div class="panel">
+        <div class="panel-eyebrow">Reviewer score</div>
+        <div class="review-score">
+          <span class="num" id="scoreNum">—</span>
+          <span class="of">/ 10</span>
+        </div>
+        <div class="review-feedback" id="scoreFeedback">Pending sign-off from QA.</div>
+        <div class="review-bar"><i id="scoreBar"></i></div>
+      </div>
+
+      <div class="panel result-card" id="resultCard">
+        <div class="result-eyebrow" id="resultEyebrow">Standing by</div>
+        <div class="result-title" id="resultTitle">Sun has not set yet</div>
+        <div class="result-built-in" id="resultBuiltIn">Once the build wraps, the link lands here.</div>
+        <a class="result-link" id="resultLink" href="#" target="_blank" rel="noopener" hidden>
+          <span id="resultLinkLabel">Open the build</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 17 17 7"/><path d="M8 7h9v9"/>
+          </svg>
+        </a>
+        <div class="result-idle" id="resultIdle">
+          <b>The Drop</b>
+          When the deployer ships, the live URL surfaces here — same place every show. Ready your phones.
+        </div>
+      </div>
+
+    </aside>
+  </section>
+
+  <footer class="deco-footer">
+    <span>EST · 2026</span>
+    <span class="rule"></span>
+    <span id="footerStatus">Sunset Edition · v4.0</span>
+    <span class="rule"></span>
+    <span>FACTORY.GEORG.MIAMI</span>
+  </footer>
+
+</main>
+
+<canvas class="fx" id="fx" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<script>
+/* ============================================================================
+   QR CODE — minimal QR encoder (ISO/IEC 18004), trimmed for byte/version 1-10.
+   Adapted from public-domain Project Nayuki implementation, condensed.
+============================================================================ */
+const QR=(function(){
+  function QrSegment(mode,n,bits){this.mode=mode;this.numChars=n;this.bitData=bits;}
+  const Mode={BYTE:{modeBits:0x4,numCharCountBits:[8,16,16]}};
+  function makeBytes(data){
+    const bb=[]; for(const b of data){for(let i=7;i>=0;i--)bb.push((b>>>i)&1);}
+    return new QrSegment(Mode.BYTE,data.length,bb);
+  }
+  // Polynomial / GF(256)
+  function rs_genPoly(deg){
+    const c=new Uint8Array(deg); c[deg-1]=1; let root=1;
+    for(let i=0;i<deg;i++){
+      for(let j=0;j<deg;j++){
+        c[j]=gfMul(c[j],root)^(j+1<deg?c[j+1]:0);
+      }
+      root=gfMul(root,2);
+    }
+    return c;
+  }
+  function rs_remainder(data,gen){
+    const r=new Uint8Array(gen.length);
+    for(const b of data){
+      const f=b^r[0];
+      r.copyWithin(0,1); r[r.length-1]=0;
+      for(let i=0;i<gen.length;i++) r[i]^=gfMul(gen[i],f);
+    }
+    return r;
+  }
+  function gfMul(x,y){
+    let z=0;
+    for(let i=7;i>=0;i--){ z=(z<<1)^((z>>>7)*0x11D); z^=((y>>>i)&1)*x; }
+    return z&0xFF;
+  }
+  // Constants for versions 1-10, ECC L
+  const NUM_RAW_DATA_MOD=[null,208,359,567,807,1079,1383,1568,1936,2336,2768];
+  const NUM_ERR_CW=[null,7,10,15,20,26,18,20,24,30,18];
+  const NUM_ERR_BLOCKS=[null,1,1,1,1,1,2,2,2,2,4];
+  const ALIGN_PATS=[[],[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50]];
+
+  function getNumDataCodewords(ver){
+    return Math.floor(NUM_RAW_DATA_MOD[ver]/8) - NUM_ERR_CW[ver]*NUM_ERR_BLOCKS[ver];
+  }
+
+  function buildBitStream(segs,ver){
+    let bits=[];
+    for(const s of segs){
+      const cc=s.mode.numCharCountBits[ver<=9?0:(ver<=26?1:2)];
+      pushBits(bits,s.mode.modeBits,4);
+      pushBits(bits,s.numChars,cc);
+      bits=bits.concat(s.bitData);
+    }
+    const dataCw=getNumDataCodewords(ver);
+    const dataBits=dataCw*8;
+    pushBits(bits,0,Math.min(4,dataBits-bits.length));
+    while(bits.length%8!==0) bits.push(0);
+    for(let pad=0xEC; bits.length<dataBits; pad^=0xEC^0x11) pushBits(bits,pad,8);
+    const out=new Uint8Array(dataCw);
+    for(let i=0;i<bits.length;i++) out[i>>>3]|=bits[i]<<(7-(i&7));
+    return out;
+  }
+  function pushBits(arr,val,len){ for(let i=len-1;i>=0;i--) arr.push((val>>>i)&1); }
+
+  function addEcc(data,ver){
+    const blocks=NUM_ERR_BLOCKS[ver], ecLen=NUM_ERR_CW[ver];
+    const totalCw=Math.floor(NUM_RAW_DATA_MOD[ver]/8);
+    const numShort=blocks-(totalCw%blocks);
+    const shortLen=Math.floor(totalCw/blocks);
+    const gen=rs_genPoly(ecLen);
+    const blocksData=[]; const blocksEcc=[]; let k=0;
+    for(let i=0;i<blocks;i++){
+      const dlen=shortLen-ecLen+(i<numShort?0:1);
+      const dat=data.slice(k,k+dlen); k+=dlen;
+      const ecc=rs_remainder(dat,gen);
+      blocksData.push(dat); blocksEcc.push(ecc);
+    }
+    const result=[];
+    const maxData=Math.max(...blocksData.map(b=>b.length));
+    for(let i=0;i<maxData;i++) for(let j=0;j<blocks;j++)
+      if(i<blocksData[j].length) result.push(blocksData[j][i]);
+    for(let i=0;i<ecLen;i++) for(let j=0;j<blocks;j++) result.push(blocksEcc[j][i]);
+    return result;
+  }
+
+  // Build QR matrix
+  function makeMatrix(ver, codewords){
+    const size=ver*4+17;
+    const mod=Array.from({length:size},()=>new Uint8Array(size));
+    const fn =Array.from({length:size},()=>new Uint8Array(size));
+    function setFinder(x,y){
+      for(let dy=-4;dy<=4;dy++) for(let dx=-4;dx<=4;dx++){
+        const xx=x+dx, yy=y+dy; if(xx<0||yy<0||xx>=size||yy>=size) continue;
+        const ad=Math.max(Math.abs(dx),Math.abs(dy));
+        fn[yy][xx]=1;
+        mod[yy][xx]=(ad!==2&&ad!==4)?1:0;
+      }
+    }
+    setFinder(3,3); setFinder(size-4,3); setFinder(3,size-4);
+
+    // timing
+    for(let i=0;i<size;i++){
+      if(!fn[6][i]){ mod[6][i]=(i&1)===0?1:0; fn[6][i]=1; }
+      if(!fn[i][6]){ mod[i][6]=(i&1)===0?1:0; fn[i][6]=1; }
+    }
+    // alignment
+    const ap=ALIGN_PATS[ver];
+    for(let i=0;i<ap.length;i++) for(let j=0;j<ap.length;j++){
+      const cx=ap[i], cy=ap[j];
+      if((i===0&&j===0)||(i===0&&j===ap.length-1)||(i===ap.length-1&&j===0)) continue;
+      for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++){
+        fn[cy+dy][cx+dx]=1;
+        const ad=Math.max(Math.abs(dx),Math.abs(dy));
+        mod[cy+dy][cx+dx]=(ad!==1)?1:0;
+      }
+    }
+    // reserve format bits
+    for(let i=0;i<9;i++){ fn[8][i]=1; fn[i][8]=1; }
+    for(let i=0;i<8;i++){ fn[8][size-1-i]=1; fn[size-1-i][8]=1; }
+    // dark module
+    mod[size-8][8]=1; fn[size-8][8]=1;
+
+    // place codewords
+    let bitIdx=0;
+    for(let right=size-1; right>=1; right-=2){
+      if(right===6) right=5;
+      for(let vert=0; vert<size; vert++){
+        for(let j=0;j<2;j++){
+          const x=right-j;
+          const upward=((right+1)&2)===0;
+          const y=upward?size-1-vert:vert;
+          if(!fn[y][x] && bitIdx<codewords.length*8){
+            const bit=(codewords[bitIdx>>>3]>>>(7-(bitIdx&7)))&1;
+            mod[y][x]=bit; bitIdx++;
+          }
+        }
+      }
+    }
+
+    // Choose mask 2 (deterministic; readable)
+    const mask=2;
+    for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+      if(fn[y][x]) continue;
+      let inv=false;
+      switch(mask){
+        case 0: inv=((x+y)%2===0); break;
+        case 1: inv=(y%2===0); break;
+        case 2: inv=(x%3===0); break;
+        case 3: inv=((x+y)%3===0); break;
+      }
+      if(inv) mod[y][x]^=1;
+    }
+    // Format info (ECC L = 01, mask = 010 → 01010), with BCH
+    const data=(0b01<<3)|mask;
+    let rem=data;
+    for(let i=0;i<10;i++) rem=(rem<<1)^((rem>>>9)*0x537);
+    const fmt=((data<<10)|rem)^0x5412;
+    for(let i=0;i<=5;i++){ mod[8][i]=(fmt>>>i)&1; fn[8][i]=1; }
+    mod[8][7]=(fmt>>>6)&1; mod[8][8]=(fmt>>>7)&1; mod[7][8]=(fmt>>>8)&1;
+    for(let i=9;i<15;i++){ mod[14-i][8]=(fmt>>>i)&1; }
+    for(let i=0;i<8;i++)  mod[size-1-i][8]=(fmt>>>i)&1;
+    for(let i=8;i<15;i++) mod[8][size-15+i]=(fmt>>>i)&1;
+    mod[size-8][8]=1;
+    return mod;
+  }
+
+  function pickVersion(byteLen){
+    for(let v=1; v<=10; v++){
+      const cap=getNumDataCodewords(v) - 2 - (v<=9?1:2);
+      if(byteLen<=cap) return v;
+    }
+    return 10;
+  }
+
+  function encode(text){
+    const utf8=new TextEncoder().encode(text);
+    const ver=pickVersion(utf8.length);
+    const seg=makeBytes(utf8);
+    const data=buildBitStream([seg],ver);
+    const cw=addEcc(data,ver);
+    return makeMatrix(ver,cw);
+  }
+  function render(text,size){
+    const m=encode(text);
+    const n=m.length;
+    const cell=Math.max(2,Math.floor(size/(n+8)));
+    const quiet=4;
+    const dim=(n+quiet*2)*cell;
+    const c=document.createElement('canvas');
+    c.width=c.height=dim;
+    const ctx=c.getContext('2d');
+    ctx.fillStyle='#fff1d9'; ctx.fillRect(0,0,dim,dim);
+    ctx.fillStyle='#0b0a3a';
+    for(let y=0;y<n;y++) for(let x=0;x<n;x++){
+      if(m[y][x]) ctx.fillRect((x+quiet)*cell,(y+quiet)*cell,cell,cell);
+    }
+    return c;
+  }
+  return { render };
+})();
+
+/* ============================================================================
+   QR mount
+============================================================================ */
+(function mountQR(){
+  try{
+    const target=document.getElementById('qr');
+    const url=window.location.href;
+    const c=QR.render(url, 320);
+    c.style.width='100%'; c.style.height='100%'; c.style.imageRendering='pixelated';
+    target.appendChild(c);
+  }catch(e){
+    // graceful: textual fallback
+    document.getElementById('qr').innerHTML=
+      '<div style="font:600 11px Inter;color:#0b0a3a;padding:10px;text-align:center">'+
+      window.location.href.replace(/^https?:\/\//,'')+'</div>';
+  }
+})();
+
+/* ============================================================================
+   App state
+============================================================================ */
+const AGENTS = {
+  pm:       { id:'pm',       label:'Project Manager', short:'PM',       color:'var(--c-pm)',       css:'#FF2D7B' },
+  coder:    { id:'coder',    label:'Engineer',        short:'ENGINEER', color:'var(--c-coder)',    css:'#0FE4D4' },
+  reviewer: { id:'reviewer', label:'Reviewer',        short:'REVIEWER', color:'var(--c-reviewer)', css:'#FF8A5C' },
+  deployer: { id:'deployer', label:'Deployer',        short:'DEPLOYER', color:'var(--c-deployer)', css:'#FFC977' }
+};
+const ORDER=['pm','coder','reviewer','deployer'];
+
+const els={
+  timer:        document.getElementById('timer'),
+  timerLabel:   document.getElementById('timerLabel'),
+  connPill:     document.getElementById('connPill'),
+  connLabel:    document.getElementById('connLabel'),
+  audienceCount:document.getElementById('audienceCount'),
+  feed:         document.getElementById('feed'),
+  feedCount:    document.getElementById('feedCount'),
+  stagePhase:   document.getElementById('stagePhase'),
+  scoreNum:     document.getElementById('scoreNum'),
+  scoreFeedback:document.getElementById('scoreFeedback'),
+  scoreBar:     document.getElementById('scoreBar'),
+  resultCard:   document.getElementById('resultCard'),
+  resultEyebrow:document.getElementById('resultEyebrow'),
+  resultTitle:  document.getElementById('resultTitle'),
+  resultBuiltIn:document.getElementById('resultBuiltIn'),
+  resultLink:   document.getElementById('resultLink'),
+  resultLinkLabel:document.getElementById('resultLinkLabel'),
+  resultIdle:   document.getElementById('resultIdle'),
+  conn:         document.getElementById('conn'),
+  agentsRoot:   document.getElementById('agents'),
+  fx:           document.getElementById('fx'),
+  footerStatus: document.getElementById('footerStatus')
+};
+
+const state={
+  build: { running:false, startedAt:0, elapsed:0, completed:false },
+  active: null,
+  feedCount: 0,
+  reconnects: 0
+};
+
+function fmtTime(sec){
+  sec=Math.max(0,Math.floor(sec));
+  const m=Math.floor(sec/60), s=sec%60;
+  return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+function nowHMS(d){
+  d=d||new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+
+         String(d.getMinutes()).padStart(2,'0')+':'+
+         String(d.getSeconds()).padStart(2,'0');
+}
+
+/* Timer loop */
+function tick(){
+  if(state.build.running && !state.build.completed){
+    const e=(Date.now()-state.build.startedAt)/1000;
+    state.build.elapsed=e;
+    els.timer.textContent=fmtTime(e);
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* Connection pill */
+function setConnState(s,label){
+  els.connPill.dataset.state=s;
+  els.connLabel.textContent=label||({live:'LIVE',lost:'OFFLINE',reconnect:'RECONNECTING',idle:'CONNECTING'})[s]||s.toUpperCase();
+}
+
+/* Tile state */
+function setAgent(id,status,message){
+  const tile=document.querySelector(`.tile[data-agent="${id}"]`);
+  if(!tile) return;
+  tile.dataset.state=status;
+  const sel=tile.querySelector(`[data-status="${id}"]`);
+  if(sel && message) sel.textContent=message;
+  if(status==='working'){
+    state.active=id;
+    drawConnections(id);
+  } else if(status==='done' && state.active===id){
+    // momentarily keep last connection lit; will redraw on next 'working'
+  }
+  updatePhase();
+}
+
+function updatePhase(){
+  const tiles=Array.from(document.querySelectorAll('.tile'));
+  const working=tiles.find(t=>t.dataset.state==='working');
+  if(working){
+    els.stagePhase.textContent=({
+      pm:'Drafting the spec',
+      coder:'Engineering live',
+      reviewer:'Quality review',
+      deployer:'Deploying'
+    })[working.dataset.agent]||'In progress';
+  } else if(state.build.completed){
+    els.stagePhase.textContent='Build delivered';
+  } else if(state.build.running){
+    els.stagePhase.textContent='Hand-off';
+  } else {
+    els.stagePhase.textContent='Standing by';
+  }
+}
+
+/* Connection lines (SVG) */
+function tileCenter(id){
+  const t=document.querySelector(`.tile[data-agent="${id}"]`);
+  const r=t.getBoundingClientRect();
+  const root=els.agentsRoot.getBoundingClientRect();
+  return { x:r.left-root.left+r.width/2, y:r.top-root.top+r.height/2 };
+}
+function drawConnections(activeId){
+  const svg=els.conn;
+  if(!svg) return;
+  const root=els.agentsRoot.getBoundingClientRect();
+  svg.setAttribute('width', root.width);
+  svg.setAttribute('height', root.height);
+  svg.innerHTML='';
+  const idx=ORDER.indexOf(activeId);
+  for(let i=0;i<ORDER.length-1;i++){
+    const a=tileCenter(ORDER[i]);
+    const b=tileCenter(ORDER[i+1]);
+    const cx=(a.x+b.x)/2, cy=Math.min(a.y,b.y)-22;
+    const path=`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`;
+    const line=document.createElementNS('http://www.w3.org/2000/svg','path');
+    line.setAttribute('d',path);
+    line.setAttribute('fill','none');
+    line.setAttribute('stroke','rgba(255,241,217,.18)');
+    line.setAttribute('stroke-width','1.2');
+    svg.appendChild(line);
+    if(i<idx){
+      // already-completed segments — soft cream
+      const done=document.createElementNS('http://www.w3.org/2000/svg','path');
+      done.setAttribute('d',path);
+      done.setAttribute('fill','none');
+      done.setAttribute('stroke','rgba(255,241,217,.45)');
+      done.setAttribute('stroke-width','1.4');
+      svg.appendChild(done);
+    } else if(i===idx-1 || i===idx){
+      // hot path into the active node
+      const colorById={pm:'#FF2D7B',coder:'#0FE4D4',reviewer:'#FF8A5C',deployer:'#FFC977'};
+      const target=ORDER[idx];
+      const flow=document.createElementNS('http://www.w3.org/2000/svg','path');
+      flow.setAttribute('d',path);
+      flow.setAttribute('fill','none');
+      flow.setAttribute('stroke',colorById[target]);
+      flow.setAttribute('stroke-width','1.6');
+      flow.setAttribute('opacity', i===idx-1?'0.95':'0.4');
+      flow.setAttribute('class','ping-line');
+      flow.style.filter=`drop-shadow(0 0 6px ${colorById[target]})`;
+      svg.appendChild(flow);
+      if(i===idx-1){
+        const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+        dot.setAttribute('cx', b.x);
+        dot.setAttribute('cy', b.y);
+        dot.setAttribute('r','4');
+        dot.setAttribute('fill', colorById[target]);
+        dot.setAttribute('class','ping-dot');
+        dot.style.filter=`drop-shadow(0 0 8px ${colorById[target]})`;
+        svg.appendChild(dot);
+      }
+    }
+  }
+}
+window.addEventListener('resize', ()=>{ if(state.active) drawConnections(state.active); });
+
+/* Feed */
+function pushFeed({agent, text, kind}){
+  const li=document.createElement('li');
+  li.className='feed-item'+(kind?(' '+kind):'');
+  const time=document.createElement('span'); time.className='feed-time'; time.textContent=nowHMS();
+  const ag  =document.createElement('span'); ag.className='feed-agent';
+  const msg =document.createElement('span'); msg.className='feed-msg';
+
+  if(agent && AGENTS[agent]){
+    ag.textContent=AGENTS[agent].short;
+    ag.style.setProperty('--agent-color', AGENTS[agent].css);
+  } else {
+    ag.textContent=(kind==='error')?'ERROR':'SYSTEM';
+  }
+  if(kind==='review'){
+    msg.innerHTML=text;
+  } else {
+    msg.textContent=text;
+  }
+  li.appendChild(time); li.appendChild(ag); li.appendChild(msg);
+
+  if(state.feedCount===0){
+    const placeholder=els.feed.querySelector('.feed-item.system');
+    if(placeholder) placeholder.remove();
+  }
+  els.feed.insertBefore(li, els.feed.firstChild);
+  state.feedCount++;
+  els.feedCount.textContent= state.feedCount+' event'+(state.feedCount===1?'':'s');
+
+  // trim
+  while(els.feed.children.length>120) els.feed.removeChild(els.feed.lastChild);
+}
+
+/* Reset / new build */
+function resetBuild(){
+  state.build={ running:true, startedAt:Date.now(), elapsed:0, completed:false };
+  state.active=null;
+  els.timer.textContent='00:00';
+  els.timer.classList.remove('flex');
+  els.timerLabel.textContent='BUILD ELAPSED';
+  els.scoreNum.textContent='—';
+  els.scoreFeedback.textContent='Pending sign-off from QA.';
+  els.scoreBar.style.width='0%';
+  els.resultCard.classList.remove('show');
+  els.resultLink.hidden=true;
+  els.resultIdle.style.display='';
+  els.resultEyebrow.textContent='Build in progress';
+  els.resultTitle.textContent='Sun is still up';
+  els.resultBuiltIn.textContent='Awaiting deploy.';
+  ORDER.forEach(id=>{
+    const tile=document.querySelector(`.tile[data-agent="${id}"]`);
+    tile.dataset.state='idle';
+    const s=tile.querySelector(`[data-status="${id}"]`);
+    if(s) s.textContent= id==='pm'?'Awaiting brief':'Idle';
+  });
+  if(els.conn) els.conn.innerHTML='';
+  updatePhase();
+}
+
+/* Build complete */
+function completeBuild(payload){
+  state.build.running=false;
+  state.build.completed=true;
+  const elapsed = (typeof payload.elapsed==='number') ? payload.elapsed : (Date.now()-state.build.startedAt)/1000;
+  els.timer.textContent=fmtTime(elapsed);
+  els.timer.classList.add('flex');
+  els.timerLabel.textContent='BUILT IN ' + fmtTime(elapsed).replace(/^0/,'');
+  els.stagePhase.textContent='Build delivered';
+
+  const url  = payload.siteUrl || '#';
+  const name = (payload.plan && payload.plan.projectName) || payload.siteName || 'Live build';
+  els.resultIdle.style.display='none';
+  els.resultEyebrow.textContent='Now live';
+  els.resultTitle.textContent=name;
+  els.resultBuiltIn.innerHTML='Built in <b>'+fmtTime(elapsed)+'</b>';
+  els.resultLink.href=url;
+  els.resultLinkLabel.textContent= url.replace(/^https?:\/\//,'').replace(/\/$/,'');
+  els.resultLink.hidden=false;
+  setTimeout(()=>els.resultCard.classList.add('show'), 50);
+
+  if(payload.review && typeof payload.review.score==='number'){
+    paintScore(payload.review.score, payload.review.feedback);
+  }
+}
+
+/* Score */
+function paintScore(score, feedback){
+  els.scoreNum.textContent=String(score);
+  els.scoreBar.style.width=Math.max(0,Math.min(10,score))*10+'%';
+  if(feedback) els.scoreFeedback.textContent=feedback;
+}
+
+/* ============================================================================
+   Fireworks (canvas) — corporate-restrained, on `celebrate` / `build_complete`
+============================================================================ */
+const fx=(function(){
+  const c=els.fx, ctx=c.getContext('2d');
+  let dpr=Math.min(2,window.devicePixelRatio||1);
+  let parts=[];
+  function resize(){
+    dpr=Math.min(2,window.devicePixelRatio||1);
+    c.width=window.innerWidth*dpr; c.height=window.innerHeight*dpr;
+    c.style.width=window.innerWidth+'px'; c.style.height=window.innerHeight+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize',resize); resize();
+  const PALETTE=['#FF2D7B','#0FE4D4','#FF8A5C','#FFC977','#FFF1D9'];
+  function burst(x,y){
+    const n=44+Math.floor(Math.random()*22);
+    const col=PALETTE[Math.floor(Math.random()*PALETTE.length)];
+    for(let i=0;i<n;i++){
+      const a=Math.random()*Math.PI*2;
+      const v=2+Math.random()*4.5;
+      parts.push({
+        x,y, vx:Math.cos(a)*v, vy:Math.sin(a)*v - .6,
+        life:1, decay:0.012+Math.random()*0.012, col
+      });
+    }
+  }
+  let raf=0, running=false;
+  function loop(){
+    ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+    // mirror at horizon (~78vh)
+    const horizonY=window.innerHeight*0.78;
+    for(const p of parts){
+      p.x+=p.vx; p.y+=p.vy; p.vy+=0.06; p.life-=p.decay;
+      if(p.life<=0) continue;
+      // upper
+      ctx.globalAlpha=Math.max(0,p.life);
+      ctx.fillStyle=p.col;
+      ctx.shadowColor=p.col;
+      ctx.shadowBlur=14;
+      ctx.beginPath(); ctx.arc(p.x,p.y,1.7,0,Math.PI*2); ctx.fill();
+      // reflection
+      const ry=horizonY+(horizonY-p.y)*0.55;
+      ctx.globalAlpha=Math.max(0,p.life)*0.35;
+      ctx.shadowBlur=6;
+      ctx.beginPath(); ctx.arc(p.x,ry,1.5,0,Math.PI*2); ctx.fill();
+    }
+    ctx.shadowBlur=0; ctx.globalAlpha=1;
+    parts=parts.filter(p=>p.life>0 && p.y<window.innerHeight+20);
+    if(parts.length>0){ raf=requestAnimationFrame(loop); running=true; }
+    else { running=false; }
+  }
+  function celebrate(){
+    const w=window.innerWidth, h=window.innerHeight;
+    const horizon=h*0.45;
+    const launches=[
+      {x:w*0.22,y:horizon-30, d:0},
+      {x:w*0.5, y:horizon-60, d:300},
+      {x:w*0.78,y:horizon-30, d:600},
+      {x:w*0.36,y:horizon-50, d:950},
+      {x:w*0.64,y:horizon-50, d:1300}
+    ];
+    launches.forEach(l=>setTimeout(()=>burst(l.x,l.y), l.d));
+    if(!running){ raf=requestAnimationFrame(loop); }
+  }
+  return { celebrate };
+})();
+
+/* ============================================================================
+   SSE — connect, route events, exponential reconnect
+============================================================================ */
+const SSE_URL='/factory/api/live-stream';
+let es=null;
+let backoff=1000;
+let reconnectTimer=null;
+
+function connect(){
+  if(reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer=null; }
+  setConnState('idle','CONNECTING');
+  try{
+    es=new EventSource(SSE_URL);
+  }catch(e){
+    scheduleReconnect();
+    return;
+  }
+  es.onopen = ()=>{
+    setConnState('live','LIVE');
+    backoff=1000;
+  };
+  es.onmessage = (e)=>{
+    try{
+      const evt=JSON.parse(e.data);
+      route(evt);
+    }catch(err){
+      // ignore parse errors silently — feed integrity matters more
+    }
+  };
+  es.onerror = ()=>{
+    setConnState('lost','OFFLINE');
+    try{ es.close(); }catch(_){}
+    scheduleReconnect();
+  };
+}
+function scheduleReconnect(){
+  setConnState('reconnect', 'RECONNECTING · '+Math.round(backoff/1000)+'s');
+  reconnectTimer=setTimeout(()=>{
+    backoff=Math.min(backoff*1.7, 15000);
+    connect();
+  }, backoff);
+}
+
+/* Route every documented event */
+function route(evt){
+  switch(evt.type){
+    case 'connected': {
+      pushFeed({ kind:'system', text:'Spectator stream connected.' });
+      if(typeof evt.spectatorCount==='number') els.audienceCount.textContent=evt.spectatorCount;
+      break;
+    }
+    case 'build_started': {
+      resetBuild();
+      pushFeed({ kind:'system', text:'New build started — '+(evt.buildId||'demo')+'.' });
+      break;
+    }
+    case 'agent_status': {
+      const a=evt.agent, st=evt.status, m=evt.message||'';
+      setAgent(a, st, m);
+      const verb = st==='working'?'started':(st==='done'?'completed':'updated');
+      pushFeed({ agent:a, kind:'status', text: m || (AGENTS[a]?.label+' '+verb) });
+      break;
+    }
+    case 'chat_message': {
+      pushFeed({ agent:evt.agent, text:evt.message||'' });
+      break;
+    }
+    case 'review_result': {
+      paintScore(evt.score, evt.feedback);
+      const passed = evt.passed===true ? 'PASS' : (evt.passed===false ? 'HOLD' : '');
+      pushFeed({ kind:'review', agent:'reviewer',
+        text:'<b>Review:</b> '+(passed?passed+' · ':'')+'score '+evt.score+'/10'+(evt.feedback?' — '+evt.feedback:'') });
+      break;
+    }
+    case 'build_complete': {
+      completeBuild(evt);
+      pushFeed({ kind:'system', text:'Build complete — '+(evt.siteUrl||'no URL')+'.' });
+      break;
+    }
+    case 'celebrate': {
+      fx.celebrate();
+      pushFeed({ kind:'system', text:'Showtime · fireworks over the bay.' });
+      break;
+    }
+    case 'spectator_count': {
+      if(typeof evt.count==='number') els.audienceCount.textContent=evt.count;
+      else if(typeof evt.spectatorCount==='number') els.audienceCount.textContent=evt.spectatorCount;
+      break;
+    }
+    case 'heartbeat': {
+      // silent; keep connection-alive without polluting feed
+      setConnState('live','LIVE');
+      break;
+    }
+    case 'error': {
+      pushFeed({ kind:'error', text: evt.message || 'Stream reported an error.' });
+      break;
+    }
+    default: {
+      // unknown — log faintly
+      pushFeed({ kind:'system', text:'Unhandled event: '+(evt.type||'?') });
+    }
+  }
+}
+
+connect();
+
+/* Recompute connection lines after layout settles + when a new tile lights up */
+const lineObserver=new MutationObserver(()=>{
+  if(state.active) drawConnections(state.active);
+});
+lineObserver.observe(document.getElementById('agents'), { attributes:true, subtree:true, attributeFilter:['data-state'] });
+
+/* Initial sun cycle: subtle nudge so the gradient is alive on first paint */
+document.documentElement.style.setProperty('--bg-loaded','1');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Claude in the Enterprise — Call Agenda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        #FCFCF9;
+    --bg-alt:    #F4F3EE;
+    --card:      #FFFFFF;
+    --ink:       #0E0E0C;
+    --ink-2:     #2C2B27;
+    --ink-3:     #5A574F;
+    --muted:     #908C81;
+    --line:      #E5E2D8;
+    --line-2:    #D4D0C2;
+    --line-3:    #C0BBA8;
+
+    --accent:    #2B6CDF;        /* operator blue */
+    --accent-2:  #1E55B7;
+    --accent-tint: #E9F0FC;
+
+    --added:     #C8841A;        /* warm amber for live captures */
+    --added-tint: #FBEFD6;
+
+    --ok:        #2D8A4E;
+    --warn:      #B23A1F;
+
+    --shadow-sm: 0 1px 2px rgba(14,14,12,0.04);
+    --shadow:    0 1px 2px rgba(14,14,12,0.04), 0 8px 24px -8px rgba(14,14,12,0.08);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 14.5px;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+  /* ── LAYOUT: left rail + main ── */
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ── LEFT RAIL ── */
+  .rail {
+    background: var(--bg-alt);
+    border-right: 1px solid var(--line);
+    padding: 24px 18px 24px 24px;
+    position: sticky; top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .rail-brand {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 4px;
+  }
+  .rail-mark {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: var(--ink); color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 13px;
+    letter-spacing: -0.02em;
+  }
+  .rail-brand-text {
+    font-size: 12px; font-weight: 600;
+    color: var(--ink-2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .rail-title {
+    font-size: 17px; font-weight: 700;
+    letter-spacing: -0.015em;
+    margin-top: 14px;
+  }
+  .rail-meta {
+    font-size: 12px;
+    color: var(--ink-3);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+  .rail-meta strong { color: var(--ink); font-weight: 600; }
+
+  .rail-status {
+    margin: 16px 0 14px;
+    padding: 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+  .rail-status .pulse {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 0 rgba(45,138,78,0.4);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(45,138,78,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(45,138,78,0); }
+  }
+  .rail-status-text {
+    font-size: 11.5px;
+    color: var(--ink-3);
+    line-height: 1.4;
+  }
+  .rail-status-text strong { color: var(--ink); font-weight: 600; }
+
+  .rail-section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    font-weight: 600;
+    margin: 18px 0 8px;
+    padding: 0 4px;
+  }
+
+  .rail-list { display: flex; flex-direction: column; }
+  .rail-item {
+    display: grid;
+    grid-template-columns: 30px 1fr auto;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    font-size: 13px;
+    color: var(--ink-2);
+    text-decoration: none;
+    align-items: center;
+    transition: background .12s, color .12s;
+    border-left: 2px solid transparent;
+    margin-left: -2px;
+  }
+  .rail-item:hover { background: var(--card); color: var(--ink); }
+  .rail-item .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .rail-item .name {
+    font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rail-item .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 1px 6px;
+    border-radius: 4px;
+    min-width: 22px;
+    text-align: center;
+  }
+  .rail-item .count.live { color: var(--added); border-color: var(--added); background: var(--added-tint); }
+
+  .rail-actions {
+    display: grid;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .btn {
+    appearance: none;
+    border: 1px solid var(--line-2);
+    background: var(--card);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 12.5px; font-weight: 500;
+    padding: 8px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all .12s ease;
+    text-align: left;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+  }
+  .btn:hover { border-color: var(--ink); }
+  .btn .kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 1px 5px;
+    border-radius: 4px;
+    box-shadow: 0 1px 0 var(--line-2);
+  }
+  .btn-primary {
+    background: var(--ink); color: var(--bg); border-color: var(--ink);
+  }
+  .btn-primary .kbd { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); box-shadow: none; }
+  .btn-primary:hover { background: #000; }
+  .btn.btn-danger:hover { border-color: var(--warn); color: var(--warn); }
+
+  .rail-foot {
+    margin-top: 24px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .rail-foot .row { display: flex; justify-content: space-between; }
+  .rail-foot strong { color: var(--ink-3); font-weight: 600; }
+
+  /* ── MAIN ── */
+  .main {
+    padding: 36px 56px 160px;
+    max-width: 920px;
+  }
+
+  .main-head {
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 36px;
+  }
+  .main-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-tint);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    margin-bottom: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .main-eyebrow::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent);
+  }
+  h1 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 40px;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    margin: 0 0 14px;
+    max-width: 720px;
+  }
+  .deck {
+    color: var(--ink-3);
+    font-size: 16px;
+    max-width: 620px;
+    line-height: 1.55;
+  }
+
+  /* run-sheet stat row */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 24px;
+  }
+  .stat {
+    background: var(--card);
+    padding: 14px 16px;
+  }
+  .stat .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 4px;
+  }
+  .stat .value {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .value .unit { color: var(--muted); font-size: 13px; font-weight: 500; margin-left: 2px; }
+
+  /* ── SECTION ── */
+  .section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    scroll-margin-top: 16px;
+    transition: box-shadow .15s, border-color .15s;
+  }
+  .section:hover { box-shadow: var(--shadow); border-color: var(--line-2); }
+
+  .section-head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+  }
+  .section-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-tint);
+    padding: 4px 8px;
+    border-radius: 5px;
+    letter-spacing: 0.04em;
+  }
+  h2 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 17px;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .section-stats {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .section-stats .stat-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px;
+    border: 1px solid var(--line-2);
+    border-radius: 5px;
+    background: var(--card);
+  }
+  .section-stats .stat-pill.live { color: var(--added); border-color: var(--added); background: var(--added-tint); }
+  .section-stats .stat-pill .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  .section-body { padding: 8px 18px 18px; }
+
+  /* bullets */
+  ul.bullets { list-style: none; padding: 0; margin: 0 0 6px; }
+  ul.bullets li {
+    position: relative;
+    padding: 9px 64px 9px 36px;
+    border-radius: 6px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    transition: background .1s ease;
+    border-left: 1px dashed transparent;
+  }
+  ul.bullets li.has-comment {
+    background: var(--accent-tint);
+  }
+  ul.bullets li.has-comment::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 14px;
+    width: 2px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  ul.bullets li.added.has-comment::after { background: var(--added); }
+  ul.bullets li::before {
+    content: '';
+    position: absolute;
+    left: 14px; top: 16px;
+    width: 6px; height: 6px;
+    border-radius: 1px;
+    background: var(--accent);
+  }
+  ul.bullets li.added::before {
+    background: var(--added);
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px var(--added-tint);
+  }
+  ul.bullets li.added {
+    background: linear-gradient(90deg, var(--added-tint), transparent 60%);
+  }
+  ul.bullets li:hover { background: var(--bg-alt); }
+  ul.bullets li.added:hover { background: linear-gradient(90deg, var(--added-tint), var(--bg-alt)); }
+  ul.bullets li:hover .bullet-actions { opacity: 1; }
+  .bullet-actions {
+    position: absolute;
+    right: 6px; top: 5px;
+    display: flex; gap: 2px;
+    opacity: 0;
+    transition: opacity .12s;
+  }
+  ul.bullets li.has-comment .bullet-actions,
+  ul.bullets li.commenting .bullet-actions { opacity: 1; }
+  .icon-btn {
+    width: 26px; height: 26px;
+    border: none; background: transparent;
+    color: var(--muted); cursor: pointer;
+    transition: color .12s, background .12s;
+    font-size: 13px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 0;
+  }
+  .icon-btn:hover { background: rgba(0,0,0,0.05); color: var(--ink); }
+  .icon-btn.del:hover { color: var(--warn); background: rgba(178,58,31,0.08); }
+  .icon-btn.cmt.active { color: var(--accent); background: var(--accent-tint); }
+  ul.bullets li.has-comment .icon-btn.cmt { color: var(--accent); }
+  ul.bullets li.added.has-comment .icon-btn.cmt { color: var(--added); }
+  .icon-btn svg { width: 13px; height: 13px; display: block; }
+
+  /* per-bullet comment field */
+  .bullet-comment {
+    margin: 4px 0 6px 36px;
+    padding: 0;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height .2s ease;
+  }
+  .bullet-comment.open { max-height: 240px; }
+  .bullet-comment textarea {
+    width: calc(100% - 36px);
+    min-height: 44px;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--card);
+    resize: vertical;
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-tint);
+    transition: box-shadow .15s, border-color .15s;
+  }
+  ul.bullets li.added + .bullet-comment textarea {
+    border-color: var(--added);
+    box-shadow: 0 0 0 3px var(--added-tint);
+  }
+  .bullet-comment textarea::placeholder { color: var(--muted); font-style: italic; }
+  .bullet-comment .meta {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin: 0 0 4px 0;
+    font-weight: 600;
+  }
+  .bullet-comment .meta::before {
+    content: '↳';
+    color: var(--accent);
+    font-size: 13px;
+  }
+  ul.bullets li.added + .bullet-comment .meta::before { color: var(--added); }
+
+  .empty-hint {
+    color: var(--muted);
+    font-size: 13.5px;
+    padding: 10px 14px;
+    margin: 4px 12px 8px;
+    background: repeating-linear-gradient(135deg, var(--bg-alt), var(--bg-alt) 6px, var(--bg) 6px, var(--bg) 12px);
+    border: 1px dashed var(--line-2);
+    border-radius: 8px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .empty-hint .arrow {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--added);
+    font-weight: 700;
+  }
+
+  /* comments */
+  .comments-wrap {
+    margin: 8px 0 0;
+    padding: 14px 18px 4px;
+    border-top: 1px dashed var(--line);
+  }
+  .comments-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  textarea.comments {
+    width: 100%;
+    min-height: 56px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    background: var(--bg);
+    resize: vertical;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  textarea.comments:focus {
+    border-color: var(--accent);
+    background: var(--card);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
+  textarea.comments::placeholder { color: var(--muted); }
+
+  /* ── notes section special ── */
+  .section[data-id="notes"] {
+    border-color: var(--added);
+    background: linear-gradient(180deg, var(--added-tint) 0%, var(--card) 30%);
+  }
+  .section[data-id="notes"] .section-head {
+    background: transparent;
+    border-bottom-color: rgba(200,132,26,0.3);
+  }
+  .section[data-id="notes"] .section-id {
+    background: var(--added);
+    color: white;
+  }
+
+  /* ── NOTE BAR ── */
+  body.has-notebar { /* room handled by main padding */ }
+  .note-bar {
+    position: fixed;
+    left: 280px; right: 0; bottom: 0;
+    background: rgba(252, 252, 249, 0.85);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -8px 24px -8px rgba(14,14,12,.06);
+    z-index: 30;
+    padding: 12px 56px 14px;
+  }
+  .note-bar-inner {
+    max-width: 808px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .note-bar-rail {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--added);
+    background: var(--added-tint);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border: 1px solid rgba(200,132,26,0.3);
+  }
+  .note-bar-rail .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--added);
+    animation: pulse 1.6s infinite;
+  }
+  .note-bar input {
+    width: 100%;
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: inherit;
+    font-size: 14.5px;
+    outline: none;
+    color: var(--ink);
+    background: var(--card);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .note-bar input:focus {
+    border-color: var(--added);
+    box-shadow: 0 0 0 3px var(--added-tint);
+  }
+  .note-bar input::placeholder { color: var(--muted); }
+  .note-bar-hint {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .note-bar-hint .kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--card);
+    border: 1px solid var(--line-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--ink-2);
+    box-shadow: 0 1px 0 var(--line-2);
+  }
+
+  /* ── SAVE STATUS ── */
+  .save-status {
+    position: fixed;
+    bottom: 78px; right: 32px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+    box-shadow: var(--shadow);
+    opacity: 0; transition: opacity .25s;
+    pointer-events: none;
+    z-index: 40;
+  }
+  .save-status.show { opacity: 1; }
+  .save-status .dot {
+    display: inline-block; width: 6px; height: 6px;
+    background: var(--ok); border-radius: 50%;
+    margin-right: 6px; vertical-align: middle;
+  }
+
+  /* ── MODAL ── */
+  .modal-bg {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(14,14,12,.5);
+    backdrop-filter: blur(4px);
+    z-index: 60;
+    align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .modal-bg.active { display: flex; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    width: 100%; max-width: 720px;
+    padding: 24px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.25);
+  }
+  .modal-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--accent);
+    background: var(--accent-tint);
+    padding: 3px 8px;
+    border-radius: 5px;
+    display: inline-block;
+    margin-bottom: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .modal h3 {
+    margin: 0 0 4px;
+    font-size: 22px; font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .modal .modal-sub {
+    font-size: 13px; color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .modal textarea {
+    width: 100%; height: 340px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px; line-height: 1.6;
+    color: var(--ink);
+    background: var(--bg);
+    resize: vertical;
+  }
+  .modal-actions {
+    display: flex; gap: 8px; justify-content: flex-end;
+    margin-top: 14px;
+  }
+  .modal-actions .btn { display: inline-flex; }
+
+  /* ── responsive ── */
+  @media (max-width: 880px) {
+    .app { grid-template-columns: 1fr; }
+    .rail {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+    }
+    .rail-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
+    .rail-actions { grid-template-columns: 1fr 1fr 1fr; }
+    .rail-foot, .rail-status { display: none; }
+    .main { padding: 24px 20px 160px; }
+    h1 { font-size: 30px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .note-bar { left: 0; padding: 12px 16px 14px; }
+    .note-bar-inner { grid-template-columns: 1fr; gap: 8px; }
+    .note-bar-rail { display: none; }
+    .note-bar-hint { display: none; }
+    .section-head { grid-template-columns: auto 1fr; gap: 10px; padding: 12px 14px; }
+    .section-stats { grid-column: 1 / -1; justify-content: flex-start; }
+    .section-body { padding: 6px 12px 14px; }
+  }
+
+  /* print */
+  @media print {
+    .app { grid-template-columns: 1fr; }
+    .rail, .toolbar, .save-status, .del, .modal-bg, .note-bar { display: none !important; }
+    body { background: white; }
+    .main { padding: 24px; max-width: 100%; }
+    .section { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+    textarea.comments { border: 1px solid #ccc; min-height: 80px; background: white; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <aside class="rail">
+    <div class="rail-brand">
+      <div class="rail-mark">C</div>
+      <div class="rail-brand-text">Run sheet · v1</div>
+    </div>
+    <div class="rail-title">Claude in the Enterprise</div>
+    <div class="rail-meta">
+      Prep call <strong>Sun Apr 26</strong><br/>
+      Event <strong>Thu Apr 30</strong> · PwC Wynwood<br/>
+      <strong>Frank</strong> · <strong>Maja</strong> · <strong>Georg</strong>
+    </div>
+
+    <div class="rail-status">
+      <div class="pulse"></div>
+      <div class="rail-status-text">
+        Auto-saving locally<br/>
+        <strong id="railSaveStat">— · —</strong>
+      </div>
+    </div>
+
+    <div class="rail-section-label">Sections</div>
+    <nav class="rail-list" id="railList"></nav>
+
+    <div class="rail-section-label">Actions</div>
+    <div class="rail-actions">
+      <button class="btn btn-primary" id="exportBtn">
+        <span>Export decisions</span>
+        <span class="kbd">⌘E</span>
+      </button>
+      <button class="btn" onclick="window.print()">
+        <span>Print</span>
+        <span class="kbd">⌘P</span>
+      </button>
+      <button class="btn btn-danger" id="resetBtn">
+        <span>Reset all</span>
+      </button>
+    </div>
+
+    <div class="rail-foot">
+      <div class="row"><span>Storage</span><strong>localStorage</strong></div>
+      <div class="row"><span>Key</span><strong>…agenda-v1</strong></div>
+      <div class="row"><span>Format</span><strong>Markdown</strong></div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <div class="main-head">
+      <div class="main-eyebrow">Run sheet · live</div>
+      <h1>One-hour prep call. Get to a clean run-of-show.</h1>
+      <p class="deck">Eight working sections. Take notes per section, capture live decisions in the bar at the bottom, hit export when we wrap.</p>
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <section id="sections"></section>
+
+  </main>
+</div>
+
+<div class="note-bar">
+  <div class="note-bar-inner">
+    <div class="note-bar-rail">
+      <span class="dot"></span>
+      Live capture
+    </div>
+    <input type="text" id="noteInput" placeholder="Capture a decision, owner, or open thread — Enter to send to Live notes" autocomplete="off" />
+    <div class="note-bar-hint">
+      <span class="kbd">↵</span> push
+      <span style="margin: 0 4px; color: var(--line-3);">·</span>
+      <span class="kbd">esc</span> clear
+    </div>
+  </div>
+</div>
+
+<div class="save-status" id="saveStatus"><span class="dot"></span>Saved locally</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="modal-eyebrow">Export · Markdown</div>
+    <h3>Decisions &amp; comments</h3>
+    <div class="modal-sub">Markdown export. Paste into Slack, Notion, email — wherever the team lives.</div>
+    <textarea id="exportText" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn" id="copyBtn"><span>Copy to clipboard</span></button>
+      <button class="btn btn-primary" id="closeModal"><span>Close</span></button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const STORAGE_KEY = 'claude-event-call-agenda-v1';
+
+  const ORIGINAL = [
+    { id: 'demos',   title: 'Demos',              bullets: [ 'Number of demos: 2 or 3', 'Goran in or out', "Marc's demo: topic, length, format", "Georg's demo: Agent Factory, ~10 min", 'Order on stage', 'Hard 8–10 min cap each, no Q&A inside' ] },
+    { id: 'panels',  title: 'Panels',             bullets: [ 'Maja: panel (no demo) — confirm topic + length', 'Frank: keeps fraud panel + hosts A–Z', 'Confirm thesis: "AI moved from helps you → does for you"', 'Order: panels first, demos after, or interleave' ] },
+    { id: 'format',  title: 'Format',             bullets: [ 'Frank hosts, moderates between demos', '6:00 doors / 6:30 start / 8:00 hard close' ] },
+    { id: 'invites', title: 'Invites',            bullets: [ 'Max headcount: 50', 'Personal invites: 5 per speaker, sent by Tue EOD', 'Luma page live by Mon midnight' ] },
+    { id: 'money',   title: 'Money',              bullets: [ 'AC + electricity: 4-way split (Frank / Maja / Marc / Georg)', 'Photographer: Georg covers (~$400)', 'Recording: phone tripod, assign owner' ] },
+    { id: 'dayof',   title: 'Day-of logistics',   bullets: [ 'PwC room booked all day for demo testing', 'No formal rehearsal' ] },
+    { id: 'open',    title: 'Open items + owners',bullets: [ "Marc's demo topic + length —", 'Goran in/out —', 'Luma page live Mon midnight —', 'Personal invites sent by Tue EOD — each speaker', 'Photographer booked by Wed —', 'Day-of room slots for testing —' ] },
+    { id: 'notes',   title: 'Live notes',         bullets: [] },
+  ];
+
+  // ---- state ----
+  let state = loadState();
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return seedState();
+  }
+  function seedState() {
+    const out = {};
+    ORIGINAL.forEach(s => {
+      out[s.id] = { title: s.title, original: s.bullets.slice(), added: [], removed: [], comments: '', bulletComments: {} };
+    });
+    return out;
+  }
+
+  // ensure bulletComments exists on legacy persisted state
+  function ensureBulletComments() {
+    ORIGINAL.forEach(s => {
+      if (state[s.id] && !state[s.id].bulletComments) state[s.id].bulletComments = {};
+    });
+  }
+  ensureBulletComments();
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    flashSaved();
+  }
+  let saveTimer;
+  function flashSaved() {
+    const el = document.getElementById('saveStatus');
+    el.classList.add('show');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => el.classList.remove('show'), 1200);
+  }
+
+  // ---- render rail nav + stats ----
+  function renderChrome() {
+    const list = document.getElementById('railList');
+    list.innerHTML = '';
+    ORIGINAL.forEach((sec, idx) => {
+      const data = state[sec.id];
+      const a = document.createElement('a');
+      a.className = 'rail-item';
+      a.href = '#sec-' + sec.id;
+      const total = data.original.filter((_,i) => !data.removed.includes(i)).length + data.added.length;
+      const isLive = sec.id === 'notes';
+      a.innerHTML = `
+        <span class="num">${String(idx + 1).padStart(2, '0')}</span>
+        <span class="name">${sec.title}</span>
+        <span class="count ${isLive ? 'live' : ''}">${total}</span>
+      `;
+      list.appendChild(a);
+    });
+
+    // stats
+    const totalSections = ORIGINAL.length - 1;
+    const sectionsCovered = ORIGINAL.filter(s => s.id !== 'notes' && state[s.id].comments && state[s.id].comments.trim()).length;
+    const allBullets = ORIGINAL.reduce((acc, s) => {
+      const d = state[s.id];
+      return acc + d.original.filter((_,i)=>!d.removed.includes(i)).length + d.added.length;
+    }, 0);
+    const liveCaptures = state.notes.added.length;
+
+    document.getElementById('stats').innerHTML = `
+      <div class="stat">
+        <div class="label">Sections</div>
+        <div class="value">${totalSections}<span class="unit"> agenda</span></div>
+      </div>
+      <div class="stat">
+        <div class="label">Bullets</div>
+        <div class="value">${allBullets}<span class="unit"> total</span></div>
+      </div>
+      <div class="stat">
+        <div class="label">Comments</div>
+        <div class="value">${sectionsCovered}<span class="unit"> / ${totalSections}</span></div>
+      </div>
+      <div class="stat">
+        <div class="label">Live captures</div>
+        <div class="value" style="color: var(--added);">${liveCaptures}</div>
+      </div>
+    `;
+
+    document.getElementById('railSaveStat').textContent =
+      `${allBullets} bullets · ${liveCaptures} live`;
+  }
+
+  // ---- render ----
+  const root = document.getElementById('sections');
+  function render() {
+    root.innerHTML = '';
+    ORIGINAL.forEach((sec, idx) => {
+      const data = state[sec.id];
+      const card = document.createElement('section');
+      card.className = 'section';
+      card.dataset.id = sec.id;
+      card.id = 'sec-' + sec.id;
+
+      const isNotes = sec.id === 'notes';
+      const visible = data.original.filter((_,i)=>!data.removed.includes(i)).length;
+      const addedCount = data.added.length;
+
+      const stats = isNotes
+        ? `<span class="stat-pill live"><span class="dot"></span>${addedCount} captured</span>`
+        : `<span class="stat-pill">${visible} bullet${visible===1?'':'s'}</span>` +
+          (addedCount ? `<span class="stat-pill live"><span class="dot"></span>+${addedCount}</span>` : '');
+
+      card.innerHTML = `
+        <div class="section-head">
+          <div class="section-id">${String(idx + 1).padStart(2, '0')} · ${sec.id}</div>
+          <h2>${data.title}</h2>
+          <div class="section-stats">${stats}</div>
+        </div>
+        <div class="section-body">
+          <ul class="bullets" data-list></ul>
+          ${isNotes ? '<div class="empty-hint" data-empty-hint><span class="arrow">↓</span>Captures from the live bar at the bottom land here, in order.</div>' : ''}
+        </div>
+        <div class="comments-wrap"><div class="comments-label">${isNotes ? 'Wrap-up &amp; follow-ups' : 'Comments &amp; decisions'}</div><textarea class="comments" data-comments placeholder="${isNotes ? 'Recap, owners, things to send out after the call…' : 'Notes, owners, follow-ups…'}"></textarea></div>
+      `;
+
+      const list = card.querySelector('[data-list]');
+      const allBullets = [
+        ...data.original
+          .map((text, i) => ({ text, source: 'original', idx: i }))
+          .filter(b => !data.removed.includes(b.idx)),
+        ...data.added.map((text, i) => ({ text, source: 'added', idx: i })),
+      ];
+
+      const hint = card.querySelector('[data-empty-hint]');
+      if (hint) hint.style.display = allBullets.length === 0 ? 'flex' : 'none';
+
+      allBullets.forEach(b => {
+        const li = document.createElement('li');
+        if (b.source === 'added') li.classList.add('added');
+        li.textContent = b.text;
+
+        const key = b.source + '-' + b.idx;
+        const existingComment = (data.bulletComments && data.bulletComments[key]) || '';
+        if (existingComment.trim()) li.classList.add('has-comment');
+
+        const actions = document.createElement('div');
+        actions.className = 'bullet-actions';
+
+        const cmtBtn = document.createElement('button');
+        cmtBtn.className = 'icon-btn cmt';
+        cmtBtn.title = 'Comment on this bullet';
+        cmtBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H8.5l-3 2.5v-2.5H4a1.5 1.5 0 0 1-1.5-1.5z"/></svg>';
+
+        const x = document.createElement('button');
+        x.className = 'icon-btn del';
+        x.innerHTML = '×';
+        x.title = 'Remove bullet';
+        x.onclick = (e) => {
+          e.stopPropagation();
+          if (b.source === 'original') {
+            data.removed.push(b.idx);
+          } else {
+            data.added.splice(b.idx, 1);
+            // shift bulletComments keys for added items past this index
+            const newComments = {};
+            Object.keys(data.bulletComments).forEach(k => {
+              if (k.startsWith('added-')) {
+                const i = parseInt(k.slice(6), 10);
+                if (i < b.idx) newComments[k] = data.bulletComments[k];
+                else if (i > b.idx) newComments['added-' + (i - 1)] = data.bulletComments[k];
+              } else {
+                newComments[k] = data.bulletComments[k];
+              }
+            });
+            data.bulletComments = newComments;
+          }
+          // clear deleted-bullet's comment
+          if (b.source === 'original') delete data.bulletComments[key];
+          save();
+          render();
+        };
+
+        actions.appendChild(cmtBtn);
+        actions.appendChild(x);
+        li.appendChild(actions);
+        list.appendChild(li);
+
+        // comment field below bullet
+        const cmtWrap = document.createElement('div');
+        cmtWrap.className = 'bullet-comment';
+        const startOpen = existingComment.trim().length > 0;
+        if (startOpen) cmtWrap.classList.add('open');
+        cmtWrap.innerHTML = `
+          <div class="meta">Note on bullet</div>
+          <textarea placeholder="Add a note tied to this bullet…" rows="2"></textarea>
+        `;
+        const cmtTa = cmtWrap.querySelector('textarea');
+        cmtTa.value = existingComment;
+        cmtTa.oninput = () => {
+          const v = cmtTa.value;
+          if (v.trim()) {
+            data.bulletComments[key] = v;
+            li.classList.add('has-comment');
+          } else {
+            delete data.bulletComments[key];
+            li.classList.remove('has-comment');
+          }
+          save();
+        };
+        list.appendChild(cmtWrap);
+
+        cmtBtn.onclick = (e) => {
+          e.stopPropagation();
+          const isOpen = cmtWrap.classList.toggle('open');
+          li.classList.toggle('commenting', isOpen);
+          cmtBtn.classList.toggle('active', isOpen);
+          if (isOpen) setTimeout(() => cmtTa.focus(), 60);
+        };
+      });
+
+      const ta = card.querySelector('[data-comments]');
+      if (ta) {
+        ta.value = data.comments || '';
+        ta.oninput = () => { data.comments = ta.value; save(); renderChrome(); };
+      }
+
+      root.appendChild(card);
+    });
+    renderChrome();
+  }
+
+  // ---- note bar ----
+  function setupNoteBar() {
+    document.body.classList.add('has-notebar');
+    const input = document.getElementById('noteInput');
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const v = input.value.trim();
+        if (!v) return;
+        state.notes.added.push(v);
+        input.value = '';
+        save();
+        render();
+        document.getElementById('noteInput').focus();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        input.value = '';
+        input.blur();
+      }
+    };
+  }
+
+  // ---- export ----
+  function buildExport() {
+    const lines = [];
+    lines.push('CLAUDE IN THE ENTERPRISE — call agenda decisions');
+    lines.push('Date: ' + new Date().toLocaleString());
+    lines.push('');
+    ORIGINAL.forEach(sec => {
+      const d = state[sec.id];
+      lines.push('## ' + d.title);
+      // emit each bullet, with its tied note (if any) underneath, indented
+      const emitWithNote = (line, key) => {
+        lines.push(line);
+        const note = d.bulletComments && d.bulletComments[key];
+        if (note && note.trim()) {
+          note.split('\n').forEach(nl => lines.push('    ↳ ' + nl));
+        }
+      };
+      d.original
+        .map((t, i) => ({ t, i }))
+        .filter(b => !d.removed.includes(b.i))
+        .forEach(b => emitWithNote('- ' + b.t, 'original-' + b.i));
+      d.added.forEach((t, i) => emitWithNote('+ ' + t, 'added-' + i));
+      if (d.comments && d.comments.trim()) {
+        lines.push('');
+        lines.push('Comments:');
+        d.comments.split('\n').forEach(line => lines.push('  ' + line));
+      }
+      lines.push('');
+    });
+    return lines.join('\n').trim();
+  }
+
+  document.getElementById('exportBtn').onclick = () => {
+    document.getElementById('exportText').value = buildExport();
+    document.getElementById('modalBg').classList.add('active');
+  };
+  document.getElementById('closeModal').onclick = () => {
+    document.getElementById('modalBg').classList.remove('active');
+  };
+  document.getElementById('modalBg').onclick = (e) => {
+    if (e.target.id === 'modalBg') document.getElementById('modalBg').classList.remove('active');
+  };
+  document.getElementById('copyBtn').onclick = async () => {
+    const txt = document.getElementById('exportText').value;
+    try {
+      await navigator.clipboard.writeText(txt);
+      const b = document.getElementById('copyBtn');
+      const old = b.innerHTML;
+      b.innerHTML = '<span>Copied!</span>';
+      setTimeout(() => { b.innerHTML = old; }, 1500);
+    } catch (e) {
+      document.getElementById('exportText').select();
+      document.execCommand('copy');
+    }
+  };
+
+  document.getElementById('resetBtn').onclick = () => {
+    if (confirm('Reset all bullets, comments, and additions to the original agenda?')) {
+      state = seedState();
+      save();
+      render();
+    }
+  };
+
+  // global cmd+e to export
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') {
+      e.preventDefault();
+      document.getElementById('exportBtn').click();
+    }
+  });
+
+  render();
+  setupNoteBar();
+})();
+</script>
+</body>
+</html>

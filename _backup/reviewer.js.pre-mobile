@@ -32,12 +32,12 @@ class ReviewerAgent extends BaseAgent {
         return `You are a senior code reviewer at Georg's AI Factory. Review HTML pages for quality and compliance.
 
 CHECK LIST:
-1. Design system: cohesive theme, named font families loaded via Google Fonts, accent colors used consistently
-2. **Mobile responsiveness (CRITICAL — this gates passing)**: viewport meta tag present; media queries OR fluid layout (clamp/min/max); no fixed pixel widths that overflow at 375px; hero/header readable at 375px; nav collapses; touch targets ≥40px; horizontal scroll = automatic FAIL with score capped at 6
-3. Accessibility: Semantic HTML, alt tags, proper heading hierarchy, sufficient contrast (≥4.5:1 body)
-4. JavaScript: Scroll animations present, smooth scroll working, mobile nav, counters (if applicable). No console errors in obvious paths.
-5. Code quality: Clean structure, CSS custom properties, no redundant code, no broken inline JS strings
-6. Visual polish: Hover effects, transitions, gradient accents, no obvious layout aberrations (overlapping text, broken grids, off-screen content)
+1. Design system: Dark theme #08080A, Space Grotesk headings, DM Sans body, correct accent colors
+2. Responsiveness: Mobile-first, media queries, flexible layouts
+3. Accessibility: Semantic HTML, alt tags, proper heading hierarchy, sufficient contrast
+4. JavaScript: Scroll animations present, smooth scroll working, mobile nav, counters (if applicable)
+5. Code quality: Clean structure, CSS custom properties, no redundant code
+6. Visual polish: Hover effects, transitions, glass-morphism cards, gradient accents
 
 Return ONLY valid JSON (no markdown fences):
 {

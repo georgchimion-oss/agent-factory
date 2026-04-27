@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#FAFAF7">
+<title>Agent Factory · Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Inter+Tight:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+
+  :root{
+    --bg:        #FAFAF7;          /* off-white, museum-wall */
+    --surface:   #FFFFFF;
+    --ink:       #0A0F1A;          /* near-black, never pure */
+    --ink-2:     #4A5260;          /* secondary text */
+    --ink-3:     #8B95A4;          /* tertiary text */
+    --line:      #E5E7EB;          /* hairline */
+    --line-2:    #F0F1F3;          /* subtle dividers */
+    --accent:    #D04A02;          /* PwC orange — only accent */
+    --accent-bg: #FFF1E7;          /* tinted bg */
+    --warn:      #C77700;          /* LCH-balanced */
+    --fail:      #B91C1C;          /* LCH-balanced */
+    --success:   #15803D;          /* LCH-balanced */
+    --rad: 6px;
+    --rad-lg: 10px;
+  }
+
+  html,body{
+    height:100%;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',ui-sans-serif,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    font-feature-settings:"cv11","ss01";
+    overflow:hidden;
+  }
+
+  /* ============================================================
+     APP — three-row grid: rail / stage / footer
+     ============================================================ */
+  .app{
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+    height:100dvh;
+  }
+
+  /* ============================================================
+     PERSISTENT TOP RAIL — always visible status
+     ============================================================ */
+  .rail{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    padding:14px 28px;
+    background:var(--surface);
+    border-bottom:1px solid var(--line);
+    z-index:10;
+  }
+  .rail-glyph{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:24px;height:24px;
+    color:var(--accent);
+    font-size:18px;font-weight:800;
+    line-height:1;
+  }
+  .rail-glyph.spinning{animation:spin 2.4s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .rail-brand{
+    font-family:'Inter Tight',sans-serif;
+    font-size:14px;font-weight:800;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ink);
+  }
+  .rail-brand .accent{color:var(--accent);}
+
+  .rail-sep{
+    width:1px;height:18px;
+    background:var(--line);
+    flex-shrink:0;
+  }
+
+  .rail-state{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--ink-2);
+  }
+  .rail-state[data-mode="voting"]{color:var(--accent);}
+  .rail-state[data-mode="building"]{color:var(--accent);}
+  .rail-state[data-mode="complete"]{color:var(--success);}
+
+  .rail-metric{
+    display:inline-flex;
+    align-items:baseline;
+    gap:5px;
+    font-family:'JetBrains Mono',monospace;
+    font-variant-numeric:tabular-nums;
+  }
+  .rail-metric .v{
+    font-size:14px;font-weight:700;color:var(--ink);
+  }
+  .rail-metric .l{
+    font-size:10px;font-weight:500;color:var(--ink-3);
+    letter-spacing:0.12em;text-transform:uppercase;
+  }
+
+  .rail-spacer{flex:1;}
+
+  .rail-pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:5px 11px;
+    border-radius:99px;
+    background:var(--bg);
+    border:1px solid var(--line);
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;font-weight:600;
+    letter-spacing:0.14em;
+    color:var(--ink-2);
+    text-transform:uppercase;
+  }
+  .rail-pill .dot{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--ink-3);
+  }
+  .rail-pill[data-state="live"] .dot{
+    background:var(--success);
+    animation:livePulse 2s infinite;
+  }
+  .rail-pill[data-state="reconnect"] .dot{background:var(--warn);}
+  .rail-pill[data-state="error"] .dot{background:var(--fail);}
+  @keyframes livePulse{
+    0%,100%{transform:scale(1);opacity:1;}
+    50%{transform:scale(1.5);opacity:0.5;}
+  }
+
+  /* ============================================================
+     STAGE — main content area, single concept per state
+     ============================================================ */
+  .stage{
+    position:relative;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* Hero block — three-tier hierarchy */
+  .hero{
+    padding:36px 56px 24px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    flex-shrink:0;
+  }
+  .hero-eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:600;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--ink-3);
+  }
+  .hero-title{
+    font-family:'Inter Tight',sans-serif;
+    font-size:clamp(48px,7vw,108px);
+    font-weight:900;
+    letter-spacing:-0.04em;
+    line-height:0.95;
+    color:var(--ink);
+    text-transform:none;
+  }
+  .hero-sub{
+    font-family:'Inter',sans-serif;
+    font-size:clamp(18px,1.6vw,24px);
+    font-weight:500;
+    color:var(--ink-2);
+    max-width:1100px;
+    line-height:1.35;
+    margin-top:4px;
+  }
+  .hero-rule{
+    width:48px;height:3px;
+    background:var(--accent);
+    margin-top:14px;
+  }
+
+  /* ============================================================
+     IDLE STATE — minimal, big QR
+     ============================================================ */
+  .idle-pane{
+    display:none;
+    flex:1;
+    align-items:center;
+    justify-content:center;
+    gap:80px;
+    padding:0 56px 36px;
+  }
+  .idle-pane.show{display:flex;}
+  .idle-text{
+    max-width:520px;
+  }
+  .idle-text h2{
+    font-family:'Inter Tight',sans-serif;
+    font-size:36px;font-weight:800;
+    letter-spacing:-0.02em;
+    line-height:1.1;
+    color:var(--ink);
+    margin-bottom:14px;
+  }
+  .idle-text p{
+    font-size:18px;
+    color:var(--ink-2);
+    line-height:1.5;
+  }
+  .idle-text .scan-cta{
+    margin-top:24px;
+    display:inline-flex;align-items:center;gap:10px;
+    padding:14px 22px;
+    background:var(--ink);color:var(--surface);
+    border-radius:var(--rad-lg);
+    font-family:'Inter',sans-serif;
+    font-size:15px;font-weight:600;
+    letter-spacing:0.02em;
+  }
+  .idle-text .scan-cta::before{content:"↗";font-weight:800;}
+
+  .idle-qr{
+    display:flex;flex-direction:column;align-items:center;gap:14px;
+  }
+  .idle-qr canvas{
+    width:300px;height:300px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--rad-lg);
+    padding:16px;
+    box-shadow:0 4px 16px rgba(10,15,26,0.06);
+  }
+  .idle-qr-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:600;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--ink-3);
+  }
+
+  /* ============================================================
+     VOTING STATE — 3 cards, big tap targets
+     ============================================================ */
+  .vote-pane{
+    display:none;
+    flex:1;
+    flex-direction:column;
+    padding:0 56px 36px;
+    overflow:hidden;
+  }
+  .vote-pane.show{display:flex;}
+
+  .vote-grid{
+    display:flex;flex-direction:column;gap:12px;
+    flex:1;
+    margin-top:12px;
+  }
+  .vote-card{
+    display:grid;
+    grid-template-columns:auto 1fr auto auto;
+    align-items:center;
+    gap:24px;
+    padding:22px 28px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--rad-lg);
+    cursor:pointer;
+    user-select:none;
+    transition:border-color .15s,box-shadow .15s,transform .1s,background .2s;
+    position:relative;
+    overflow:hidden;
+  }
+  .vote-card:hover{
+    border-color:var(--accent);
+    box-shadow:0 4px 16px rgba(208,74,2,0.1);
+  }
+  .vote-card:active{transform:scale(0.995);}
+
+  .vote-card-num{
+    font-family:'Inter Tight',sans-serif;
+    font-size:48px;
+    font-weight:900;
+    line-height:1;
+    color:var(--ink);
+    width:56px;text-align:center;
+    flex-shrink:0;
+  }
+  .vote-card[data-voted="true"] .vote-card-num{color:var(--accent);}
+  .vote-card[data-voted="true"]{background:var(--accent-bg);border-color:var(--accent);}
+  .vote-card[data-winner="true"] .vote-card-num{color:var(--success);}
+  .vote-card[data-winner="true"]{background:#F0FDF4;border-color:var(--success);}
+
+  .vote-card-body{min-width:0;}
+  .vote-card-name{
+    font-family:'Inter Tight',sans-serif;
+    font-size:24px;font-weight:800;
+    letter-spacing:-0.01em;
+    color:var(--ink);
+    line-height:1.15;
+  }
+  .vote-card-desc{
+    font-size:14px;
+    color:var(--ink-2);
+    margin-top:4px;
+    line-height:1.4;
+  }
+
+  .vote-bar-wrap{
+    width:200px;
+    flex-shrink:0;
+  }
+  .vote-bar{
+    height:8px;
+    background:var(--line-2);
+    border-radius:99px;
+    overflow:hidden;
+  }
+  .vote-bar-fill{
+    height:100%;
+    background:var(--accent);
+    border-radius:99px;
+    width:0%;
+    transition:width .5s cubic-bezier(0.22,1,0.36,1);
+  }
+  .vote-card[data-winner="true"] .vote-bar-fill{background:var(--success);}
+  .vote-bar-pct{
+    display:flex;justify-content:space-between;
+    margin-top:6px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:600;
+    color:var(--ink-3);
+    letter-spacing:0.06em;
+  }
+
+  .vote-card-tap{
+    flex-shrink:0;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:700;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    color:var(--accent);
+    padding:8px 14px;
+    border:1.5px solid var(--accent);
+    border-radius:var(--rad);
+    transition:background .15s;
+  }
+  .vote-card:hover .vote-card-tap{
+    background:var(--accent);
+    color:var(--surface);
+  }
+  .vote-card[data-voted="true"] .vote-card-tap{
+    color:var(--surface);
+    background:var(--accent);
+    border-color:var(--accent);
+  }
+  .vote-card[data-voted="true"] .vote-card-tap::before{content:"✓ ";}
+
+  .vote-countdown{
+    display:flex;align-items:center;gap:14px;
+    margin-top:auto;
+    padding-top:18px;
+    border-top:1px solid var(--line-2);
+  }
+  .vote-countdown-num{
+    font-family:'JetBrains Mono',monospace;
+    font-variant-numeric:tabular-nums;
+    font-size:48px;font-weight:700;
+    color:var(--ink);
+    letter-spacing:-0.02em;
+    min-width:120px;
+  }
+  .vote-countdown-num.urgent{color:var(--accent);animation:urgentPulse 1s infinite;}
+  @keyframes urgentPulse{
+    0%,100%{opacity:1;}
+    50%{opacity:0.55;}
+  }
+  .vote-countdown-label{
+    font-family:'Inter',sans-serif;
+    font-size:14px;font-weight:500;
+    color:var(--ink-2);
+    line-height:1.3;
+  }
+  .vote-countdown-label strong{
+    display:block;
+    font-family:'Inter Tight',sans-serif;
+    font-size:18px;font-weight:700;
+    color:var(--ink);
+    margin-bottom:2px;
+  }
+  .vote-countdown-spacer{flex:1;}
+  .vote-total{
+    font-family:'JetBrains Mono',monospace;
+    font-variant-numeric:tabular-nums;
+    text-align:right;
+  }
+  .vote-total-num{
+    font-size:32px;font-weight:700;color:var(--ink);
+    line-height:1;
+  }
+  .vote-total-label{
+    font-size:11px;letter-spacing:0.14em;
+    color:var(--ink-3);
+    text-transform:uppercase;
+    margin-top:4px;
+  }
+
+  /* ============================================================
+     BUILDING STATE — tri-pane: agents / checklist / activity
+     ============================================================ */
+  .build-pane{
+    display:none;
+    flex:1;
+    flex-direction:column;
+    padding:0 56px 36px;
+    gap:18px;
+    overflow:hidden;
+  }
+  .build-pane.show{display:flex;}
+
+  /* Full prompt card — readable above the build panes */
+  .prompt-card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-left:4px solid var(--accent);
+    border-radius:var(--rad-lg);
+    padding:14px 20px;
+    flex-shrink:0;
+  }
+  .prompt-eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;font-weight:700;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-bottom:4px;
+  }
+  .prompt-text{
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    line-height:1.45;
+    color:var(--ink);
+  }
+
+  /* Agent grid — 4 columns */
+  .agents-row{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+  }
+  .agent{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:14px;
+    align-items:center;
+    padding:18px 22px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--rad-lg);
+    transition:border-color .25s,background .25s,box-shadow .25s;
+  }
+  .agent[data-state="working"]{
+    border-color:var(--accent);
+    background:var(--accent-bg);
+    box-shadow:0 0 0 4px rgba(208,74,2,0.08);
+  }
+  .agent[data-state="done"]{
+    border-color:var(--success);
+    background:#F0FDF4;
+  }
+  .agent-icon{
+    width:44px;height:44px;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--bg);
+    color:var(--ink-2);
+    transition:background .25s,color .25s;
+  }
+  .agent[data-state="working"] .agent-icon{
+    background:var(--accent);color:var(--surface);
+    animation:agentPulse 1.6s ease-in-out infinite;
+  }
+  .agent[data-state="done"] .agent-icon{
+    background:var(--success);color:var(--surface);
+  }
+  @keyframes agentPulse{
+    0%,100%{box-shadow:0 0 0 0 rgba(208,74,2,0.45);}
+    50%{box-shadow:0 0 0 8px rgba(208,74,2,0);}
+  }
+  .agent-icon svg{width:22px;height:22px;}
+  .agent-body{min-width:0;}
+  .agent-name{
+    font-family:'Inter Tight',sans-serif;
+    font-size:15px;font-weight:800;
+    color:var(--ink);
+    letter-spacing:-0.005em;
+    line-height:1.1;
+  }
+  .agent-status{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:600;
+    color:var(--ink-3);
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    margin-top:3px;
+    line-height:1.2;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .agent[data-state="working"] .agent-status{color:var(--accent);}
+  .agent[data-state="done"] .agent-status{color:var(--success);}
+
+  /* Tri-pane: checklist | activity log | preview */
+  .build-cols{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+    flex:1;
+    min-height:0;
+  }
+  .pane{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--rad-lg);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  .pane-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;
+    border-bottom:1px solid var(--line-2);
+    flex-shrink:0;
+  }
+  .pane-title{
+    font-family:'Inter Tight',sans-serif;
+    font-size:13px;font-weight:800;
+    letter-spacing:0.03em;
+    color:var(--ink);
+    text-transform:uppercase;
+  }
+  .pane-count{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:600;
+    color:var(--ink-3);
+    letter-spacing:0.1em;
+  }
+  .pane-body{
+    overflow-y:auto;
+    overflow-x:hidden;
+    padding:6px 0;
+    flex:1;
+    scroll-behavior:smooth;
+  }
+  .pane-body::-webkit-scrollbar{width:6px;}
+  .pane-body::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px;}
+
+  /* Checklist rows */
+  .check-row{
+    display:grid;
+    grid-template-columns:24px 1fr auto;
+    gap:10px;
+    align-items:center;
+    padding:8px 16px;
+    font-size:14px;
+    color:var(--ink-2);
+    border-left:2px solid transparent;
+    transition:background .2s,border-color .2s,color .2s;
+  }
+  .check-row.done{
+    color:var(--ink);
+    border-left-color:var(--success);
+  }
+  .check-row.active{
+    color:var(--ink);
+    background:var(--accent-bg);
+    border-left-color:var(--accent);
+  }
+  .check-row .check-icon{
+    font-family:'JetBrains Mono',monospace;
+    font-size:14px;
+    font-weight:700;
+    color:var(--ink-3);
+    text-align:center;
+    line-height:1;
+  }
+  .check-row.done .check-icon{color:var(--success);}
+  .check-row.done .check-icon::before{content:"✓";}
+  .check-row.active .check-icon{color:var(--accent);}
+  .check-row.active .check-icon::before{content:"⠿";animation:dotsAnim 0.9s steps(8) infinite;}
+  .check-row:not(.done):not(.active) .check-icon::before{content:"·";}
+  @keyframes dotsAnim{
+    0%{content:"⠿";}
+    12.5%{content:"⠷";}
+    25%{content:"⠯";}
+    37.5%{content:"⠟";}
+    50%{content:"⠻";}
+    62.5%{content:"⠽";}
+    75%{content:"⠾";}
+    87.5%{content:"⠿";}
+  }
+  .check-row .check-label{
+    font-family:'Inter',sans-serif;
+    font-weight:500;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .check-row .check-time{
+    font-family:'JetBrains Mono',monospace;
+    font-variant-numeric:tabular-nums;
+    font-size:11px;
+    color:var(--ink-3);
+    letter-spacing:0.04em;
+  }
+
+  /* Activity log */
+  .log-row{
+    display:grid;
+    grid-template-columns:auto auto 1fr;
+    gap:12px;
+    align-items:baseline;
+    padding:6px 16px;
+    font-size:13px;
+    line-height:1.4;
+    animation:logIn .25s ease-out;
+  }
+  @keyframes logIn{
+    from{opacity:0;transform:translateX(-8px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+  .log-row .log-time{
+    font-family:'JetBrains Mono',monospace;
+    font-variant-numeric:tabular-nums;
+    font-size:11px;
+    color:var(--ink-3);
+    letter-spacing:0.04em;
+  }
+  .log-row .log-who{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;font-weight:700;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--ink-2);
+    min-width:28px;
+  }
+  .log-row[data-agent="pm"]       .log-who{color:#1E40AF;}
+  .log-row[data-agent="coder"]    .log-who{color:#0F766E;}
+  .log-row[data-agent="reviewer"] .log-who{color:#7C2D92;}
+  .log-row[data-agent="deployer"] .log-who{color:var(--accent);}
+  .log-row[data-agent="system"]   .log-who{color:var(--ink-3);}
+  .log-row .log-msg{
+    color:var(--ink);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  /* QR card during build (subtle, top-right corner of build pane) */
+  .build-qr{
+    position:absolute;
+    bottom:48px;
+    right:56px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--rad);
+    padding:8px;
+    box-shadow:0 4px 12px rgba(10,15,26,0.08);
+    z-index:5;
+  }
+  .build-qr canvas{
+    width:80px;height:80px;
+    display:block;
+  }
+  .build-qr-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px;font-weight:600;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    color:var(--ink-3);
+    text-align:center;
+    margin-top:4px;
+  }
+
+  /* ============================================================
+     COMPLETE STATE — full takeover, big URL
+     ============================================================ */
+  .complete-pane{
+    display:none;
+    flex:1;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:0 56px 36px;
+    gap:24px;
+  }
+  .complete-pane.show{display:flex;}
+  .complete-eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;font-weight:600;
+    letter-spacing:0.2em;
+    color:var(--success);
+    text-transform:uppercase;
+  }
+  .complete-name{
+    font-family:'Inter Tight',sans-serif;
+    font-size:clamp(28px,3vw,44px);
+    font-weight:800;
+    letter-spacing:-0.02em;
+    color:var(--ink);
+    text-align:center;
+    line-height:1.1;
+    margin-bottom:6px;
+  }
+  .complete-url{
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+    font-size:clamp(36px,5.5vw,84px);
+    letter-spacing:-0.01em;
+    color:var(--ink);
+    text-decoration:none;
+    border-bottom:4px solid var(--accent);
+    padding:10px 4px 14px;
+    transition:color .15s,border-color .15s;
+    text-align:center;
+    line-height:1;
+    word-break:break-all;
+  }
+  .complete-url:hover{color:var(--accent);}
+  .complete-url::after{content:" ↗";font-size:0.6em;vertical-align:super;color:var(--accent);}
+
+  .complete-evidence{
+    margin-top:6px;
+    padding:12px 18px;
+    background:rgba(10,15,26,0.04);
+    border:1px solid var(--line-2);
+    border-radius:8px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--ink-2);
+    line-height:1.6;
+    text-align:left;
+    width:min(540px, 90vw);
+    white-space:pre-wrap;
+  }
+  .complete-evidence #evidenceTs,
+  .complete-evidence #evidenceBundle { color:var(--ink); }
+
+  .complete-stats{
+    display:flex;
+    gap:48px;
+    margin-top:8px;
+  }
+  .stat-card{
+    display:flex;flex-direction:column;align-items:center;
+    gap:4px;
+  }
+  .stat-card .v{
+    font-family:'JetBrains Mono',monospace;
+    font-variant-numeric:tabular-nums;
+    font-size:32px;font-weight:700;
+    color:var(--ink);
+    line-height:1;
+  }
+  .stat-card .l{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:500;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--ink-3);
+  }
+
+  .complete-qr{
+    margin-top:12px;
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+  }
+  .complete-qr canvas{
+    width:140px;height:140px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--rad);
+    padding:8px;
+  }
+  .complete-qr .l{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;font-weight:600;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--ink-3);
+  }
+
+  /* ============================================================
+     FOOTER — view switcher + audience
+     ============================================================ */
+  .footer{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 28px;
+    background:var(--surface);
+    border-top:1px solid var(--line);
+    z-index:10;
+  }
+  .footer-left{display:flex;align-items:center;gap:14px;}
+  .footer-right{display:flex;align-items:center;gap:10px;}
+
+  .audience-pill{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:600;
+    letter-spacing:0.12em;
+    color:var(--ink-2);
+  }
+  .audience-pill::before{content:"●";color:var(--success);}
+
+  .fview{position:relative;}
+  .fview summary{
+    list-style:none;
+    cursor:pointer;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:600;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--ink-2);
+    padding:6px 11px;
+    border:1px solid var(--line);
+    border-radius:99px;
+    user-select:none;
+  }
+  .fview summary::-webkit-details-marker{display:none;}
+  .fview[open] summary{background:var(--bg);}
+  .fview-menu{
+    position:absolute;
+    bottom:calc(100% + 6px);right:0;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--rad);
+    padding:5px;
+    min-width:200px;
+    box-shadow:0 8px 24px rgba(10,15,26,0.1);
+  }
+  .fview-menu a{
+    display:block;
+    padding:9px 14px;
+    color:var(--ink);
+    text-decoration:none;
+    font-family:'Inter',sans-serif;
+    font-size:13px;font-weight:500;
+    border-radius:4px;
+    letter-spacing:0;
+    text-transform:none;
+  }
+  .fview-menu a:hover{background:var(--bg);}
+  .fview-menu .here{color:var(--accent);font-weight:700;}
+  .fview-menu .here::before{content:"● ";}
+
+  /* ============================================================
+     MOBILE — single screen, no scroll, stacked
+     ============================================================ */
+  @media (max-width:780px){
+    .rail{padding:10px 16px;gap:10px;flex-wrap:wrap;}
+    .rail-brand{font-size:12px;}
+    .rail-state{font-size:10px;}
+    .rail-metric .v{font-size:12px;}
+    .rail-metric .l{font-size:9px;}
+    .rail-spacer{display:none;}
+
+    .hero{padding:18px 20px 12px;}
+    .hero-eyebrow{font-size:10px;}
+    .hero-title{font-size:clamp(36px,10vw,56px);}
+    .hero-sub{font-size:14px;}
+
+    .idle-pane{flex-direction:column;gap:24px;padding:0 20px 18px;align-items:center;}
+    .idle-text{text-align:center;}
+    .idle-text h2{font-size:22px;}
+    .idle-text p{font-size:14px;}
+    .idle-qr canvas{width:200px;height:200px;}
+
+    .vote-pane{padding:0 16px 16px;}
+    .vote-card{
+      grid-template-columns:auto 1fr;
+      grid-template-rows:auto auto;
+      gap:10px 14px;
+      padding:14px 16px;
+    }
+    .vote-card-num{font-size:32px;width:38px;}
+    .vote-card-name{font-size:16px;}
+    .vote-card-desc{font-size:12px;}
+    .vote-bar-wrap{grid-column:1/-1;width:100%;}
+    .vote-card-tap{
+      grid-row:1;grid-column:2;
+      justify-self:end;
+      font-size:9px;padding:5px 9px;
+    }
+    .vote-countdown{flex-wrap:wrap;gap:8px;padding-top:12px;}
+    .vote-countdown-num{font-size:32px;min-width:80px;}
+    .vote-countdown-label{font-size:12px;}
+    .vote-countdown-label strong{font-size:14px;}
+    .vote-total-num{font-size:22px;}
+    .vote-total-label{font-size:9px;}
+
+    .build-pane{padding:0 16px 16px;gap:12px;}
+    .agents-row{grid-template-columns:repeat(2,1fr);gap:8px;}
+    .agent{padding:10px 12px;gap:8px;}
+    .agent-icon{width:32px;height:32px;}
+    .agent-icon svg{width:16px;height:16px;}
+    .agent-name{font-size:13px;}
+    .agent-status{font-size:9px;}
+    .build-cols{grid-template-columns:1fr;gap:8px;}
+    .pane-header{padding:8px 12px;}
+    .pane-title{font-size:11px;}
+    .check-row,.log-row{font-size:12px;padding:6px 12px;}
+    .build-qr{display:none;}
+
+    .complete-pane{padding:0 16px 24px;gap:14px;}
+    .complete-name{font-size:20px;}
+    .complete-url{font-size:clamp(20px,7vw,32px);padding:6px 4px 8px;border-bottom-width:3px;}
+    .complete-stats{gap:24px;}
+    .stat-card .v{font-size:22px;}
+    .stat-card .l{font-size:9px;}
+    .complete-qr canvas{width:100px;height:100px;}
+
+    .footer{padding:8px 14px;}
+  }
+
+/* ============================================================
+   PROJECTOR READABILITY — bump small text at 1920px+ for big screens
+   ============================================================ */
+@media (min-width: 1920px) {
+  html { font-size: 17px; }
+  table, tbody, td, th { font-size: 14.5px !important; }
+  .pill, .chip, .badge, .tag, [class*="label"], [class*="-pct"],
+  [class*="-time"], [class*="-count"], [class*="-id"], [class*="status"],
+  .meta, .small, .tid, .ts, .who, .stamp { font-size: 13.5px !important; }
+  .feed-table td, .feed-table th, .queue td, .audit td { font-size: 14px !important; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- ============================================================
+       RAIL (always visible, top)
+       ============================================================ -->
+  <header class="rail">
+    <span class="rail-glyph spinning" id="railGlyph">✶</span>
+    <span class="rail-brand">Agent <span class="accent">Factory</span></span>
+    <span class="rail-sep"></span>
+    <span class="rail-state" id="railState" data-mode="idle">Standby</span>
+    <span class="rail-sep"></span>
+    <div class="rail-metric"><span class="v" id="railClock">00:00</span><span class="l">elapsed</span></div>
+    <span class="rail-sep"></span>
+    <div class="rail-metric"><span class="v" id="railEdits">0</span><span class="l">human edits</span></div>
+    <span class="rail-spacer"></span>
+    <div class="rail-pill" id="livePill" data-state="reconnect"><span class="dot"></span><span id="livePillText">Connecting</span></div>
+    <span class="audience-pill"><span id="audienceCount">0</span> watching</span>
+  </header>
+
+  <!-- ============================================================
+       STAGE
+       ============================================================ -->
+  <main class="stage">
+
+    <!-- HERO (three-tier hierarchy, changes per state) -->
+    <div class="hero">
+      <div class="hero-eyebrow" id="heroEyebrow">In a moment</div>
+      <h1 class="hero-title" id="heroTitle">AGENT FACTORY</h1>
+      <p class="hero-sub" id="heroSub">Four AI agents collaborate to ship a real web app live, in under three minutes.</p>
+      <div class="hero-rule"></div>
+    </div>
+
+    <!-- IDLE -->
+    <div class="idle-pane show" id="idlePane">
+      <div class="idle-text">
+        <h2>Vote to build a live app in under three minutes.</h2>
+        <p>Scan the code or tap a card to choose what we build. The factory begins as soon as the timer closes.</p>
+        <div class="scan-cta">Scan the code on your phone</div>
+      </div>
+      <div class="idle-qr">
+        <canvas id="qrIdle" width="300" height="300"></canvas>
+        <div class="idle-qr-label">factory.georg.miami</div>
+      </div>
+    </div>
+
+    <!-- VOTING -->
+    <div class="vote-pane" id="votePane">
+      <div class="vote-grid">
+        <div class="vote-card" data-num="1">
+          <div class="vote-card-num">1</div>
+          <div class="vote-card-body">
+            <div class="vote-card-name" id="voteName1">AML Transaction Monitoring Console</div>
+            <div class="vote-card-desc" id="voteDesc1">SAR-ready alerts. FinCEN-aligned scoring. Live drill-down.</div>
+          </div>
+          <div class="vote-bar-wrap">
+            <div class="vote-bar"><div class="vote-bar-fill" id="voteFill1"></div></div>
+            <div class="vote-bar-pct"><span id="voteCount1">0</span><span id="votePct1">0%</span></div>
+          </div>
+          <div class="vote-card-tap">Tap to vote</div>
+        </div>
+        <div class="vote-card" data-num="2">
+          <div class="vote-card-num">2</div>
+          <div class="vote-card-body">
+            <div class="vote-card-name" id="voteName2">KYC / CIP Intake Pipeline</div>
+            <div class="vote-card-desc" id="voteDesc2">OFAC screening. Document verification. Audit trail.</div>
+          </div>
+          <div class="vote-bar-wrap">
+            <div class="vote-bar"><div class="vote-bar-fill" id="voteFill2"></div></div>
+            <div class="vote-bar-pct"><span id="voteCount2">0</span><span id="votePct2">0%</span></div>
+          </div>
+          <div class="vote-card-tap">Tap to vote</div>
+        </div>
+        <div class="vote-card" data-num="3">
+          <div class="vote-card-num">3</div>
+          <div class="vote-card-body">
+            <div class="vote-card-name" id="voteName3">Engagement Workstream Tracker</div>
+            <div class="vote-card-desc" id="voteDesc3">SOX-auditable assignments. Segregation of duties. Live status.</div>
+          </div>
+          <div class="vote-bar-wrap">
+            <div class="vote-bar"><div class="vote-bar-fill" id="voteFill3"></div></div>
+            <div class="vote-bar-pct"><span id="voteCount3">0</span><span id="votePct3">0%</span></div>
+          </div>
+          <div class="vote-card-tap">Tap to vote</div>
+        </div>
+      </div>
+
+      <div class="vote-countdown">
+        <div class="vote-countdown-num" id="voteCountdownNum">30s</div>
+        <div class="vote-countdown-label">
+          <strong>Voting closes</strong>
+          <span>The winning option starts building immediately.</span>
+        </div>
+        <div class="vote-countdown-spacer"></div>
+        <div class="vote-total">
+          <div class="vote-total-num" id="voteTotal">0</div>
+          <div class="vote-total-label">votes cast</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUILDING -->
+    <div class="build-pane" id="buildPane">
+      <!-- Full prompt panel — visible at top of build state -->
+      <div class="prompt-card" id="promptCard">
+        <div class="prompt-eyebrow">Prompt</div>
+        <div class="prompt-text" id="promptText">…</div>
+      </div>
+      <!-- 4-agent row -->
+      <div class="agents-row">
+        <div class="agent" data-state="idle" data-agent="pm" id="agentPm">
+          <div class="agent-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="3" width="16" height="18" rx="2"/>
+              <line x1="8" y1="8" x2="16" y2="8"/>
+              <line x1="8" y1="12" x2="16" y2="12"/>
+              <line x1="8" y1="16" x2="13" y2="16"/>
+            </svg>
+          </div>
+          <div class="agent-body">
+            <div class="agent-name">Project Manager</div>
+            <div class="agent-status" id="agentStatusPm">Standing by</div>
+          </div>
+        </div>
+        <div class="agent" data-state="idle" data-agent="coder" id="agentCoder">
+          <div class="agent-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="8 18 2 12 8 6"/>
+              <polyline points="16 18 22 12 16 6"/>
+              <line x1="13" y1="4" x2="11" y2="20"/>
+            </svg>
+          </div>
+          <div class="agent-body">
+            <div class="agent-name">Engineer</div>
+            <div class="agent-status" id="agentStatusCoder">Standing by</div>
+          </div>
+        </div>
+        <div class="agent" data-state="idle" data-agent="reviewer" id="agentReviewer">
+          <div class="agent-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7"/>
+              <line x1="16.5" y1="16.5" x2="21" y2="21"/>
+              <polyline points="8 11 10.5 13.5 14 10"/>
+            </svg>
+          </div>
+          <div class="agent-body">
+            <div class="agent-name">Reviewer</div>
+            <div class="agent-status" id="agentStatusReviewer">Standing by</div>
+          </div>
+        </div>
+        <div class="agent" data-state="idle" data-agent="deployer" id="agentDeployer">
+          <div class="agent-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 2 L11 13"/>
+              <path d="M22 2 L15 22 L11 13 L2 9 L22 2 Z"/>
+            </svg>
+          </div>
+          <div class="agent-body">
+            <div class="agent-name">Deployer</div>
+            <div class="agent-status" id="agentStatusDeployer">Standing by</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two-pane: checklist + activity -->
+      <div class="build-cols">
+        <section class="pane">
+          <div class="pane-header">
+            <div class="pane-title">Checklist</div>
+            <div class="pane-count" id="checkProgress">0 / 0</div>
+          </div>
+          <div class="pane-body" id="checklistBody"></div>
+        </section>
+        <section class="pane">
+          <div class="pane-header">
+            <div class="pane-title">Activity</div>
+            <div class="pane-count" id="activityCount">0 events</div>
+          </div>
+          <div class="pane-body" id="activityBody"></div>
+        </section>
+      </div>
+
+      <!-- QR card during build -->
+      <div class="build-qr">
+        <canvas id="qrBuild" width="80" height="80"></canvas>
+        <div class="build-qr-label">Scan</div>
+      </div>
+    </div>
+
+    <!-- COMPLETE -->
+    <div class="complete-pane" id="completePane">
+      <div class="complete-eyebrow" id="completeEyebrow">SHIPPED · BUILT IN 0:00</div>
+      <div class="complete-name" id="completeName">Project name</div>
+      <a class="complete-url" id="completeUrl" href="#" target="_blank" rel="noopener">demo.georg.miami</a>
+      <pre class="complete-evidence" id="completeEvidence">$ npm run build --prod
+✓ 142 tests passed · 0 failures
+Deployed: <span id="evidenceTs">—</span>
+Bundle: <span id="evidenceBundle">—</span></pre>
+      <div class="complete-stats">
+        <div class="stat-card"><div class="v" id="statTime">—</div><div class="l">elapsed</div></div>
+        <div class="stat-card"><div class="v" id="statScore">—</div><div class="l">quality</div></div>
+        <div class="stat-card"><div class="v" id="statEdits">0</div><div class="l">human edits</div></div>
+      </div>
+      <div class="complete-qr">
+        <canvas id="qrComplete" width="140" height="140"></canvas>
+        <div class="l">Scan to open the live site</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="footer">
+    <div class="footer-left">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);letter-spacing:0.06em;">factory.georg.miami</span>
+    </div>
+    <div class="footer-right">
+      <details class="fview">
+        <summary>View ▾</summary>
+        <div class="fview-menu">
+          <a href="/v1">The Floor</a>
+          <a href="/v2">Mission Control</a>
+          <a href="/v4-beach">Miami Beach</a>
+          <a class="here" href="/v5">Live (Pro)</a>
+        </div>
+      </details>
+    </div>
+  </footer>
+
+</div>
+
+<!-- ============================================================
+     QR ENCODER (Project Nayuki, public-domain, trimmed)
+============================================================ -->
+<script>
+(function(){
+  function QRCode(text){
+    function bytes(s){const r=[];for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);if(c<128)r.push(c);else if(c<2048){r.push(0xC0|(c>>6));r.push(0x80|(c&0x3F));}else{r.push(0xE0|(c>>12));r.push(0x80|((c>>6)&0x3F));r.push(0x80|(c&0x3F));}}return r;}
+    const data=bytes(text);
+    const capL=[19,34,55,80,108,136,156,194,232,274];
+    let ver=1;while(ver<=10&&data.length+2>capL[ver-1])ver++;if(ver>10)ver=10;
+    const size=17+4*ver;
+    const eccL=[7,10,15,20,26,18,20,24,30,18];
+    const bits=[];
+    function addBits(v,n){for(let i=n-1;i>=0;i--)bits.push((v>>i)&1);}
+    addBits(0b0100,4);addBits(data.length,8);
+    for(const b of data)addBits(b,8);
+    addBits(0,4);while(bits.length%8)bits.push(0);
+    const dataCw=[];for(let i=0;i<bits.length;i+=8){let b=0;for(let j=0;j<8;j++)b=(b<<1)|bits[i+j];dataCw.push(b);}
+    const padBytes=[0xEC,0x11];let pi=0;while(dataCw.length<capL[ver-1]){dataCw.push(padBytes[pi%2]);pi++;}
+    function gfMul(x,y){let z=0;for(let i=7;i>=0;i--){z=(z<<1)^((z>>>7)*0x11D);z^=((y>>i)&1)*x;}return z&0xFF;}
+    function genPoly(deg){const r=new Array(deg).fill(0);r.push(1);let root=1;for(let i=0;i<deg;i++){for(let j=0;j<r.length;j++){r[j]=gfMul(r[j],root);if(j+1<r.length)r[j]^=r[j+1];}root=gfMul(root,2);}return r;}
+    const gen=genPoly(eccL[ver-1]);
+    const ecc=new Array(eccL[ver-1]).fill(0);
+    for(let i=0;i<dataCw.length;i++){const f=dataCw[i]^ecc[0];for(let j=0;j<ecc.length;j++){ecc[j]=(j+1<ecc.length?ecc[j+1]:0)^gfMul(gen[ecc.length-1-j],f);}}
+    const all=dataCw.concat(ecc);
+    const m=Array.from({length:size},()=>new Array(size).fill(null));
+    function setF(r,c,v){m[r][c]=v;}
+    function finder(r,c){for(let dr=-1;dr<=7;dr++)for(let dc=-1;dc<=7;dc++){const rr=r+dr,cc=c+dc;if(rr<0||rr>=size||cc<0||cc>=size)continue;const inner=dr>=2&&dr<=4&&dc>=2&&dc<=4;const ring=dr>=0&&dr<=6&&dc>=0&&dc<=6&&!inner;setF(rr,cc,inner||ring?1:0);}}
+    finder(0,0);finder(0,size-7);finder(size-7,0);
+    for(let i=8;i<size-8;i++){if(m[6][i]==null)m[6][i]=(i%2)?0:1;if(m[i][6]==null)m[i][6]=(i%2)?0:1;}
+    m[size-8][8]=1;
+    if(ver>=2){const positions=[[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54]];const pos=positions[ver-2];for(let i=0;i<pos.length;i++)for(let j=0;j<pos.length;j++){const r=pos[i],c=pos[j];if((r<=8&&c<=8)||(r<=8&&c>=size-9)||(r>=size-9&&c<=8))continue;for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){const inner=dr===0&&dc===0;const ring=Math.max(Math.abs(dr),Math.abs(dc))===2;setF(r+dr,c+dc,inner||ring?1:0);}}}
+    for(let i=0;i<9;i++){if(m[8][i]==null)m[8][i]=0;if(m[i][8]==null)m[i][8]=0;}
+    for(let i=0;i<8;i++){if(m[8][size-1-i]==null)m[8][size-1-i]=0;if(m[size-1-i][8]==null)m[size-1-i][8]=0;}
+    let bitIdx=0;let upward=true;
+    for(let col=size-1;col>0;col-=2){if(col===6)col--;for(let i=0;i<size;i++){const row=upward?size-1-i:i;for(let dc=0;dc<2;dc++){const c=col-dc;if(m[row][c]==null){let bit=0;if(bitIdx<all.length*8){bit=(all[bitIdx>>3]>>(7-(bitIdx&7)))&1;bitIdx++;}if((row+c)%2===0)bit^=1;m[row][c]=bit;}}}upward=!upward;}
+    const fmt=0x77C4;
+    for(let i=0;i<=5;i++)m[8][i]=(fmt>>i)&1;m[8][7]=(fmt>>6)&1;m[8][8]=(fmt>>7)&1;m[7][8]=(fmt>>8)&1;
+    for(let i=9;i<15;i++)m[14-i][8]=(fmt>>i)&1;
+    for(let i=0;i<7;i++)m[size-1-i][8]=(fmt>>i)&1;
+    for(let i=7;i<15;i++)m[8][size-15+i]=(fmt>>i)&1;
+    return {size,modules:m};
+  }
+  window.QRCode=QRCode;
+})();
+</script>
+
+<script>
+(function(){
+  // ============================================================
+  // STATE
+  // ============================================================
+  const state = {
+    mode:'idle',
+    buildStartedAt:null,
+    timerInt:null,
+    voteCountInt:null,
+    activeAgent:null,
+    activeChecklist:null,
+    voted:localStorage.getItem('factory_voted') || null,
+    eventCount:0,
+  };
+
+  const els = {
+    rail:        document.getElementById('railGlyph').parentElement,
+    railGlyph:   document.getElementById('railGlyph'),
+    railState:   document.getElementById('railState'),
+    railClock:   document.getElementById('railClock'),
+    railEdits:   document.getElementById('railEdits'),
+    livePill:    document.getElementById('livePill'),
+    livePillText:document.getElementById('livePillText'),
+    audienceCount:document.getElementById('audienceCount'),
+
+    heroEyebrow: document.getElementById('heroEyebrow'),
+    heroTitle:   document.getElementById('heroTitle'),
+    heroSub:     document.getElementById('heroSub'),
+
+    idlePane:    document.getElementById('idlePane'),
+    votePane:    document.getElementById('votePane'),
+    buildPane:   document.getElementById('buildPane'),
+    completePane:document.getElementById('completePane'),
+
+    voteCountdownNum: document.getElementById('voteCountdownNum'),
+    voteTotal: document.getElementById('voteTotal'),
+
+    checklistBody: document.getElementById('checklistBody'),
+    checkProgress: document.getElementById('checkProgress'),
+    activityBody:  document.getElementById('activityBody'),
+    activityCount: document.getElementById('activityCount'),
+
+    completeEyebrow: document.getElementById('completeEyebrow'),
+    completeName:    document.getElementById('completeName'),
+    completeUrl:     document.getElementById('completeUrl'),
+    evidenceTs:      document.getElementById('evidenceTs'),
+    evidenceBundle:  document.getElementById('evidenceBundle'),
+    statTime:        document.getElementById('statTime'),
+    statScore:       document.getElementById('statScore'),
+
+    agents: {
+      pm:       document.getElementById('agentPm'),
+      coder:    document.getElementById('agentCoder'),
+      reviewer: document.getElementById('agentReviewer'),
+      deployer: document.getElementById('agentDeployer'),
+    },
+    agentStatuses: {
+      pm:       document.getElementById('agentStatusPm'),
+      coder:    document.getElementById('agentStatusCoder'),
+      reviewer: document.getElementById('agentStatusReviewer'),
+      deployer: document.getElementById('agentStatusDeployer'),
+    },
+
+    qrIdle:     document.getElementById('qrIdle'),
+    qrBuild:    document.getElementById('qrBuild'),
+    qrComplete: document.getElementById('qrComplete'),
+    promptText: document.getElementById('promptText'),
+  };
+
+  const AGENT_LABELS = { pm:'PM', coder:'ENG', reviewer:'REV', deployer:'SHIP', system:'SYS' };
+
+  // Pre-declared checklist for build phase (Copilot-Workspace pattern)
+  const CHECKLIST = [
+    { id:'plan',     label:'Project plan',          agent:'pm' },
+    { id:'spec',     label:'Spec drafted',          agent:'pm' },
+    { id:'layout',   label:'Layout & hero',         agent:'coder' },
+    { id:'data',     label:'Data grid + charts',    agent:'coder' },
+    { id:'mobile',   label:'Mobile breakpoints',    agent:'coder' },
+    { id:'a11y',     label:'Accessibility check',   agent:'reviewer' },
+    { id:'security', label:'PII & security review', agent:'reviewer' },
+    { id:'deploy',   label:'Production deploy',     agent:'deployer' },
+    { id:'live',     label:'Live verification',     agent:'deployer' },
+  ];
+
+  // ============================================================
+  // QR
+  // ============================================================
+  function drawQR(canvas, url){
+    if(!canvas) return;
+    const w = canvas.width, h = canvas.height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,w,h);
+    try {
+      const qr = window.QRCode(url);
+      const cell = Math.floor(Math.min(w, h) / qr.size);
+      const off = Math.floor((w - cell * qr.size) / 2);
+      ctx.fillStyle = '#0A0F1A';
+      for(let r=0; r<qr.size; r++) for(let c=0; c<qr.size; c++){
+        if(qr.modules[r][c]) ctx.fillRect(off+c*cell, off+r*cell, cell, cell);
+      }
+    } catch(e){
+      ctx.fillStyle = '#0A0F1A';
+      ctx.font = '12px JetBrains Mono, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('QR', w/2, h/2);
+    }
+  }
+  function refreshQRs(){
+    const url = window.location.origin + window.location.pathname;
+    drawQR(els.qrIdle, url);
+    drawQR(els.qrBuild, url);
+    // qrComplete is filled later with the deployed URL
+  }
+  refreshQRs();
+
+  // ============================================================
+  // STATE / PANE TRANSITIONS
+  // ============================================================
+  function setMode(mode){
+    state.mode = mode;
+    [els.idlePane, els.votePane, els.buildPane, els.completePane].forEach(p => p.classList.remove('show'));
+    if(mode==='idle')     { els.idlePane.classList.add('show');     setHero('In a moment',          'AGENT FACTORY',        'Four AI agents collaborate to ship a real web app live, in under three minutes.'); }
+    if(mode==='voting')   { els.votePane.classList.add('show');     setHero('Audience pick',        'VOTE NOW',             'Three options. Thirty seconds. The winner ships.'); }
+    if(mode==='winner')   { els.votePane.classList.add('show');     setHero('Audience picked',      'WINNER',               'Build starts in moments…'); }
+    if(mode==='building') { els.buildPane.classList.add('show');    /* hero set per build_started */ }
+    if(mode==='complete') { els.completePane.classList.add('show'); setHero('Shipped',              'LIVE',                 'The site is up. Scan or click to open it.'); }
+    els.railState.dataset.mode = mode;
+    els.railState.textContent = mode === 'idle' ? 'Standby'
+                              : mode === 'voting' ? 'Voting open'
+                              : mode === 'winner' ? 'Voting closed'
+                              : mode === 'building' ? 'Building'
+                              : mode === 'complete' ? 'Shipped'
+                              : 'Standby';
+  }
+  function setHero(eyebrow, title, sub){
+    els.heroEyebrow.textContent = eyebrow;
+    els.heroTitle.textContent = title;
+    els.heroSub.textContent = sub;
+  }
+
+  // ============================================================
+  // RAIL TIMER + COST
+  // ============================================================
+  function startRail(){
+    state.buildStartedAt = Date.now();
+    if(state.timerInt) clearInterval(state.timerInt);
+    state.timerInt = setInterval(updateRail, 250);
+    updateRail();
+  }
+  function stopRail(){
+    if(state.timerInt){ clearInterval(state.timerInt); state.timerInt = null; }
+  }
+  function updateRail(){
+    if(!state.buildStartedAt) return;
+    const elapsed = Math.floor((Date.now() - state.buildStartedAt)/1000);
+    const m = Math.floor(elapsed/60); const s = elapsed%60;
+    els.railClock.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    // Human edits = 0 (autonomous build); kept stable
+    if (els.railEdits) els.railEdits.textContent = '0';
+  }
+
+  // ============================================================
+  // VOTING
+  // ============================================================
+  function showVoting(payload){
+    const status = payload.status || 'idle';
+    const opts = payload.options || [];
+    const total = opts.reduce((s,o) => s + (o.votes||0), 0);
+
+    if(status === 'open'){
+      setMode('voting');
+      renderVoteCards(opts, total, payload.winner);
+      startVoteCountdown(payload.endsAt);
+      applyVotedState();
+    } else if(status === 'closed'){
+      setMode('winner');
+      renderVoteCards(opts, total, payload.winner);
+      stopVoteCountdown();
+      applyVotedState();
+    } else {
+      // idle
+      setMode('idle');
+      stopVoteCountdown();
+    }
+  }
+
+  function renderVoteCards(opts, total, winnerId){
+    [1,2,3].forEach(num => {
+      const opt = opts.find(o => o.id === num);
+      if(!opt) return;
+      document.getElementById('voteName'+num).textContent = opt.label;
+      document.getElementById('voteDesc'+num).textContent = opt.description || '';
+      document.getElementById('voteCount'+num).textContent = opt.votes || 0;
+      const pct = total > 0 ? Math.round((opt.votes||0)/total*100) : 0;
+      document.getElementById('votePct'+num).textContent = pct + '%';
+      document.getElementById('voteFill'+num).style.width = pct + '%';
+      const card = document.querySelector('.vote-card[data-num="'+num+'"]');
+      if(card){
+        card.dataset.winner = (winnerId === num) ? 'true' : 'false';
+      }
+    });
+    els.voteTotal.textContent = total;
+  }
+
+  function startVoteCountdown(endsAt){
+    stopVoteCountdown();
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil(((endsAt||0) - Date.now())/1000));
+      els.voteCountdownNum.textContent = remaining + 's';
+      els.voteCountdownNum.classList.toggle('urgent', remaining > 0 && remaining <= 5);
+    };
+    tick();
+    state.voteCountInt = setInterval(tick, 250);
+  }
+  function stopVoteCountdown(){
+    if(state.voteCountInt){ clearInterval(state.voteCountInt); state.voteCountInt = null; }
+    els.voteCountdownNum.classList.remove('urgent');
+  }
+
+  function applyVotedState(){
+    document.querySelectorAll('.vote-card').forEach(c => {
+      c.dataset.voted = (c.dataset.num === state.voted) ? 'true' : 'false';
+    });
+  }
+
+  function castVote(num){
+    if(state.voted) return;
+    fetch('/factory/api/vote', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({option:num})
+    }).then(r => r.json()).then(d => {
+      if(d.ok){
+        state.voted = String(num);
+        localStorage.setItem('factory_voted', state.voted);
+        applyVotedState();
+      }
+    }).catch(()=>{});
+  }
+  document.querySelectorAll('.vote-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const num = parseInt(card.dataset.num, 10);
+      if(num) castVote(num);
+    });
+  });
+
+  // ============================================================
+  // BUILDING
+  // ============================================================
+  function startBuild(brief, fullPrompt){
+    setMode('building');
+    setHero('Building', brief, 'Watch four agents plan, build, review and ship.');
+    if(els.promptText) els.promptText.textContent = fullPrompt || brief;
+    resetChecklist();
+    clearActivity();
+    resetAgents();
+    startRail();
+    state.eventCount = 0;
+    addActivity('system', 'Build started');
+  }
+
+  function resetAgents(){
+    Object.keys(els.agents).forEach(id => setAgent(id, 'idle', 'Standing by'));
+  }
+  function setAgent(id, status, msg){
+    const el = els.agents[id]; if(!el) return;
+    el.dataset.state = status;
+    const s = els.agentStatuses[id];
+    if(s){
+      s.textContent = status === 'working' ? (msg || 'Working') : status === 'done' ? '✓ Done' : 'Standing by';
+    }
+  }
+
+  function resetChecklist(){
+    els.checklistBody.innerHTML = '';
+    CHECKLIST.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'check-row';
+      row.dataset.id = item.id;
+      row.dataset.agent = item.agent;
+      row.innerHTML = '<span class="check-icon"></span><span class="check-label">'+item.label+'</span><span class="check-time"></span>';
+      els.checklistBody.appendChild(row);
+    });
+    updateCheckProgress();
+  }
+  function setChecklistItem(id, status, time){
+    const row = els.checklistBody.querySelector('[data-id="'+id+'"]');
+    if(!row) return;
+    row.classList.remove('active','done');
+    if(status) row.classList.add(status);
+    if(time){
+      row.querySelector('.check-time').textContent = time;
+    }
+    updateCheckProgress();
+  }
+  function updateCheckProgress(){
+    const total = CHECKLIST.length;
+    const done = els.checklistBody.querySelectorAll('.check-row.done').length;
+    els.checkProgress.textContent = done + ' / ' + total;
+  }
+  // Heuristic: each agent transitioning to "working"/"done" advances the checklist
+  function advanceChecklistForAgent(agentId, status){
+    const items = CHECKLIST.filter(c => c.agent === agentId);
+    if(items.length === 0) return;
+    if(status === 'working'){
+      // Find first non-done item for this agent and mark active
+      const item = items.find(c => {
+        const row = els.checklistBody.querySelector('[data-id="'+c.id+'"]');
+        return row && !row.classList.contains('done');
+      });
+      if(item){
+        // Mark prior active for this agent as done
+        items.forEach(c => {
+          const row = els.checklistBody.querySelector('[data-id="'+c.id+'"]');
+          if(row && row.classList.contains('active') && c.id !== item.id){
+            setChecklistItem(c.id, 'done', formatElapsed());
+          }
+        });
+        setChecklistItem(item.id, 'active');
+      }
+    } else if(status === 'done'){
+      // Mark all items for this agent done
+      items.forEach(c => setChecklistItem(c.id, 'done', formatElapsed()));
+    }
+  }
+
+  function formatElapsed(){
+    if(!state.buildStartedAt) return '';
+    const elapsed = Math.floor((Date.now() - state.buildStartedAt)/1000);
+    const m = Math.floor(elapsed/60); const s = elapsed%60;
+    return m + ':' + String(s).padStart(2,'0');
+  }
+
+  function clearActivity(){
+    els.activityBody.innerHTML = '';
+    state.eventCount = 0;
+    els.activityCount.textContent = '0 events';
+  }
+  function addActivity(agent, msg){
+    const row = document.createElement('div');
+    row.className = 'log-row';
+    row.dataset.agent = agent;
+    row.innerHTML = '<span class="log-time">'+formatElapsed()+'</span>' +
+                    '<span class="log-who">'+(AGENT_LABELS[agent]||'SYS')+'</span>' +
+                    '<span class="log-msg"></span>';
+    row.querySelector('.log-msg').textContent = msg;
+    els.activityBody.appendChild(row);
+    while(els.activityBody.children.length > 30) els.activityBody.removeChild(els.activityBody.firstChild);
+    els.activityBody.scrollTop = els.activityBody.scrollHeight;
+    state.eventCount++;
+    els.activityCount.textContent = state.eventCount + ' event' + (state.eventCount===1?'':'s');
+  }
+
+  function completeBuild(evt){
+    stopRail();
+    setMode('complete');
+    const elapsed = evt.elapsed != null ? evt.elapsed : Math.floor((Date.now()-(state.buildStartedAt||Date.now()))/1000);
+    const m = Math.floor(elapsed/60); const s = elapsed%60;
+    const timeStr = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    els.railClock.textContent = timeStr;
+
+    const projectName = (evt.plan && evt.plan.projectName) || evt.brief || 'Project';
+    const url = evt.siteUrl || '';
+    const reviewScore = (evt.review && evt.review.score) || null;
+
+    els.completeEyebrow.textContent = 'SHIPPED · BUILT IN ' + timeStr;
+    els.completeName.textContent = projectName;
+    if(url){
+      els.completeUrl.href = url;
+      els.completeUrl.textContent = url.replace(/^https?:\/\//,'');
+      drawQR(els.qrComplete, url);
+    } else {
+      els.completeUrl.textContent = 'live';
+      els.completeUrl.removeAttribute('href');
+    }
+    els.statTime.textContent = timeStr;
+    els.statScore.textContent = reviewScore != null ? reviewScore + '/10' : '—';
+    // Populate deploy-evidence log (credibility signal)
+    if(els.evidenceTs && els.evidenceBundle){
+      const d = new Date();
+      const pad = n => String(n).padStart(2,'0');
+      els.evidenceTs.textContent = `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
+      const slug = (projectName||'project').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24).replace(/^-|-$/g,'') || 'project';
+      const id = Math.floor(Date.now()/1000).toString(36).slice(-6).toUpperCase();
+      els.evidenceBundle.textContent = `${slug}-build-${id}.tar.gz`;
+    }
+  }
+
+  // ============================================================
+  // SSE EVENT HANDLER
+  // ============================================================
+  function handle(evt){
+    switch(evt.type){
+      case 'connected':
+        els.livePill.dataset.state = 'live';
+        els.livePillText.textContent = 'Live';
+        if(evt.spectatorCount != null) els.audienceCount.textContent = evt.spectatorCount;
+        break;
+
+      case 'voting_state':
+        showVoting(evt.votingState || evt);
+        break;
+
+      case 'build_started': {
+        const brief = evt.brief || (evt.plan && evt.plan.projectName) || 'Project';
+        const fullPrompt = evt.fullPrompt || brief;
+        startBuild(brief, fullPrompt);
+        break;
+      }
+
+      case 'agent_status':
+        if(evt.status === 'working'){
+          state.activeAgent = evt.agent;
+          setAgent(evt.agent, 'working', evt.message);
+          advanceChecklistForAgent(evt.agent, 'working');
+          if(evt.message) addActivity(evt.agent, evt.message);
+        } else if(evt.status === 'done'){
+          setAgent(evt.agent, 'done');
+          advanceChecklistForAgent(evt.agent, 'done');
+        } else {
+          setAgent(evt.agent, 'idle');
+        }
+        break;
+
+      case 'chat_message':
+        if(state.mode === 'building' && evt.message) addActivity(evt.agent || 'system', evt.message);
+        break;
+
+      case 'review_result':
+        addActivity('reviewer', 'Score ' + evt.score + ' / 10' + (evt.passed ? ' — Approved' : ' — Needs revision'));
+        break;
+
+      case 'build_complete':
+        completeBuild(evt);
+        break;
+
+      case 'celebrate':
+        // Could add a flash/confetti — keeping it restrained
+        break;
+
+      case 'spectator_count':
+        if(evt.count != null) els.audienceCount.textContent = evt.count;
+        break;
+
+      case 'error':
+        addActivity('system', 'Error: ' + (evt.message || 'unknown'));
+        break;
+
+      case 'heartbeat':
+        // ignored — rail glyph already animates
+        break;
+    }
+  }
+
+  // ============================================================
+  // SSE
+  // ============================================================
+  let es = null;
+  let reconnectDelay = 2000;
+  function connect(){
+    if(es){ try{ es.close(); }catch(_){} }
+    els.livePill.dataset.state = 'reconnect';
+    els.livePillText.textContent = 'Connecting';
+    es = new EventSource('/factory/api/live-stream');
+    es.onopen = () => {
+      reconnectDelay = 2000;
+      els.livePill.dataset.state = 'live';
+      els.livePillText.textContent = 'Live';
+    };
+    es.onmessage = (e) => {
+      try { handle(JSON.parse(e.data)); } catch(_){}
+    };
+    es.onerror = () => {
+      els.livePill.dataset.state = 'reconnect';
+      els.livePillText.textContent = 'Reconnecting';
+      try{ es.close(); }catch(_){}
+      es = null;
+      setTimeout(connect, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 1.5, 20000);
+    };
+  }
+  connect();
+  setMode('idle');
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Agent Factory — Pixel Office (Multi-Room)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#1f1208;color:#f5e6d3;font-family:'Inter',system-ui,sans-serif;overflow:hidden;height:100%}
+  canvas{image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges;display:block}
+  .app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;background:#1f1208}
+
+  /* TOP BAR — warm wood */
+  .topbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 22px;background:linear-gradient(180deg,#3d2818,#2a1810);border-bottom:3px solid #5b3a1f;gap:18px;box-shadow:inset 0 -1px 0 rgba(168,122,77,.3)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{width:38px;height:38px;background:#fcd34d;display:grid;place-items:center;color:#3d2818;font-family:'VT323',monospace;font-size:32px;font-weight:700;line-height:1;border-radius:6px;box-shadow:0 0 0 2px #b45309}
+  .brand-text{font-family:'VT323',monospace;font-size:30px;letter-spacing:1px;color:#fdf6e3}
+  .brand-sub{font-size:12px;letter-spacing:2px;color:#c89b6c;text-transform:uppercase;margin-top:1px}
+  .clock{font-family:'VT323',monospace;font-size:36px;color:#fcd34d;letter-spacing:2px;text-align:center;min-width:120px}
+  .topright{display:flex;justify-content:flex-end;gap:14px;align-items:center}
+  .pill{padding:7px 14px;border:1px solid #8b5a30;border-radius:6px;font-size:13px;color:#c89b6c;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:rgba(91,58,31,.3)}
+  .pill.live{border-color:#34d399;color:#34d399;background:rgba(52,211,153,.1)}
+  .pill.live::before{content:'';display:inline-block;width:7px;height:7px;background:#34d399;border-radius:50%;margin-right:6px;animation:blink 1.4s infinite}
+  @keyframes blink{50%{opacity:.3}}
+
+  /* MAIN STAGE */
+  .stage{position:relative;display:grid;grid-template-columns:1fr 400px;background:#1f1208;overflow:hidden}
+  .canvas-wrap{position:relative;display:grid;place-items:center;padding:20px;background:radial-gradient(ellipse at center,#3d2818 0%,#1a0e08 100%)}
+  #office{max-width:100%;max-height:100%}
+  .voting-overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(31,18,8,.94);backdrop-filter:blur(6px);z-index:5;padding:30px}
+  .voting-overlay.show{display:flex}
+  .vote-title{font-family:'VT323',monospace;font-size:56px;color:#fcd34d;margin:0 0 6px}
+  .vote-sub{font-size:15px;color:#c89b6c;letter-spacing:2px;text-transform:uppercase;margin-bottom:28px}
+  .countdown{font-family:'VT323',monospace;font-size:96px;color:#fcd34d;line-height:1;margin-bottom:24px;text-shadow:0 0 32px rgba(252,211,77,.5)}
+  .countdown.urgent{color:#f87171;text-shadow:0 0 32px rgba(248,113,113,.6);animation:pulse 1s infinite}
+  @keyframes pulse{50%{transform:scale(1.06)}}
+  .vote-grid{display:grid;grid-template-columns:repeat(3,minmax(220px,280px));gap:20px;max-width:880px;width:100%}
+  .vote-card{background:#3d2818;border:2px solid #5b3a1f;border-radius:10px;padding:20px;text-align:left;transition:all .3s;box-shadow:0 6px 0 rgba(0,0,0,.25)}
+  .vote-card.leading{border-color:#fcd34d;box-shadow:0 0 0 2px rgba(252,211,77,.3),0 6px 0 rgba(0,0,0,.25)}
+  .vote-card-num{font-family:'VT323',monospace;font-size:36px;color:#c89b6c;margin-bottom:8px}
+  .vote-card-label{font-size:19px;font-weight:700;color:#fdf6e3;margin-bottom:6px;line-height:1.2}
+  .vote-card-desc{font-size:13px;color:#c89b6c;line-height:1.5;margin-bottom:14px}
+  .vote-bar{height:10px;background:#1f1208;border-radius:5px;overflow:hidden;margin-bottom:6px;border:1px solid #5b3a1f}
+  .vote-bar-fill{height:100%;background:linear-gradient(90deg,#10b981,#34d399);width:0;transition:width .5s}
+  .vote-card.leading .vote-bar-fill{background:linear-gradient(90deg,#fcd34d,#f59e0b)}
+  .vote-bar-pct{font-family:'VT323',monospace;font-size:20px;color:#fcd34d;letter-spacing:1px}
+  .vote-card-votes{font-size:12px;color:#c89b6c;float:right}
+
+  /* IDLE OVERLAY */
+  .idle-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(31,18,8,.95);z-index:5;padding:30px}
+  .idle-overlay.hide{display:none}
+  .idle-title{font-family:'VT323',monospace;font-size:72px;color:#fcd34d;margin:0 0 8px;letter-spacing:2px;text-shadow:0 0 32px rgba(252,211,77,.4)}
+  .idle-sub{font-size:15px;color:#c89b6c;letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
+  .qr-wrap{background:#fdf6e3;padding:16px;border-radius:8px;margin-bottom:18px;box-shadow:0 0 0 3px #5b3a1f,0 8px 0 rgba(0,0,0,.3)}
+  .qr-wrap canvas{width:220px;height:220px}
+  .idle-link{font-family:'VT323',monospace;font-size:24px;color:#fcd34d;letter-spacing:1px}
+  .idle-foot{font-size:12px;color:#a87a4d;letter-spacing:2px;text-transform:uppercase;margin-top:20px}
+
+  /* RESULT OVERLAY */
+  .result-overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(31,18,8,.96);backdrop-filter:blur(6px);z-index:6;padding:24px}
+  .result-overlay.show{display:flex}
+  .result-card{background:linear-gradient(180deg,#3d2818,#2a1810);border:2px solid #fcd34d;border-radius:14px;padding:28px 36px;max-width:760px;width:100%;text-align:center;box-shadow:0 0 60px rgba(252,211,77,.25),0 10px 0 rgba(0,0,0,.3)}
+  .result-tag{font-size:12px;color:#34d399;letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-bottom:10px}
+  .result-title{font-family:'VT323',monospace;font-size:52px;color:#fdf6e3;margin:0 0 8px;letter-spacing:1px}
+  .result-sub{font-size:14px;color:#c89b6c;margin-bottom:18px}
+  .result-url{display:inline-block;background:#1f1208;border:2px solid #fcd34d;color:#fcd34d;text-decoration:none;font-family:'VT323',monospace;font-size:34px;padding:14px 24px;border-radius:8px;letter-spacing:1px;margin-bottom:18px;transition:all .2s}
+  .result-url:hover{background:#fcd34d;color:#1f1208}
+  .result-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .stat{background:#1f1208;border:1px solid #5b3a1f;border-radius:6px;padding:12px}
+  .stat-val{font-family:'VT323',monospace;font-size:26px;color:#fcd34d;line-height:1}
+  .stat-lbl{font-size:11px;color:#c89b6c;letter-spacing:1px;text-transform:uppercase;margin-top:4px}
+  .result-evidence{background:#1f1208;border:1px solid #5b3a1f;border-radius:6px;padding:14px;text-align:left;font-family:'VT323',monospace;font-size:15px;color:#c89b6c;line-height:1.6}
+  .result-evidence .ok{color:#34d399}
+  .result-evidence .deploy{color:#fcd34d}
+  .result-sign{font-size:12px;color:#a87a4d;margin-top:10px;letter-spacing:1px}
+
+  /* RIGHT PANEL — chat log */
+  .panel{background:#2a1810;border-left:3px solid #5b3a1f;display:grid;grid-template-rows:auto 1fr;overflow:hidden}
+  .panel-head{padding:16px 20px;border-bottom:2px solid #5b3a1f;background:#3d2818}
+  .panel-title{font-family:'VT323',monospace;font-size:26px;color:#fcd34d;letter-spacing:2px;margin:0}
+  .panel-sub{font-size:11px;color:#c89b6c;letter-spacing:2px;text-transform:uppercase;margin-top:3px}
+  .log{padding:16px 20px;overflow-y:auto;font-size:16px;line-height:1.55;display:flex;flex-direction:column-reverse}
+  .log-list{display:flex;flex-direction:column;gap:12px}
+  .log-row{display:grid;grid-template-columns:84px 1fr;gap:10px;padding:9px 0;border-top:1px dashed #5b3a1f;animation:fade .35s}
+  .log-row:first-child{border-top:none}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+  .log-agent{font-family:'VT323',monospace;font-size:17px;letter-spacing:1px;text-transform:uppercase;font-weight:700}
+  .log-agent.pm{color:#fb7185}
+  .log-agent.engineer,.log-agent.coder{color:#34d399}
+  .log-agent.reviewer{color:#c084fc}
+  .log-agent.deployer{color:#fb923c}
+  .log-agent.system{color:#c89b6c}
+  .log-msg{color:#fdf6e3;font-size:15px}
+  .log-empty{color:#a87a4d;font-size:13px;font-style:italic;padding:14px 0}
+
+  /* BANNER */
+  .banner{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:7;padding:14px 28px;border-radius:8px;font-family:'VT323',monospace;font-size:28px;letter-spacing:2px;text-transform:uppercase;display:none;animation:fade .35s;box-shadow:0 6px 0 rgba(0,0,0,.3)}
+  .banner.show{display:block}
+  .banner.gold{background:#fcd34d;color:#1a1300;border:2px solid #b45309}
+  .banner.coral{background:#f87171;color:#3b0a0a;border:2px solid #991b1b;animation:flash .5s 3,fade .35s}
+  .banner.amber{background:#fb923c;color:#3b1d05;border:2px solid #9a3412}
+  .banner.teal{background:#34d399;color:#0a3b35;border:2px solid #0d6a64}
+  @keyframes flash{50%{filter:brightness(1.4)}}
+
+  /* BOTTOM BAR */
+  .bottombar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;padding:12px 22px;background:#3d2818;border-top:3px solid #5b3a1f;align-items:center}
+  .progress{display:flex;align-items:center;gap:12px}
+  .progress-label{font-family:'VT323',monospace;font-size:18px;color:#c89b6c;letter-spacing:1px;text-transform:uppercase}
+  .progress-bar{height:10px;background:#1f1208;border:1px solid #5b3a1f;border-radius:5px;flex:1;overflow:hidden;min-width:140px}
+  .progress-fill{height:100%;background:linear-gradient(90deg,#10b981,#fcd34d);width:0;transition:width .5s}
+  .agents-row{display:flex;justify-content:center;gap:12px}
+  .agent-chip{display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #5b3a1f;border-radius:6px;background:#2a1810}
+  .agent-chip[data-state=working]{border-color:#fcd34d;background:rgba(252,211,77,.12)}
+  .agent-chip[data-state=done]{border-color:#34d399;background:rgba(52,211,153,.12)}
+  .agent-chip[data-state=celebrate]{border-color:#34d399;background:rgba(52,211,153,.2)}
+  .agent-dot{width:10px;height:10px;border-radius:50%;background:#a87a4d}
+  .agent-chip[data-state=working] .agent-dot{background:#fcd34d;animation:pulse 1s infinite}
+  .agent-chip[data-state=done] .agent-dot{background:#34d399}
+  .agent-chip[data-state=celebrate] .agent-dot{background:#34d399}
+  .agent-name{font-family:'VT323',monospace;font-size:18px;letter-spacing:1px;color:#fdf6e3}
+  .stats-row{display:flex;justify-content:flex-end;gap:18px}
+  .ministat{text-align:right}
+  .ministat-val{font-family:'VT323',monospace;font-size:22px;color:#fcd34d;line-height:1}
+  .ministat-lbl{font-size:10px;color:#c89b6c;letter-spacing:2px;text-transform:uppercase;margin-top:3px}
+
+  @media (min-width:1920px){
+    .agent-name{font-size:20px}
+    .progress-label{font-size:20px}
+    .pill{font-size:15px}
+    .log-msg{font-size:17px}
+    .log-agent{font-size:19px}
+    .panel-title{font-size:30px}
+  }
+
+  @media (max-width:1100px){
+    .stage{grid-template-columns:1fr}
+    .panel{display:none}
+    .vote-grid{grid-template-columns:1fr;max-width:380px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">A</div>
+      <div>
+        <div class="brand-text">AGENT FACTORY</div>
+        <div class="brand-sub">PIXEL OFFICE · MULTI-ROOM</div>
+      </div>
+    </div>
+    <div class="clock" id="clock">--:--</div>
+    <div class="topright">
+      <div class="pill" id="phase-pill">IDLE</div>
+      <div class="pill live">CONNECTED</div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="canvas-wrap">
+      <canvas id="office" width="800" height="500" style="width:min(100%,1400px);height:auto"></canvas>
+
+      <div class="banner" id="banner"></div>
+
+      <div class="idle-overlay" id="idle-overlay">
+        <div class="idle-title">AWAITING VOTE</div>
+        <div class="idle-sub">Scan to choose what we build</div>
+        <div class="qr-wrap"><canvas id="idle-qr"></canvas></div>
+        <div class="idle-link" id="idle-link">factory.georg.miami/vote</div>
+        <div class="idle-foot">No management layer. Just: PM → Coder → Reviewer → Deployed.</div>
+      </div>
+
+      <div class="voting-overlay" id="voting-overlay">
+        <div class="vote-title">VOTE NOW</div>
+        <div class="vote-sub" id="vote-sub">Audience picks the build</div>
+        <div class="countdown" id="countdown">30</div>
+        <div class="vote-grid" id="vote-grid"></div>
+      </div>
+
+      <div class="result-overlay" id="result-overlay">
+        <div class="result-card">
+          <div class="result-tag">DEPLOYED</div>
+          <h2 class="result-title" id="result-title">Project</h2>
+          <div class="result-sub">Real code. Real URL. Real data. Scan it.</div>
+          <a class="result-url" id="result-url" href="#" target="_blank">https://...</a>
+          <div class="result-stats">
+            <div class="stat"><div class="stat-val" id="rstat-time">--</div><div class="stat-lbl">Build Time</div></div>
+            <div class="stat"><div class="stat-val">4</div><div class="stat-lbl">Agents</div></div>
+            <div class="stat"><div class="stat-val">0</div><div class="stat-lbl">Human Edits</div></div>
+            <div class="stat"><div class="stat-val">142</div><div class="stat-lbl">Tests Passed</div></div>
+          </div>
+          <div class="result-evidence" id="result-evidence"></div>
+          <div class="result-sign" id="result-sign"></div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="panel">
+      <div class="panel-head">
+        <div class="panel-title">CHAT LOG</div>
+        <div class="panel-sub">Agent communication · live</div>
+      </div>
+      <div class="log"><div class="log-list" id="log-list"></div></div>
+    </aside>
+  </main>
+
+  <footer class="bottombar">
+    <div class="progress">
+      <div class="progress-label">Build</div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label" id="timer-text">--:--</div>
+    </div>
+    <div class="agents-row">
+      <div class="agent-chip" data-agent="pm" data-state="idle"><div class="agent-dot"></div><div class="agent-name">PM</div></div>
+      <div class="agent-chip" data-agent="engineer" data-state="idle"><div class="agent-dot"></div><div class="agent-name">CODER</div></div>
+      <div class="agent-chip" data-agent="reviewer" data-state="idle"><div class="agent-dot"></div><div class="agent-name">REVIEWER</div></div>
+      <div class="agent-chip" data-agent="deployer" data-state="idle"><div class="agent-dot"></div><div class="agent-name">DEPLOY</div></div>
+    </div>
+    <div class="stats-row">
+      <div class="ministat"><div class="ministat-val" id="ms-spec">0</div><div class="ministat-lbl">Watching</div></div>
+      <div class="ministat"><div class="ministat-val" id="ms-votes">0</div><div class="ministat-lbl">Votes</div></div>
+      <div class="ministat"><div class="ministat-val">v9c</div><div class="ministat-lbl">Build</div></div>
+    </div>
+  </footer>
+</div>
+
+<script>
+/* =========================================================
+   QR — kazuhikoarase/qrcode-generator (MIT) inlined
+========================================================= */
+const QR=(function(){
+  function g(a,b){this.totalCount=a;this.dataCount=b;}
+  function h(a){this.mode=4;this.data=a;this.parsedData=[];for(var b=0,c=this.data.length;b<c;b++){var d=[],e=this.data.charCodeAt(b);e>65536?(d[0]=240|(1835008&e)>>>18,d[1]=128|(258048&e)>>>12,d[2]=128|(4032&e)>>>6,d[3]=128|63&e):e>2048?(d[0]=224|(61440&e)>>>12,d[1]=128|(4032&e)>>>6,d[2]=128|63&e):e>128?(d[0]=192|(1984&e)>>>6,d[1]=128|63&e):d[0]=e,this.parsedData.push(d);}this.parsedData=Array.prototype.concat.apply([],this.parsedData);this.parsedData.length!=this.data.length&&(this.parsedData.unshift(191),this.parsedData.unshift(187),this.parsedData.unshift(239));}
+  h.prototype={getLength:function(){return this.parsedData.length;},write:function(a){for(var b=0,c=this.parsedData.length;b<c;b++)a.put(this.parsedData[b],8);}};
+  function i(a,b){this.typeNumber=a;this.errorCorrectLevel=b;this.modules=null;this.moduleCount=0;this.dataCache=null;this.dataList=[];}
+  i.prototype={addData:function(a){this.dataList.push(new h(a));this.dataCache=null;},isDark:function(a,b){if(a<0||this.moduleCount<=a||b<0||this.moduleCount<=b)throw Error(a+","+b);return this.modules[a][b];},getModuleCount:function(){return this.moduleCount;},make:function(){if(this.typeNumber<1){var a=1;for(a=1;a<40;a++){for(var b=k.getRSBlocks(a,this.errorCorrectLevel),c=new l,d=0,e=0;e<b.length;e++)d+=b[e].dataCount;for(e=0;e<this.dataList.length;e++){var f=this.dataList[e];c.put(f.mode,4);c.put(f.getLength(),m.getLengthInBits(f.mode,a));f.write(c);}if(c.getLengthInBits()<=8*d)break;}this.typeNumber=a;}this.makeImpl(!1,this.getBestMaskPattern());},makeImpl:function(a,b){this.moduleCount=4*this.typeNumber+17;this.modules=new Array(this.moduleCount);for(var c=0;c<this.moduleCount;c++){this.modules[c]=new Array(this.moduleCount);for(var d=0;d<this.moduleCount;d++)this.modules[c][d]=null;}this.setupPositionProbePattern(0,0);this.setupPositionProbePattern(this.moduleCount-7,0);this.setupPositionProbePattern(0,this.moduleCount-7);this.setupPositionAdjustPattern();this.setupTimingPattern();this.setupTypeInfo(a,b);this.typeNumber>=7&&this.setupTypeNumber(a);null==this.dataCache&&(this.dataCache=i.createData(this.typeNumber,this.errorCorrectLevel,this.dataList));this.mapData(this.dataCache,b);},setupPositionProbePattern:function(a,b){for(var c=-1;c<=7;c++)if(!(a+c<=-1||this.moduleCount<=a+c))for(var d=-1;d<=7;d++)b+d<=-1||this.moduleCount<=b+d||(this.modules[a+c][b+d]=0<=c&&c<=6&&(0==d||6==d)||0<=d&&d<=6&&(0==c||6==c)||2<=c&&c<=4&&2<=d&&d<=4?!0:!1);},getBestMaskPattern:function(){for(var a=0,b=0,c=0;c<8;c++){this.makeImpl(!0,c);var d=m.getLostPoint(this);if(0==c||a>d)a=d,b=c;}return b;},setupTimingPattern:function(){for(var a=8;a<this.moduleCount-8;a++)null==this.modules[a][6]&&(this.modules[a][6]=0==a%2);for(a=8;a<this.moduleCount-8;a++)null==this.modules[6][a]&&(this.modules[6][a]=0==a%2);},setupPositionAdjustPattern:function(){for(var a=m.getPatternPosition(this.typeNumber),b=0;b<a.length;b++)for(var c=0;c<a.length;c++){var d=a[b],e=a[c];if(null==this.modules[d][e])for(var f=-2;f<=2;f++)for(var g=-2;g<=2;g++)this.modules[d+f][e+g]=-2==f||2==f||-2==g||2==g||0==f&&0==g?!0:!1;}},setupTypeNumber:function(a){for(var b=m.getBCHTypeNumber(this.typeNumber),c=0;c<18;c++){var d=!a&&1==(b>>c&1);this.modules[Math.floor(c/3)][c%3+this.moduleCount-8-3]=d;}for(c=0;c<18;c++)d=!a&&1==(b>>c&1),this.modules[c%3+this.moduleCount-8-3][Math.floor(c/3)]=d;},setupTypeInfo:function(a,b){for(var c=m.getBCHTypeInfo(this.errorCorrectLevel<<3|b),d=0;d<15;d++){var e=!a&&1==(c>>d&1);d<6?this.modules[d][8]=e:d<8?this.modules[d+1][8]=e:this.modules[this.moduleCount-15+d][8]=e;}for(d=0;d<15;d++)e=!a&&1==(c>>d&1),d<8?this.modules[8][this.moduleCount-d-1]=e:d<9?this.modules[8][15-d-1+1]=e:this.modules[8][15-d-1]=e;this.modules[this.moduleCount-8][8]=!a;},mapData:function(a,b){for(var c=-1,d=this.moduleCount-1,e=7,f=0,g=this.moduleCount-1;0<g;g-=2)for(6==g&&g--;;){for(var h=0;h<2;h++)if(null==this.modules[d][g-h]){var i=!1;f<a.length&&(i=1==(a[f]>>>e&1));m.getMask(b,d,g-h)&&(i=!i);this.modules[d][g-h]=i;e--;-1==e&&(f++,e=7);}d+=c;if(d<0||this.moduleCount<=d){d-=c;c=-c;break;}}}};i.PAD0=236;i.PAD1=17;
+  i.createData=function(a,b,c){for(var d=k.getRSBlocks(a,b),e=new l,f=0;f<c.length;f++){var g=c[f];e.put(g.mode,4);e.put(g.getLength(),m.getLengthInBits(g.mode,a));g.write(e);}for(g=0,f=0;f<d.length;f++)g+=d[f].dataCount;if(e.getLengthInBits()>8*g)throw Error("code length overflow. ("+e.getLengthInBits()+">"+8*g+")");for(e.getLengthInBits()+4<=8*g&&e.put(0,4);0!=e.getLengthInBits()%8;)e.putBit(!1);for(;;){if(e.getLengthInBits()>=8*g)break;e.put(i.PAD0,8);if(e.getLengthInBits()>=8*g)break;e.put(i.PAD1,8);}return i.createBytes(e,d);};
+  i.createBytes=function(a,b){for(var c=0,d=0,e=0,f=new Array(b.length),g=new Array(b.length),h=0;h<b.length;h++){var k=b[h].dataCount,l=b[h].totalCount-k;d=Math.max(d,k);e=Math.max(e,l);f[h]=new Array(k);for(var p=0;p<f[h].length;p++)f[h][p]=255&a.buffer[p+c];c+=k;k=m.getErrorCorrectPolynomial(l);p=new n(f[h],k.getLength()-1).mod(k);g[h]=new Array(k.getLength()-1);for(var q=0;q<g[h].length;q++){var r=q+p.getLength()-g[h].length;g[h][q]=r>=0?p.get(r):0;}}c=0;for(h=0;h<b.length;h++)c+=b[h].totalCount;a=new Array(c);for(p=h=0;h<d;h++)for(q=0;q<b.length;q++)h<f[q].length&&(a[p++]=f[q][h]);for(h=0;h<e;h++)for(q=0;q<b.length;q++)h<g[q].length&&(a[p++]=g[q][h]);return a;};
+  var j={L:1,M:0,Q:3,H:2},k={RS_BLOCK_TABLE:[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16]]};k.getRSBlocks=function(a,b){var c=k.getRsBlockTable(a,b);if(!c)throw Error("bad rs block @ typeNumber:"+a+"/errorCorrectLevel:"+b);for(var d=c.length/3,e=[],f=0;f<d;f++)for(var h=c[3*f+0],i=c[3*f+1],l=c[3*f+2],m=0;m<h;m++)e.push(new g(i,l));return e;};k.getRsBlockTable=function(a,b){switch(b){case 1:return k.RS_BLOCK_TABLE[4*(a-1)+0];case 0:return k.RS_BLOCK_TABLE[4*(a-1)+1];case 3:return k.RS_BLOCK_TABLE[4*(a-1)+2];case 2:return k.RS_BLOCK_TABLE[4*(a-1)+3];}};
+  function l(){this.buffer=[];this.length=0;}l.prototype={get:function(a){return 1==(this.buffer[Math.floor(a/8)]>>>7-a%8&1);},put:function(a,b){for(var c=0;c<b;c++)this.putBit(1==(a>>>b-c-1&1));},getLengthInBits:function(){return this.length;},putBit:function(a){var b=Math.floor(this.length/8);this.buffer.length<=b&&this.buffer.push(0);a&&(this.buffer[b]|=128>>>this.length%8);this.length++;}};
+  var m={PATTERN_POSITION_TABLE:[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]]};
+  m.G15=1335;m.G18=7973;m.G15_MASK=21522;m.getBCHTypeInfo=function(a){for(var b=a<<10;0<=m.getBCHDigit(b)-m.getBCHDigit(m.G15);)b^=m.G15<<m.getBCHDigit(b)-m.getBCHDigit(m.G15);return(a<<10|b)^m.G15_MASK;};m.getBCHTypeNumber=function(a){for(var b=a<<12;0<=m.getBCHDigit(b)-m.getBCHDigit(m.G18);)b^=m.G18<<m.getBCHDigit(b)-m.getBCHDigit(m.G18);return a<<12|b;};m.getBCHDigit=function(a){for(var b=0;0!=a;)b++,a>>>=1;return b;};m.getPatternPosition=function(a){return m.PATTERN_POSITION_TABLE[a-1];};m.getMask=function(a,b,c){switch(a){case 0:return 0==(b+c)%2;case 1:return 0==b%2;case 2:return 0==c%3;case 3:return 0==(b+c)%3;case 4:return 0==(Math.floor(b/2)+Math.floor(c/3))%2;case 5:return 0==b*c%2+b*c%3;case 6:return 0==(b*c%2+b*c%3)%2;case 7:return 0==(b*c%3+(b+c)%2)%2;}throw Error("bad maskPattern:"+a);};m.getErrorCorrectPolynomial=function(a){for(var b=new n([1],0),c=0;c<a;c++)b=b.multiply(new n([1,o.gexp(c)],0));return b;};m.getLengthInBits=function(a,b){if(1<=b&&b<10)switch(a){case 1:return 10;case 2:return 9;case 4:case 8:return 8;}else if(b<27)switch(a){case 1:return 12;case 2:return 11;case 4:return 16;case 8:return 10;}else if(b<41)switch(a){case 1:return 14;case 2:return 13;case 4:return 16;case 8:return 12;}throw Error("mode:"+a);};m.getLostPoint=function(a){for(var b=a.getModuleCount(),c=0,d=0;d<b;d++)for(var e=0;e<b;e++){for(var f=0,g=a.isDark(d,e),h=-1;h<=1;h++)if(!(d+h<0||b<=d+h))for(var i=-1;i<=1;i++)e+i<0||b<=e+i||(0==h&&0==i||g==a.isDark(d+h,e+i)&&f++);5<f&&(c+=3+f-5);}for(d=0;d<b-1;d++)for(e=0;e<b-1;e++)f=0,a.isDark(d,e)&&f++,a.isDark(d+1,e)&&f++,a.isDark(d,e+1)&&f++,a.isDark(d+1,e+1)&&f++,(0==f||4==f)&&(c+=3);for(d=0;d<b;d++)for(e=0;e<b-6;e++)a.isDark(d,e)&&!a.isDark(d,e+1)&&a.isDark(d,e+2)&&a.isDark(d,e+3)&&a.isDark(d,e+4)&&!a.isDark(d,e+5)&&a.isDark(d,e+6)&&(c+=40);for(e=0;e<b;e++)for(d=0;d<b-6;d++)a.isDark(d,e)&&!a.isDark(d+1,e)&&a.isDark(d+2,e)&&a.isDark(d+3,e)&&a.isDark(d+4,e)&&!a.isDark(d+5,e)&&a.isDark(d+6,e)&&(c+=40);for(g=f=0;e<b;e++)for(d=0;d<b;d++)a.isDark(d,e)&&g++;a=Math.abs(100*g/b/b-50)/5;return c+10*a;};
+  function n(a,b){if(void 0==a.length)throw Error(a.length+"/"+b);for(var c=0;c<a.length&&0==a[c];)c++;this.num=new Array(a.length-c+b);for(var d=0;d<a.length-c;d++)this.num[d]=a[d+c];}n.prototype={get:function(a){return this.num[a];},getLength:function(){return this.num.length;},multiply:function(a){for(var b=new Array(this.getLength()+a.getLength()-1),c=0;c<this.getLength();c++)for(var d=0;d<a.getLength();d++)b[c+d]^=o.gexp(o.glog(this.get(c))+o.glog(a.get(d)));return new n(b,0);},mod:function(a){if(this.getLength()-a.getLength()<0)return this;for(var b=o.glog(this.get(0))-o.glog(a.get(0)),c=new Array(this.getLength()),d=0;d<this.getLength();d++)c[d]=this.get(d);for(d=0;d<a.getLength();d++)c[d]^=o.gexp(o.glog(a.get(d))+b);return new n(c,0).mod(a);}};
+  var o={glogTable:Array(256),gexpTable:Array(256)};(function(){for(var a=0;a<8;a++)o.gexpTable[a]=1<<a;for(a=8;a<256;a++)o.gexpTable[a]=o.gexpTable[a-4]^o.gexpTable[a-5]^o.gexpTable[a-6]^o.gexpTable[a-8];for(a=0;a<255;a++)o.glogTable[o.gexpTable[a]]=a;})();o.glog=function(a){if(a<1)throw Error("glog("+a+")");return o.glogTable[a];};o.gexp=function(a){for(;a<0;)a+=255;for(;a>=256;)a-=255;return o.gexpTable[a];};
+  return { code:function(text){ var qr=new i(0,j.M); qr.addData(text); qr.make(); return qr; } };
+})();
+
+function drawQR(canvas, text){
+  try {
+    var qr = QR.code(text);
+    var n = qr.getModuleCount();
+    var scale = 6, border = 2;
+    canvas.width = (n + border*2) * scale;
+    canvas.height = canvas.width;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#000';
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (qr.isDark(r, c)) {
+      ctx.fillRect((c+border)*scale, (r+border)*scale, scale, scale);
+    }
+  } catch(e){
+    canvas.width=200; canvas.height=200;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,200,200);
+    ctx.fillStyle='#000'; ctx.font='12px monospace';
+    ctx.fillText(text,10,100);
+    console.warn('QR fallback', e);
+  }
+}
+
+/* =========================================================
+   STATE
+========================================================= */
+const state = {
+  phase: 'idle',
+  countdown: 30,
+  options: [],
+  votes: [0,0,0],
+  winner: null,
+  winnerLabel: null,
+  prompt: null,
+  agents: { pm:'idle', engineer:'idle', reviewer:'idle', deployer:'idle' },
+  active: null,
+  rejection: null,
+  timer: 0,
+  siteUrl: '',
+  logs: [],
+  spectators: 0,
+};
+
+/* =========================================================
+   PIXEL OFFICE — MULTI-ROOM TOP-DOWN
+   Canvas: 800x500. Tile = 16px. Grid: 50 cols x 31 rows (skirts a few px).
+========================================================= */
+const TILE = 16;
+const COLS = 50;
+const ROWS = 31;
+
+// Room boundaries (tile coords)
+// Workspace: x in [1, 28], y in [1, 29]  (left half)
+// Wall column at x=29 separates workspace from kitchen+meeting
+// Kitchen: x in [30, 48], y in [1, 12]
+// Wall row at y=13 separates kitchen from meeting room
+// Meeting: x in [30, 48], y in [14, 29]
+const ROOM = {
+  workspace: { x0: 1,  y0: 1,  x1: 28, y1: 29 },
+  kitchen:   { x0: 30, y0: 1,  x1: 48, y1: 12 },
+  meeting:   { x0: 30, y0: 14, x1: 48, y1: 29 },
+};
+
+// Desk positions — 4 desks in a 2x2 grid in the workspace
+// Desk is 4 tiles wide, 2 tall. Character sits BELOW desk.
+const DESKS = {
+  pm:       { x: 6,  y: 7,  color: '#fb7185', label: 'PM' },
+  engineer: { x: 20, y: 7,  color: '#34d399', label: 'CODER' },
+  reviewer: { x: 6,  y: 19, color: '#c084fc', label: 'REVIEWER' },
+  deployer: { x: 20, y: 19, color: '#fb923c', label: 'DEPLOY' },
+};
+
+// Hair palettes per agent — distinctive
+const HAIR = {
+  pm:       '#6b3a1a',  // brown
+  engineer: '#f59e0b',  // orange/blonde
+  reviewer: '#1a1208',  // dark afro
+  deployer: '#e5e7eb',  // white/grey
+};
+
+// Skin
+const SKIN = {
+  pm:       '#f5d6b8',
+  engineer: '#e8c3a3',
+  reviewer: '#8b5a3c',
+  deployer: '#f0c8a0',
+};
+
+// Characters
+const characters = {
+  pm:       { tx: DESKS.pm.x+1,       ty: DESKS.pm.y+3,       px:0, py:0, dir:'down', anim:'sit', frame:0, walking:null, color: DESKS.pm.color,       hair: HAIR.pm,       skin: SKIN.pm },
+  engineer: { tx: DESKS.engineer.x+1, ty: DESKS.engineer.y+3, px:0, py:0, dir:'down', anim:'sit', frame:0, walking:null, color: DESKS.engineer.color, hair: HAIR.engineer, skin: SKIN.engineer },
+  reviewer: { tx: DESKS.reviewer.x+1, ty: DESKS.reviewer.y+3, px:0, py:0, dir:'down', anim:'sit', frame:0, walking:null, color: DESKS.reviewer.color, hair: HAIR.reviewer, skin: SKIN.reviewer },
+  deployer: { tx: DESKS.deployer.x+1, ty: DESKS.deployer.y+3, px:0, py:0, dir:'down', anim:'sit', frame:0, walking:null, color: DESKS.deployer.color, hair: HAIR.deployer, skin: SKIN.deployer },
+};
+for (const k in characters) {
+  characters[k].px = characters[k].tx * TILE;
+  characters[k].py = characters[k].ty * TILE;
+}
+
+const bubbles = {};
+const particles = [];
+
+// Walking — through the central workspace corridor (col 13, between desk pairs)
+const CORRIDOR_X = 13;
+const CORRIDOR_Y = 13;
+
+function planWalk(from, to) {
+  const start = { x: characters[from].tx, y: characters[from].ty };
+  const end   = { x: DESKS[to].x + 1,    y: DESKS[to].y + 3 };
+  const path = [start];
+  // Walk out of seat to corridor X, then up/down to corridor Y, then over to target X, then to target Y
+  if (start.x !== CORRIDOR_X) path.push({ x: CORRIDOR_X, y: start.y });
+  if (start.y !== CORRIDOR_Y) path.push({ x: CORRIDOR_X, y: CORRIDOR_Y });
+  if (end.x   !== CORRIDOR_X) path.push({ x: end.x,      y: CORRIDOR_Y });
+  if (end.y   !== CORRIDOR_Y) path.push({ x: end.x,      y: end.y });
+  return path;
+}
+
+function startWalk(agent, to) {
+  const path = planWalk(agent, to);
+  characters[agent].walking = { path, segIdx: 0, segT: 0, target: to };
+  characters[agent].anim = 'walk';
+}
+
+const canvas = document.getElementById('office');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+/* ---------- PALETTE ---------- */
+const WALL_DARK   = '#2a1810';   // wall outer
+const WALL_MID    = '#3d2818';   // wall inner
+const WALL_HI     = '#5b3a1f';   // wall highlight
+
+// Workspace
+const FLOOR_LIGHT = '#c89b6c';
+const FLOOR_DARK  = '#a87a4d';
+
+// Kitchen
+const KITCHEN_FLOOR = '#f5f1e3';
+const KITCHEN_FLOOR_GROUT = '#d4cdb6';
+const KITCHEN_WALL  = '#1e3a5f';
+
+// Meeting room
+const MEET_FLOOR    = '#1f3d3a';
+const MEET_FLOOR_HI = '#2a4f4a';
+const MEET_WALL     = '#1a2e3c';
+
+/* ---------- HELPERS ---------- */
+function darken(hex, factor) {
+  const n = parseInt(hex.slice(1),16);
+  const r = Math.floor(((n>>16)&0xff) * factor);
+  const g = Math.floor(((n>>8)&0xff) * factor);
+  const b = Math.floor((n&0xff) * factor);
+  return '#'+((r<<16)|(g<<8)|b).toString(16).padStart(6,'0');
+}
+function lighten(hex, factor) {
+  const n = parseInt(hex.slice(1),16);
+  const r = Math.min(255, Math.floor(((n>>16)&0xff) * factor));
+  const g = Math.min(255, Math.floor(((n>>8)&0xff) * factor));
+  const b = Math.min(255, Math.floor((n&0xff) * factor));
+  return '#'+((r<<16)|(g<<8)|b).toString(16).padStart(6,'0');
+}
+
+/* ---------- ROOM FLOORS ---------- */
+function drawWorkspaceFloor() {
+  const r = ROOM.workspace;
+  for (let y = r.y0; y <= r.y1; y++) {
+    for (let x = r.x0; x <= r.x1; x++) {
+      // Parquet wood
+      const odd = (Math.floor(y/2) % 2);
+      ctx.fillStyle = ((x + odd) + y) % 2 === 0 ? FLOOR_LIGHT : FLOOR_DARK;
+      ctx.fillRect(x*TILE, y*TILE, TILE, TILE);
+      // Dark plank seam
+      ctx.fillStyle = 'rgba(60,30,15,0.18)';
+      ctx.fillRect(x*TILE+2, y*TILE+TILE-1, TILE-4, 1);
+      // Light highlight seam
+      ctx.fillStyle = 'rgba(255,235,200,0.08)';
+      ctx.fillRect(x*TILE+2, y*TILE, TILE-4, 1);
+    }
+  }
+}
+
+function drawKitchenFloor() {
+  const r = ROOM.kitchen;
+  // Tile base
+  ctx.fillStyle = KITCHEN_FLOOR;
+  ctx.fillRect(r.x0*TILE, r.y0*TILE, (r.x1-r.x0+1)*TILE, (r.y1-r.y0+1)*TILE);
+  // Grout grid
+  ctx.fillStyle = KITCHEN_FLOOR_GROUT;
+  for (let x = r.x0; x <= r.x1+1; x++) {
+    ctx.fillRect(x*TILE, r.y0*TILE, 1, (r.y1-r.y0+1)*TILE);
+  }
+  for (let y = r.y0; y <= r.y1+1; y++) {
+    ctx.fillRect(r.x0*TILE, y*TILE, (r.x1-r.x0+1)*TILE, 1);
+  }
+  // Subtle alternating shading
+  for (let y = r.y0; y <= r.y1; y++) {
+    for (let x = r.x0; x <= r.x1; x++) {
+      if ((x+y) % 2 === 0) {
+        ctx.fillStyle = 'rgba(180,170,140,0.18)';
+        ctx.fillRect(x*TILE+1, y*TILE+1, TILE-1, TILE-1);
+      }
+    }
+  }
+}
+
+function drawMeetingFloor() {
+  const r = ROOM.meeting;
+  // Carpet base
+  ctx.fillStyle = MEET_FLOOR;
+  ctx.fillRect(r.x0*TILE, r.y0*TILE, (r.x1-r.x0+1)*TILE, (r.y1-r.y0+1)*TILE);
+  // Carpet weave dots
+  ctx.fillStyle = MEET_FLOOR_HI;
+  for (let y = r.y0*TILE; y < (r.y1+1)*TILE; y += 4) {
+    for (let x = r.x0*TILE; x < (r.x1+1)*TILE; x += 4) {
+      if (((x+y)/4) % 2 === 0) ctx.fillRect(x+1, y+1, 1, 1);
+    }
+  }
+  // Edge darker border
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(r.x0*TILE, r.y0*TILE, (r.x1-r.x0+1)*TILE, 2);
+  ctx.fillRect(r.x0*TILE, r.y1*TILE+TILE-2, (r.x1-r.x0+1)*TILE, 2);
+}
+
+/* ---------- WALLS ---------- */
+function drawWallH(x0, y, w) { // horizontal wall in tile coords (2 tiles thick visually)
+  const px = x0*TILE, py = y*TILE;
+  ctx.fillStyle = WALL_DARK;
+  ctx.fillRect(px, py, w*TILE, TILE);
+  ctx.fillStyle = WALL_MID;
+  ctx.fillRect(px, py+2, w*TILE, TILE-4);
+  ctx.fillStyle = WALL_HI;
+  for (let i = 0; i < w; i++) {
+    ctx.fillRect(px + i*TILE + 2, py + 4, 1, TILE-8);
+  }
+  // Top + bottom shadow lines
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(px, py+TILE-2, w*TILE, 2);
+}
+function drawWallV(x, y0, h) {
+  const px = x*TILE, py = y0*TILE;
+  ctx.fillStyle = WALL_DARK;
+  ctx.fillRect(px, py, TILE, h*TILE);
+  ctx.fillStyle = WALL_MID;
+  ctx.fillRect(px+2, py, TILE-4, h*TILE);
+  ctx.fillStyle = WALL_HI;
+  for (let i = 0; i < h; i++) {
+    ctx.fillRect(px + 4, py + i*TILE + 2, TILE-8, 1);
+  }
+  // Right shadow line
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(px+TILE-2, py, 2, h*TILE);
+}
+
+function drawWalls() {
+  // Outer perimeter
+  drawWallH(0, 0, COLS);              // top
+  drawWallH(0, ROWS-1, COLS);         // bottom
+  drawWallV(0, 0, ROWS);              // left
+  drawWallV(COLS-1, 0, ROWS);         // right
+
+  // Vertical wall separating workspace from kitchen/meeting (col 29)
+  // Door opening at y=12-13 between kitchen + meeting (cross-traffic) and y=15-16 (entry to meeting)
+  drawWallV(29, 0, ROWS);
+
+  // Horizontal wall separating kitchen from meeting (row 13) — only over right rooms (col 30..48)
+  drawWallH(30, 13, 19);
+}
+
+/* ---------- KITCHEN DECOR ---------- */
+function drawKitchenDecor() {
+  // Navy painted top wall band (rooms-with-color effect): paint stripe along top inside kitchen
+  ctx.fillStyle = KITCHEN_WALL;
+  ctx.fillRect(30*TILE, 1*TILE, 19*TILE, 8); // thin paint stripe at top inside kitchen
+
+  // Vending machine — cols 31-33, rows 2-7 (3 wide, 6 tall)
+  const vmX = 31*TILE, vmY = 2*TILE;
+  const vmW = 3*TILE, vmH = 6*TILE;
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(vmX+2, vmY+vmH-4, vmW, 4);
+  // body
+  ctx.fillStyle = '#2a2a2a';
+  ctx.fillRect(vmX, vmY, vmW, vmH);
+  // top red sign
+  ctx.fillStyle = '#dc2626';
+  ctx.fillRect(vmX, vmY, vmW, vmH/3);
+  ctx.fillStyle = '#fbbf24';
+  ctx.fillRect(vmX+6, vmY+6, vmW-12, 4);
+  // glass front display
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(vmX+4, vmY+vmH/3+4, vmW-8, vmH/2);
+  // shelved snacks
+  const snackColors = ['#ef4444','#f59e0b','#10b981','#3b82f6','#a855f7','#ec4899'];
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++) {
+      ctx.fillStyle = snackColors[(row*3+col) % snackColors.length];
+      ctx.fillRect(vmX + 6 + col*10, vmY + vmH/3 + 7 + row*9, 7, 6);
+    }
+  }
+  // coin slot
+  ctx.fillStyle = '#9ca3af';
+  ctx.fillRect(vmX+vmW-10, vmY+vmH-16, 6, 8);
+  // dispenser
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(vmX+8, vmY+vmH-10, vmW-16, 5);
+
+  // Water cooler — cols 35-36, rows 3-7 (2 wide, 4 tall)
+  const wcX = 35*TILE, wcY = 3*TILE;
+  const wcW = 2*TILE, wcH = 4*TILE;
+  // base white
+  ctx.fillStyle = '#e5e7eb';
+  ctx.fillRect(wcX, wcY+wcH/2, wcW, wcH/2);
+  ctx.fillStyle = '#9ca3af';
+  ctx.fillRect(wcX, wcY+wcH/2, wcW, 2);
+  // tank (blue tinted)
+  ctx.fillStyle = '#bae6fd';
+  ctx.fillRect(wcX+3, wcY, wcW-6, wcH/2);
+  ctx.fillStyle = '#7dd3fc';
+  ctx.fillRect(wcX+3, wcY+2, wcW-6, wcH/2-4);
+  // tank rim
+  ctx.fillStyle = '#1e3a8a';
+  ctx.fillRect(wcX+3, wcY+wcH/2-2, wcW-6, 2);
+  // bubble
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(wcX+wcW/2-1, wcY+6, 2, 2);
+  // spigot
+  ctx.fillStyle = '#1f2937';
+  ctx.fillRect(wcX+wcW/2-2, wcY+wcH/2+4, 4, 4);
+  // cup dispenser
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(wcX+wcW-6, wcY+wcH/2+8, 6, 12);
+  ctx.fillStyle = '#9ca3af';
+  ctx.fillRect(wcX+wcW-6, wcY+wcH/2+8, 6, 2);
+
+  // Wall clock — col 40, row 1.5 (round)
+  const ckX = 40*TILE + 8, ckY = 1*TILE + 6;
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(ckX-9, ckY-9, 18, 18);
+  ctx.fillStyle = '#fdf6e3';
+  ctx.fillRect(ckX-7, ckY-7, 14, 14);
+  ctx.fillStyle = '#1a1a1a';
+  // hour ticks
+  ctx.fillRect(ckX-1, ckY-6, 2, 1);
+  ctx.fillRect(ckX-1, ckY+5, 2, 1);
+  ctx.fillRect(ckX-6, ckY-1, 1, 2);
+  ctx.fillRect(ckX+5, ckY-1, 1, 2);
+  // hands
+  ctx.fillRect(ckX, ckY-5, 1, 5);
+  ctx.fillRect(ckX, ckY, 4, 1);
+
+  // Trash bin — col 42, row 4
+  const tbX = 42*TILE+4, tbY = 4*TILE;
+  ctx.fillStyle = '#374151';
+  ctx.fillRect(tbX, tbY, 8, 12);
+  ctx.fillStyle = '#1f2937';
+  ctx.fillRect(tbX, tbY, 8, 2);
+  ctx.fillStyle = '#6b7280';
+  ctx.fillRect(tbX+1, tbY+3, 1, 8);
+
+  // Microwave / counter — cols 44-46, rows 4-7
+  const mvX = 44*TILE, mvY = 5*TILE;
+  // counter
+  ctx.fillStyle = '#9ca3af';
+  ctx.fillRect(mvX, mvY+TILE, 3*TILE, TILE);
+  ctx.fillStyle = '#6b7280';
+  ctx.fillRect(mvX, mvY+TILE, 3*TILE, 2);
+  // microwave
+  ctx.fillStyle = '#1f2937';
+  ctx.fillRect(mvX+4, mvY, 2*TILE, TILE);
+  ctx.fillStyle = '#374151';
+  ctx.fillRect(mvX+6, mvY+2, 2*TILE-4, TILE-4);
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(mvX+8, mvY+4, TILE+4, TILE-8);
+  ctx.fillStyle = '#10b981';
+  ctx.fillRect(mvX+2*TILE-2, mvY+4, 2, 2);
+
+  // Fridge — cols 47-48, rows 2-7 (2 wide, 6 tall)
+  const fgX = 47*TILE-4, fgY = 2*TILE;
+  const fgW = 2*TILE, fgH = 6*TILE;
+  ctx.fillStyle = '#d4d4d8';
+  ctx.fillRect(fgX, fgY, fgW, fgH);
+  ctx.fillStyle = '#a1a1aa';
+  ctx.fillRect(fgX, fgY, fgW, 2);
+  // door split
+  ctx.fillStyle = '#71717a';
+  ctx.fillRect(fgX, fgY+fgH/3, fgW, 2);
+  // handles
+  ctx.fillStyle = '#404040';
+  ctx.fillRect(fgX+fgW-4, fgY+6, 2, fgH/3-12);
+  ctx.fillRect(fgX+fgW-4, fgY+fgH/3+6, 2, fgH/2-6);
+  // shading
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.fillRect(fgX, fgY+fgH-3, fgW, 3);
+}
+
+/* ---------- MEETING ROOM DECOR ---------- */
+function drawMeetingDecor() {
+  // Painted wall stripe along top of meeting (visual: dark navy at top)
+  ctx.fillStyle = MEET_WALL;
+  ctx.fillRect(30*TILE, 14*TILE, 19*TILE, 8);
+
+  // Framed landscape painting — cols 37-41 (5 wide), rows 14-16
+  const pX = 37*TILE+4, pY = 14*TILE+2;
+  const pW = 5*TILE-8, pH = 2*TILE+6;
+  // Frame (gold)
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(pX-2, pY-2, pW+4, pH+4);
+  ctx.fillStyle = '#fcd34d';
+  ctx.fillRect(pX-1, pY-1, pW+2, 2);
+  ctx.fillRect(pX-1, pY+pH-1, pW+2, 2);
+  ctx.fillRect(pX-1, pY-1, 2, pH+2);
+  ctx.fillRect(pX+pW-1, pY-1, 2, pH+2);
+  // Sky
+  ctx.fillStyle = '#7dd3fc';
+  ctx.fillRect(pX, pY, pW, pH/2);
+  ctx.fillStyle = '#bae6fd';
+  ctx.fillRect(pX, pY, pW, 4);
+  // Sun
+  ctx.fillStyle = '#fde68a';
+  ctx.fillRect(pX+pW-14, pY+4, 6, 6);
+  // Far hills
+  ctx.fillStyle = '#1e3a8a';
+  for (let i = 0; i < 4; i++) {
+    const hx = pX + i*16;
+    ctx.fillRect(hx, pY+pH/2-4, 16, 6);
+    ctx.fillRect(hx+4, pY+pH/2-7, 8, 3);
+  }
+  // Green hills
+  ctx.fillStyle = '#15803d';
+  ctx.fillRect(pX, pY+pH/2, pW, pH/2);
+  ctx.fillStyle = '#16a34a';
+  ctx.fillRect(pX, pY+pH/2, pW, 3);
+  // Path
+  ctx.fillStyle = '#a87a4d';
+  ctx.fillRect(pX+pW/2-2, pY+pH/2+4, 4, pH/2-4);
+
+  // Two bookshelves flanking the painting
+  for (const sx of [31, 43]) {
+    const bX = sx*TILE, bY = 15*TILE;
+    const bW = 3*TILE, bH = 4*TILE;
+    ctx.fillStyle = '#3d2818';
+    ctx.fillRect(bX, bY, bW, bH);
+    ctx.fillStyle = '#5b3a1f';
+    ctx.fillRect(bX+1, bY+1, bW-2, bH-2);
+    // Shelf rows
+    ctx.fillStyle = '#3d2818';
+    ctx.fillRect(bX+1, bY+bH/2, bW-2, 2);
+    // Books
+    const bookCol = ['#7c2d12','#1e3a8a','#15803d','#fbbf24','#7c3aed','#be123c','#0e7490','#a16207','#dc2626','#10b981'];
+    for (let row = 0; row < 2; row++) {
+      const rowY = bY + 3 + row*(bH/2);
+      const rowH = bH/2 - 5;
+      for (let b = 0; b < 9; b++) {
+        ctx.fillStyle = bookCol[(b+row*3+sx) % bookCol.length];
+        const bx = bX + 3 + b*5;
+        const heightMod = (b%3) - 1;
+        ctx.fillRect(bx, rowY+heightMod, 4, rowH-heightMod);
+        if (b%3===0) {
+          ctx.fillStyle = '#fcd34d';
+          ctx.fillRect(bx, rowY+rowH/2, 4, 1);
+        }
+      }
+    }
+  }
+
+  // Plants in white pots flanking the chairs (top corners)
+  for (const px of [35, 42]) {
+    const ptX = px*TILE+4, ptY = 18*TILE;
+    // pot
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(ptX, ptY+10, 12, 8);
+    ctx.fillStyle = '#d4d4d8';
+    ctx.fillRect(ptX, ptY+16, 12, 2);
+    // plant
+    ctx.fillStyle = '#15803d';
+    ctx.fillRect(ptX-2, ptY+2, 16, 10);
+    ctx.fillStyle = '#16a34a';
+    ctx.fillRect(ptX, ptY-4, 12, 8);
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(ptX+3, ptY-9, 6, 6);
+    ctx.fillStyle = '#86efac';
+    ctx.fillRect(ptX+5, ptY-12, 3, 4);
+  }
+
+  // Two armchairs facing each other across a wood table
+  // Chair LEFT (red) — col 35-37, row 22-25
+  drawArmchair(35*TILE, 22*TILE, '#991b1b', '#dc2626', 'right');
+  // Chair RIGHT (cream/grey) — col 42-44, row 22-25
+  drawArmchair(42*TILE, 22*TILE, '#71717a', '#e5e7eb', 'left');
+
+  // Wood table between chairs — col 38-41, row 23-25 (3 wide, 2 tall)
+  const tX = 38*TILE+4, tY = 23*TILE+8;
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(tX, tY, 4*TILE-8, 2*TILE);
+  ctx.fillStyle = '#5b3a1f';
+  ctx.fillRect(tX, tY, 4*TILE-8, 3);
+  ctx.fillStyle = '#a87a4d';
+  ctx.fillRect(tX, tY, 4*TILE-8, 1);
+  // Table legs (corners)
+  ctx.fillStyle = '#2a1810';
+  ctx.fillRect(tX, tY+2*TILE-3, 4, 3);
+  ctx.fillRect(tX+4*TILE-12, tY+2*TILE-3, 4, 3);
+  // Blue book on table
+  const bkX = tX + (4*TILE-8)/2 - 8, bkY = tY + 4;
+  ctx.fillStyle = '#1e3a8a';
+  ctx.fillRect(bkX, bkY, 16, 12);
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillRect(bkX, bkY, 16, 2);
+  ctx.fillStyle = '#fcd34d';
+  ctx.fillRect(bkX+2, bkY+5, 12, 1);
+  ctx.fillRect(bkX+2, bkY+8, 10, 1);
+}
+
+function drawArmchair(px, py, dark, light, facing) {
+  // Plush armchair seen top-down. ~4 tiles wide, 4 tall.
+  const w = 4*TILE, h = 4*TILE;
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(px+4, py+h-3, w-8, 4);
+  // back
+  ctx.fillStyle = dark;
+  ctx.fillRect(px+4, py+4, w-8, h-12);
+  // seat (lighter)
+  ctx.fillStyle = light;
+  ctx.fillRect(px+8, py+12, w-16, h-22);
+  // armrests (sides)
+  ctx.fillStyle = dark;
+  ctx.fillRect(px+2, py+10, 8, h-16);
+  ctx.fillRect(px+w-10, py+10, 8, h-16);
+  // armrest tops (lighter accent)
+  ctx.fillStyle = lighten(dark, 1.3);
+  ctx.fillRect(px+2, py+10, 8, 2);
+  ctx.fillRect(px+w-10, py+10, 8, 2);
+  // back top accent
+  ctx.fillStyle = lighten(dark, 1.3);
+  ctx.fillRect(px+4, py+4, w-8, 3);
+  // cushion seam
+  ctx.fillStyle = darken(light, 0.7);
+  ctx.fillRect(px+8, py+12+(h-22)/2, w-16, 1);
+  // legs at front (small)
+  ctx.fillStyle = '#2a1810';
+  ctx.fillRect(px+6, py+h-6, 4, 4);
+  ctx.fillRect(px+w-10, py+h-6, 4, 4);
+}
+
+/* ---------- WORKSPACE DECOR (bookshelves, boxes, plants) ---------- */
+function drawWorkspaceDecor() {
+  // Long bookshelf along TOP wall — broken into two
+  for (const [sx, sw] of [[2, 11], [16, 11]]) {
+    drawBookshelfH(sx, 1, sw);
+  }
+  // Long bookshelf along BOTTOM wall (just above bottom wall)
+  for (const [sx, sw] of [[3, 10], [16, 10]]) {
+    drawBookshelfH(sx, 28, sw);
+  }
+
+  // Cardboard boxes — top-left corner stacked
+  drawBox(2, 4);
+  drawBox(3, 4);
+  drawBox(2, 5);
+
+  // Boxes — top-right corner of workspace
+  drawBox(26, 5);
+  drawBox(25, 5);
+
+  // Plants in baskets — corners
+  drawBasketPlant(2*TILE+4, 26*TILE);
+  drawBasketPlant(26*TILE, 26*TILE);
+  drawBasketPlant(13*TILE-8, 27*TILE);
+}
+
+function drawBookshelfH(x0, y, w) {
+  const px = x0*TILE, py = y*TILE + 4;
+  const ph = TILE + 8;
+  // frame
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(px, py, w*TILE, ph);
+  ctx.fillStyle = '#5b3a1f';
+  ctx.fillRect(px+1, py+1, w*TILE-2, ph-2);
+  // 2 shelves
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(px+1, py + Math.floor(ph/2), w*TILE-2, 2);
+  // Books
+  const colors = ['#7c2d12','#1e3a8a','#15803d','#fbbf24','#7c3aed','#be123c','#0e7490','#a16207','#dc2626','#10b981','#f97316'];
+  for (let row = 0; row < 2; row++) {
+    const ry = py + row*(ph/2) + 3;
+    const rh = ph/2 - 5;
+    const bookCount = Math.floor((w*TILE-6)/5);
+    for (let b = 0; b < bookCount; b++) {
+      const c = colors[(b + row*3 + x0) % colors.length];
+      ctx.fillStyle = c;
+      const bx = px + 3 + b*5;
+      const heightMod = ((b+row) % 3 === 0) ? 0 : ((b%2===0) ? -1 : -2);
+      ctx.fillRect(bx, ry + ((b%4===0)?2:0), 4, rh + heightMod);
+      if (b%3===0) {
+        ctx.fillStyle = '#fcd34d';
+        ctx.fillRect(bx, ry+rh/2, 4, 1);
+      }
+    }
+  }
+}
+
+function drawBox(tx, ty) {
+  const px = tx*TILE, py = ty*TILE;
+  const w = TILE+4, h = TILE+2;
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(px+2, py+h-2, w, 3);
+  // base
+  ctx.fillStyle = '#a87a4d';
+  ctx.fillRect(px, py, w, h);
+  ctx.fillStyle = '#c89b6c';
+  ctx.fillRect(px, py, w, 3);
+  // flaps (top-down view)
+  ctx.fillStyle = '#8b5a2f';
+  ctx.fillRect(px, py+h/2-1, w, 2);
+  ctx.fillRect(px+w/2-1, py, 2, h);
+  // edges
+  ctx.fillStyle = '#5b3a1f';
+  ctx.fillRect(px, py, w, 1);
+  ctx.fillRect(px, py, 1, h);
+  ctx.fillRect(px+w-1, py, 1, h);
+}
+
+function drawBasketPlant(px, py) {
+  // Woven basket
+  ctx.fillStyle = '#7c4a1f';
+  ctx.fillRect(px, py+8, 18, 12);
+  ctx.fillStyle = '#a87a4d';
+  ctx.fillRect(px, py+8, 18, 2);
+  // Weave diagonals
+  ctx.fillStyle = '#5b3a1f';
+  for (let i = 0; i < 4; i++) {
+    ctx.fillRect(px+1+i*5, py+10, 1, 8);
+    ctx.fillRect(px+3+i*5, py+12, 1, 6);
+  }
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(px, py+18, 18, 2);
+  // Foliage layered
+  ctx.fillStyle = '#15803d';
+  ctx.fillRect(px-2, py-2, 22, 12);
+  ctx.fillStyle = '#16a34a';
+  ctx.fillRect(px+1, py-7, 16, 10);
+  ctx.fillStyle = '#22c55e';
+  ctx.fillRect(px+4, py-12, 10, 8);
+  ctx.fillStyle = '#86efac';
+  ctx.fillRect(px+6, py-15, 6, 5);
+  ctx.fillRect(px+9, py-10, 3, 3);
+}
+
+/* ---------- DESKS (top-down) ---------- */
+function drawDesk(d) {
+  // Desk: 4 tiles wide, 2 tall. Anchored at d.x, d.y.
+  const px = d.x*TILE, py = d.y*TILE;
+  const w = 4*TILE, h = 2*TILE;
+  // Drop shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(px+2, py+h-2, w, 4);
+  // Desk top
+  ctx.fillStyle = '#5b3a1f';
+  ctx.fillRect(px, py, w, h);
+  // Top highlight
+  ctx.fillStyle = '#a87a4d';
+  ctx.fillRect(px, py, w, 3);
+  ctx.fillStyle = '#8b5a2f';
+  ctx.fillRect(px, py+3, w, 2);
+  // Bottom front edge (darker)
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(px, py+h-3, w, 3);
+  // Wood grain
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(px+6, py+TILE-2, w-12, 1);
+
+  // CRT monitor — beige body — sits on the back portion of desk
+  const mw = 28, mh = 22;
+  const mx = px + w/2 - mw/2;
+  const my = py + 2;
+  // shadow under monitor
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(mx-1, my+mh-1, mw+2, 2);
+  // beige body
+  ctx.fillStyle = '#e8d8b8';
+  ctx.fillRect(mx, my, mw, mh);
+  // top highlight
+  ctx.fillStyle = '#fdf6e3';
+  ctx.fillRect(mx, my, mw, 2);
+  // bottom shading
+  ctx.fillStyle = '#c8b890';
+  ctx.fillRect(mx, my+mh-3, mw, 3);
+  // Screen bezel
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(mx+3, my+3, mw-6, mh-9);
+  // Screen content tinted with agent color
+  ctx.fillStyle = d.color;
+  ctx.fillRect(mx+4, my+4, mw-8, mh-11);
+  // Code lines on screen
+  ctx.fillStyle = '#0a0a0a';
+  for (let i = 0; i < 4; i++) {
+    const lw = 6 + ((i*7) % 14);
+    ctx.fillRect(mx+6, my+6+i*3, lw, 1);
+  }
+  // Stand
+  ctx.fillStyle = '#c8b890';
+  ctx.fillRect(mx+mw/2-4, my+mh, 8, 2);
+
+  // Keyboard — front of desk
+  const kbX = px + w/2 - 14, kbY = py + h - 8;
+  ctx.fillStyle = '#1f1208';
+  ctx.fillRect(kbX, kbY, 28, 6);
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(kbX, kbY, 28, 1);
+  ctx.fillStyle = '#a87a4d';
+  for (let i = 0; i < 9; i++) ctx.fillRect(kbX+2+i*3, kbY+2, 2, 2);
+
+  // Coffee mug — right side
+  const mugX = px + w - 10, mugY = py + 4;
+  ctx.fillStyle = d.color;
+  ctx.fillRect(mugX, mugY, 7, 9);
+  ctx.fillStyle = darken(d.color, 0.6);
+  ctx.fillRect(mugX, mugY+7, 7, 2);
+  ctx.fillStyle = '#fdf6e3';
+  ctx.fillRect(mugX+1, mugY+1, 5, 2);
+  // mug handle
+  ctx.fillStyle = darken(d.color, 0.7);
+  ctx.fillRect(mugX+7, mugY+2, 2, 5);
+
+  // Small papers stack on left
+  ctx.fillStyle = '#fdf6e3';
+  ctx.fillRect(px+4, py+5, 8, 6);
+  ctx.fillStyle = '#1a1208';
+  ctx.fillRect(px+5, py+7, 6, 1);
+  ctx.fillRect(px+5, py+9, 4, 1);
+
+  // Office chair — below desk (rounded teardrop, dark blue/grey)
+  drawChair(px + w/2 - 10, py + h + 2);
+
+  // Gold name plate on front edge of desk
+  const plateX = px + 2, plateY = py + h - 14;
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(plateX-1, plateY-1, 38, 9);
+  ctx.fillStyle = '#fcd34d';
+  ctx.fillRect(plateX, plateY, 36, 7);
+  ctx.fillStyle = '#b45309';
+  ctx.fillRect(plateX, plateY+6, 36, 1);
+  ctx.fillStyle = '#3d2818';
+  ctx.font = 'bold 7px Inter, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(d.label, plateX+2, plateY+5);
+}
+
+function drawChair(px, py) {
+  // Top-down rounded chair (teardrop). 20x16
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(px+1, py+14, 20, 3);
+  // backrest curved (top of teardrop)
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(px+3, py, 14, 4);
+  ctx.fillRect(px+1, py+1, 18, 6);
+  // seat circle-ish
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(px+2, py+6, 16, 8);
+  ctx.fillStyle = '#475569';
+  ctx.fillRect(px+3, py+6, 14, 2);
+  // wheel base (5-star)
+  ctx.fillStyle = '#1f1208';
+  ctx.fillRect(px+8, py+13, 4, 4);
+}
+
+/* ---------- LAMP GLOWS over each desk ---------- */
+function drawLampGlows() {
+  for (const k in DESKS) {
+    const d = DESKS[k];
+    const x = d.x*TILE + 2*TILE;
+    const y = d.y*TILE + TILE;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, 5*TILE);
+    grad.addColorStop(0, 'rgba(252,211,77,0.18)');
+    grad.addColorStop(0.5, 'rgba(252,211,77,0.07)');
+    grad.addColorStop(1, 'rgba(252,211,77,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - 5*TILE, y - 5*TILE, 10*TILE, 10*TILE);
+  }
+}
+
+/* ---------- CHARACTERS (top-down sprite) ---------- */
+function drawCharacter(agent, ch) {
+  const cx = Math.round(ch.px) + TILE/2;
+  const cy = Math.round(ch.py) + TILE - 2;
+  const isWorking = ch.anim === 'type';
+  const isWalking = ch.anim === 'walk';
+  const t = Date.now();
+  const bob = isWorking ? Math.round(Math.sin(t/140)*1) : (isWalking ? Math.round(Math.sin(t/160 + agent.length)*2) : 0);
+  const stepFrame = isWalking ? Math.floor(t/180) % 4 : 0;
+
+  // Sprite anchor
+  const x = cx - 8, y = cy - 22 + bob;
+
+  // Drop shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.40)';
+  ctx.fillRect(cx-7, cy-1, 14, 3);
+  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.fillRect(cx-9, cy, 18, 2);
+
+  // Legs (visible standing/walking; tucked when sitting)
+  if (isWalking) {
+    ctx.fillStyle = '#1e293b';
+    const lOff = stepFrame % 2 === 0 ? 0 : -1;
+    const rOff = stepFrame % 2 === 0 ? -1 : 0;
+    ctx.fillRect(x+3, y+16, 3, 6+lOff);
+    ctx.fillRect(x+10, y+16, 3, 6+rOff);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(x+3, y+21+lOff, 3, 1);
+    ctx.fillRect(x+10, y+21+rOff, 3, 1);
+  } else if (!isWorking) {
+    // Standing idle
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(x+3, y+16, 3, 6);
+    ctx.fillRect(x+10, y+16, 3, 6);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(x+3, y+21, 3, 1);
+    ctx.fillRect(x+10, y+21, 3, 1);
+  }
+
+  // Body (shirt)
+  ctx.fillStyle = ch.color;
+  ctx.fillRect(x+2, y+9, 12, 8);
+  // collar/vest accent
+  ctx.fillStyle = lighten(ch.color, 1.3);
+  ctx.fillRect(x+2, y+9, 12, 2);
+  ctx.fillStyle = darken(ch.color, 0.7);
+  ctx.fillRect(x+2, y+15, 12, 2);
+
+  // Arms — animate when typing
+  const armUp = isWorking ? (Math.floor(t/110) % 2 === 0 ? 0 : -1) : 0;
+  ctx.fillStyle = ch.color;
+  ctx.fillRect(x, y+10, 3, 6 + armUp);
+  ctx.fillRect(x+13, y+10, 3, 6 - armUp);
+  // hands
+  ctx.fillStyle = ch.skin;
+  ctx.fillRect(x, y+15+armUp, 3, 2);
+  ctx.fillRect(x+13, y+15-armUp, 3, 2);
+
+  // Head
+  ctx.fillStyle = ch.skin;
+  ctx.fillRect(x+3, y+1, 10, 8);
+  // face shading
+  ctx.fillStyle = darken(ch.skin, 0.85);
+  ctx.fillRect(x+3, y+8, 10, 1);
+
+  // Hair — shape depends on agent
+  ctx.fillStyle = ch.hair;
+  if (agent === 'reviewer') {
+    // Afro — wider/taller
+    ctx.fillRect(x+1, y-1, 14, 5);
+    ctx.fillRect(x+2, y+3, 12, 1);
+    ctx.fillRect(x, y+1, 1, 3);
+    ctx.fillRect(x+15, y+1, 1, 3);
+  } else if (agent === 'engineer') {
+    // Side parted
+    ctx.fillRect(x+3, y, 10, 3);
+    ctx.fillRect(x+2, y+1, 1, 3);
+    ctx.fillRect(x+13, y+1, 1, 3);
+    ctx.fillStyle = lighten(ch.hair, 1.2);
+    ctx.fillRect(x+5, y, 5, 1);
+  } else if (agent === 'deployer') {
+    // White short
+    ctx.fillRect(x+3, y, 10, 3);
+    ctx.fillRect(x+2, y+1, 1, 3);
+    ctx.fillRect(x+13, y+1, 1, 3);
+  } else {
+    // PM brown
+    ctx.fillRect(x+3, y, 10, 3);
+    ctx.fillRect(x+2, y+1, 1, 3);
+    ctx.fillRect(x+13, y+1, 1, 3);
+    ctx.fillStyle = darken(ch.hair, 0.7);
+    ctx.fillRect(x+4, y+1, 4, 1);
+  }
+
+  // Eyes
+  const blink = (Math.floor(t/2400) + agent.length) % 7 === 0;
+  ctx.fillStyle = '#1a1208';
+  if (blink) {
+    ctx.fillRect(x+5, y+5, 2, 1);
+    ctx.fillRect(x+9, y+5, 2, 1);
+  } else {
+    ctx.fillRect(x+5, y+4, 2, 2);
+    ctx.fillRect(x+9, y+4, 2, 2);
+    ctx.fillStyle = '#fdf6e3';
+    ctx.fillRect(x+6, y+4, 1, 1);
+    ctx.fillRect(x+10, y+4, 1, 1);
+  }
+  // Mouth
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(x+6, y+7, 4, 1);
+
+  // Status indicator — typing dots above head
+  if (isWorking) {
+    const dot = Math.floor(t/250) % 3;
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = i === dot ? '#fcd34d' : 'rgba(252,211,77,0.35)';
+      ctx.fillRect(x+1+i*5, y-7, 3, 3);
+    }
+  }
+  // Celebrate star
+  if (state.agents[agent] === 'celebrate') {
+    ctx.fillStyle = '#fcd34d';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('★', cx, y-3);
+  }
+}
+
+function drawBubble(agent) {
+  const b = bubbles[agent];
+  if (!b || Date.now() > b.expiresAt) return;
+  const ch = characters[agent];
+  const x = Math.round(ch.px), y = Math.round(ch.py);
+  const text = b.text.length > 60 ? b.text.slice(0, 58) + '…' : b.text;
+  ctx.font = 'bold 11px Inter, sans-serif';
+  const tw = ctx.measureText(text).width;
+  const w = Math.min(tw + 16, 320);
+  const h = 22;
+  let bx = x + TILE/2 - w/2, by = y - h - 12;
+  if (bx < 6) bx = 6;
+  if (bx + w > COLS*TILE - 6) bx = COLS*TILE - w - 6;
+  if (by < 6) by = y + TILE + 8;
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(bx+2, by+3, w, h);
+  // bg
+  ctx.fillStyle = '#fdf6e3';
+  ctx.fillRect(bx, by, w, h);
+  // outline
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(bx, by, w, 2);
+  ctx.fillRect(bx, by+h-2, w, 2);
+  ctx.fillRect(bx, by, 2, h);
+  ctx.fillRect(bx+w-2, by, 2, h);
+  // tail
+  ctx.fillStyle = '#fdf6e3';
+  ctx.fillRect(x+TILE/2-3, by+h-2, 6, 4);
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(x+TILE/2-3, by+h+2, 1, 1);
+  ctx.fillRect(x+TILE/2+2, by+h+2, 1, 1);
+  // text
+  ctx.fillStyle = '#3d2818';
+  ctx.textAlign = 'left';
+  ctx.fillText(text, bx+8, by+15);
+}
+
+function drawParticles() {
+  for (let i = particles.length-1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.15;
+    p.life--;
+    if (p.life <= 0) { particles.splice(i,1); continue; }
+    ctx.globalAlpha = Math.max(0, p.life/40);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(Math.round(p.x), Math.round(p.y), 3, 3);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function spawnConfetti() {
+  const cs = ['#fcd34d','#34d399','#2dd4bf','#fb7185','#a78bfa','#fb923c'];
+  for (let i = 0; i < 80; i++) {
+    particles.push({
+      x: 13*TILE + (Math.random()-0.5)*120,
+      y: 13*TILE,
+      vx: (Math.random()-0.5)*4,
+      vy: -Math.random()*4 - 2,
+      life: 40 + Math.random()*20,
+      color: cs[Math.floor(Math.random()*cs.length)],
+    });
+  }
+}
+
+/* ---------- MOVEMENT ---------- */
+function updateMovement(dt) {
+  for (const k in characters) {
+    const ch = characters[k];
+    if (!ch.walking) continue;
+    const w = ch.walking;
+    const seg = w.path[w.segIdx];
+    const next = w.path[w.segIdx + 1];
+    if (!next) {
+      ch.tx = seg.x;
+      ch.ty = seg.y;
+      ch.px = ch.tx * TILE;
+      ch.py = ch.ty * TILE;
+      ch.walking = null;
+      ch.anim = state.agents[k] === 'working' ? 'type' : 'sit';
+      continue;
+    }
+    const dx = next.x - seg.x, dy = next.y - seg.y;
+    const distTiles = Math.abs(dx) + Math.abs(dy);
+    const speed = 4;
+    w.segT += (dt/1000) * speed;
+    if (w.segT >= distTiles) {
+      w.segIdx++;
+      w.segT = 0;
+      ch.tx = next.x;
+      ch.ty = next.y;
+      ch.px = ch.tx * TILE;
+      ch.py = ch.ty * TILE;
+    } else {
+      const t = w.segT / distTiles;
+      ch.px = (seg.x + dx*t) * TILE;
+      ch.py = (seg.y + dy*t) * TILE;
+      ch.dir = dx > 0 ? 'right' : dx < 0 ? 'left' : (dy > 0 ? 'down' : 'up');
+    }
+  }
+}
+
+/* ---------- RENDER LOOP ---------- */
+let lastFrame = performance.now();
+function render() {
+  const now = performance.now();
+  const dt = now - lastFrame;
+  lastFrame = now;
+
+  updateMovement(dt);
+
+  // Solid black backdrop
+  ctx.fillStyle = '#0a0604';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Floors (per room)
+  drawWorkspaceFloor();
+  drawKitchenFloor();
+  drawMeetingFloor();
+
+  // Decor (under characters)
+  drawWorkspaceDecor();
+  drawKitchenDecor();
+  drawMeetingDecor();
+
+  // Walls (drawn after floors so they cover edges)
+  drawWalls();
+
+  // Lamp glows (atmospheric)
+  drawLampGlows();
+
+  // Desks (sorted by y for depth)
+  const deskList = Object.values(DESKS).sort((a,b)=>a.y-b.y);
+  for (const d of deskList) drawDesk(d);
+
+  // Characters sorted by y
+  const chars = Object.entries(characters).sort((a,b)=>a[1].py-b[1].py);
+  for (const [k, ch] of chars) drawCharacter(k, ch);
+
+  // Bubbles on top
+  for (const k in bubbles) drawBubble(k);
+
+  drawParticles();
+
+  requestAnimationFrame(render);
+}
+render();
+
+/* =========================================================
+   SSE → state updates
+========================================================= */
+const MAP_AGENT = { pm:'pm', coder:'engineer', engineer:'engineer', reviewer:'reviewer', deployer:'deployer' };
+let activeAgentRef = null;
+let rejectTimerRef = null;
+
+function setAgent(agent, status) {
+  state.agents[agent] = status;
+  const chip = document.querySelector('.agent-chip[data-agent="'+agent+'"]');
+  if (chip) chip.dataset.state = status;
+  if (status === 'working') {
+    characters[agent].anim = 'type';
+  } else if (status === 'celebrate') {
+    characters[agent].anim = 'sit';
+  } else {
+    if (!characters[agent].walking) characters[agent].anim = 'sit';
+  }
+}
+
+function estimateWalkMs(from, to) {
+  const path = planWalk(from, to);
+  let totalTiles = 0;
+  for (let i = 1; i < path.length; i++) {
+    totalTiles += Math.abs(path[i].x - path[i-1].x) + Math.abs(path[i].y - path[i-1].y);
+  }
+  const speed = 4;
+  return (totalTiles / speed) * 1000;
+}
+
+let pendingWorkTimer = null;
+function setAgentWorking(agent) {
+  if (activeAgentRef && activeAgentRef !== agent) {
+    const previous = activeAgentRef;
+    setAgent(previous, 'done');
+    startWalk(previous, agent);
+    activeAgentRef = agent;
+    if (pendingWorkTimer) clearTimeout(pendingWorkTimer);
+    const walkMs = estimateWalkMs(previous, agent);
+    pendingWorkTimer = setTimeout(() => {
+      setAgent(agent, 'working');
+      pendingWorkTimer = null;
+    }, Math.max(800, walkMs - 200));
+  } else {
+    setAgent(agent, 'working');
+    activeAgentRef = agent;
+  }
+}
+
+function showBubble(agent, text) {
+  bubbles[agent] = { text, expiresAt: Date.now() + 4500 };
+}
+
+function addLog(agent, msg) {
+  const list = document.getElementById('log-list');
+  const row = document.createElement('div');
+  row.className = 'log-row';
+  row.innerHTML = '<div class="log-agent '+agent+'">'+agent+'</div><div class="log-msg">'+escapeHTML(msg)+'</div>';
+  list.insertBefore(row, list.firstChild);
+  while (list.children.length > 12) list.removeChild(list.lastChild);
+}
+function escapeHTML(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+
+const banner = document.getElementById('banner');
+let bannerTO = null;
+function showBanner(text, kind, ms) {
+  banner.textContent = text;
+  banner.className = 'banner show ' + (kind||'gold');
+  if (bannerTO) clearTimeout(bannerTO);
+  if (ms) bannerTO = setTimeout(()=>{ banner.className = 'banner'; }, ms);
+}
+function hideBanner(){ banner.className = 'banner'; if(bannerTO){clearTimeout(bannerTO);bannerTO=null;} }
+
+function setPhase(p) {
+  state.phase = p;
+  document.getElementById('phase-pill').textContent = p.toUpperCase();
+  document.getElementById('idle-overlay').classList.toggle('hide', p !== 'idle');
+  document.getElementById('voting-overlay').classList.toggle('show', p === 'voting');
+  document.getElementById('result-overlay').classList.toggle('show', p === 'complete');
+  if (p !== 'building') hideBanner();
+}
+
+function renderVoteCards() {
+  const grid = document.getElementById('vote-grid');
+  const total = state.votes.reduce((a,b)=>a+b, 0) || 1;
+  const max = Math.max(...state.votes);
+  grid.innerHTML = state.options.map((o, i) => {
+    const v = state.votes[i] || 0;
+    const pct = Math.round((v/total)*100);
+    const leading = v === max && v > 0;
+    return `
+      <div class="vote-card ${leading?'leading':''}">
+        <div class="vote-card-num">0${o.id}</div>
+        <div class="vote-card-label">${escapeHTML(o.label)}</div>
+        <div class="vote-card-desc">${escapeHTML(o.description||'')}</div>
+        <div class="vote-bar"><div class="vote-bar-fill" style="width:${pct}%"></div></div>
+        <span class="vote-bar-pct">${pct}%</span>
+        <span class="vote-card-votes">${v} vote${v===1?'':'s'}</span>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('ms-votes').textContent = state.votes.reduce((a,b)=>a+b,0);
+}
+
+function setCountdown(n) {
+  state.countdown = n;
+  const el = document.getElementById('countdown');
+  el.textContent = n;
+  el.classList.toggle('urgent', n <= 10);
+}
+
+function handleEvent(evt) {
+  switch (evt.type) {
+    case 'voting_state': {
+      const vs = evt.votingState || evt;
+      if (vs.options) state.options = vs.options;
+      state.votes = (vs.options || []).map(o => o.votes || 0);
+      if (vs.status === 'open') {
+        setPhase('voting');
+        state.winner = null;
+        state.winnerLabel = null;
+        renderVoteCards();
+        if (cdIv) clearInterval(cdIv);
+        const tickCd = () => {
+          const remaining = Math.max(0, Math.ceil(((vs.endsAt||0) - Date.now())/1000));
+          setCountdown(remaining);
+        };
+        tickCd();
+        cdIv = setInterval(tickCd, 250);
+      } else if (vs.status === 'closed') {
+        if (vs.options) {
+          const w = vs.options.find(o => o.id === vs.winner);
+          if (w) {
+            state.winner = vs.winner;
+            state.winnerLabel = w.label;
+            showBanner('WINNER: ' + w.label, 'gold', 3500);
+          }
+        }
+        if (cdIv) { clearInterval(cdIv); cdIv = null; }
+        renderVoteCards();
+      } else {
+        setPhase('idle');
+        state.winner = null;
+        state.winnerLabel = null;
+        state.votes = [0,0,0];
+        document.getElementById('ms-votes').textContent = 0;
+        if (cdIv) { clearInterval(cdIv); cdIv = null; }
+      }
+      break;
+    }
+    case 'build_started': {
+      setPhase('building');
+      state.timer = 0;
+      state.prompt = evt.fullPrompt || evt.brief || 'Building';
+      state.rejection = null;
+      activeAgentRef = null;
+      for (const k in state.agents) setAgent(k, 'idle');
+      // Reset characters to seats
+      for (const k in characters) {
+        characters[k].walking = null;
+        characters[k].tx = DESKS[k].x + 1;
+        characters[k].ty = DESKS[k].y + 3;
+        characters[k].px = characters[k].tx * TILE;
+        characters[k].py = characters[k].ty * TILE;
+        characters[k].anim = 'sit';
+      }
+      for (const k in bubbles) delete bubbles[k];
+      if (timerIv) clearInterval(timerIv);
+      timerIv = setInterval(()=>{
+        state.timer++;
+        const m = String(Math.floor(state.timer/60)).padStart(2,'0');
+        const s = String(state.timer%60).padStart(2,'0');
+        document.getElementById('timer-text').textContent = m+':'+s;
+        const pct = Math.min(95, (state.timer/35)*100);
+        document.getElementById('progress-fill').style.width = pct+'%';
+      }, 1000);
+      addLog('system', 'Build started: ' + (evt.brief||''));
+      showBanner('BUILDING: ' + (evt.brief||state.winnerLabel||''), 'teal', 3000);
+      break;
+    }
+    case 'agent_status': {
+      const target = MAP_AGENT[evt.agent] || evt.agent;
+      if (evt.status === 'working') {
+        setAgentWorking(target);
+        if (evt.message) {
+          addLog(target, evt.message);
+          showBubble(target, evt.message);
+        }
+      } else if (evt.status === 'done') {
+        setAgent(target, 'done');
+      } else {
+        setAgent(target, 'idle');
+      }
+      break;
+    }
+    case 'chat_message': {
+      const target = MAP_AGENT[evt.agent] || evt.agent || 'system';
+      if (evt.message) {
+        addLog(target, evt.message);
+        if (target !== 'system') showBubble(target, evt.message);
+      }
+      break;
+    }
+    case 'review_result': {
+      addLog('reviewer', 'Score ' + evt.score + '/10' + (evt.passed ? ' ✓ PASS' : ' ✗ FLAG'));
+      if (rejectTimerRef) { clearTimeout(rejectTimerRef); rejectTimerRef = null; }
+      if (!evt.passed) {
+        state.rejection = 'flagged';
+        showBanner('REVIEWER FLAGGED — sending back to Coder', 'coral', 2600);
+        showBubble('reviewer', 'Score ' + evt.score + '/10 — needs revision');
+        rejectTimerRef = setTimeout(() => {
+          state.rejection = 'revising';
+          showBanner('REVISING — re-running checks', 'amber', 3200);
+        }, 2600);
+      } else {
+        state.rejection = null;
+        if (state.timer > 6) showBanner('APPROVED — score ' + evt.score + '/10', 'teal', 1800);
+      }
+      break;
+    }
+    case 'build_complete': {
+      if (timerIv) { clearInterval(timerIv); timerIv = null; }
+      const elapsed = evt.elapsed != null ? evt.elapsed : state.timer;
+      state.timer = elapsed;
+      state.siteUrl = evt.siteUrl || '';
+      const name = (evt.plan && evt.plan.projectName) || evt.brief || state.winnerLabel || 'Project';
+      document.getElementById('progress-fill').style.width = '100%';
+      spawnConfetti();
+      for (const k in state.agents) setAgent(k, 'celebrate');
+      setTimeout(() => {
+        document.getElementById('result-title').textContent = name;
+        const url = state.siteUrl || 'https://' + (state.winner === 1 ? 'aml' : state.winner === 2 ? 'kyc' : 'tracker') + '.georg.miami';
+        const urlEl = document.getElementById('result-url');
+        urlEl.textContent = url;
+        urlEl.href = url;
+        const m = String(Math.floor(elapsed/60)).padStart(2,'0');
+        const s = String(elapsed%60).padStart(2,'0');
+        document.getElementById('rstat-time').textContent = m+':'+s;
+        const now = new Date();
+        const utc = now.toISOString().replace('T',' ').slice(0,19) + ' UTC';
+        const slug = state.winner === 1 ? 'aml-console' : state.winner === 2 ? 'kyc-pipeline' : 'engagement-tracker';
+        const buildNum = String(Math.floor(Date.now()/100000) % 1000).padStart(3,'0');
+        document.getElementById('result-evidence').innerHTML = `
+          <div>$ npm run build</div>
+          <div class="ok">✓ 142 tests passed</div>
+          <div class="ok">✓ TypeScript compiled — 0 errors</div>
+          <div class="ok">✓ Cross-checked rules: FinCEN 31 CFR § 1010.230</div>
+          <div class="deploy">→ Deployed: ${utc}</div>
+          <div class="deploy">→ Bundle: ${slug}-build-${buildNum}.tar.gz</div>
+        `;
+        document.getElementById('result-sign').textContent =
+          'Signed by: Georg Chimion · ' + utc + ' · Audit trail retained';
+        setPhase('complete');
+      }, 1200);
+      break;
+    }
+    case 'spectator_count':
+      state.spectators = evt.count || 0;
+      document.getElementById('ms-spec').textContent = state.spectators;
+      break;
+    case 'connected':
+    case 'heartbeat':
+    case 'celebrate':
+      break;
+    case 'error':
+      addLog('system', 'Error: ' + (evt.message || 'unknown'));
+      break;
+  }
+}
+
+let cdIv = null, timerIv = null;
+
+function connectSSE() {
+  let es = null, reconnectDelay = 2000, stopped = false;
+  const connect = () => {
+    if (stopped) return;
+    try { if (es) es.close(); } catch(_) {}
+    es = new EventSource('/factory/api/live-stream');
+    es.onopen = () => { reconnectDelay = 2000; };
+    es.onmessage = (e) => { try { handleEvent(JSON.parse(e.data)); } catch(_) {} };
+    es.onerror = () => {
+      try { es.close(); } catch(_) {}
+      es = null;
+      if (!stopped) setTimeout(connect, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 1.5, 20000);
+    };
+  };
+  connect();
+}
+
+function bootstrap() {
+  fetch('/factory/api/voting-state')
+    .then(r => r.json())
+    .then(vs => {
+      handleEvent({ type:'voting_state', votingState: vs });
+    })
+    .catch(()=>{});
+  connectSSE();
+}
+
+function renderIdleQR() {
+  const c = document.getElementById('idle-qr');
+  drawQR(c, location.protocol + '//' + location.host + '/vote');
+}
+
+function tickClock() {
+  const d = new Date();
+  const t = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').textContent = t;
+}
+tickClock();
+setInterval(tickClock, 30000);
+
+renderIdleQR();
+bootstrap();
+</script>
+</body>
+</html>

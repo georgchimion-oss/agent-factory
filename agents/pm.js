@@ -134,16 +134,12 @@ RESPONSE STYLE:
 
         this.log(`Processing message: "${message}"`);
 
-        const response = await this.anthropic.messages.create({
-            model: this.model,
-            max_tokens: 500,
-            system: this.chatPrompt,
-            messages: this.conversationHistory,
-        });
+        // Build conversation into a single prompt for claude -p
+        const historyText = this.conversationHistory
+            .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+            .join('\n\n');
 
-        await this.trackUsage(`factory_${this.id}_chat`, response, null);
-
-        const text = response.content[0].text;
+        const text = await this.callClaude(historyText, { systemPrompt: this.chatPrompt });
         this.log(`Chat response: ${text}`);
 
         // Add assistant response to history

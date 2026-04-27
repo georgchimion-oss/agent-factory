@@ -1,0 +1,3139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#1E3A8A" />
+<title>Aegis AML Console — Transaction Monitoring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@1,18,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink:        #0B1220;
+    --ink-2:      #1A2436;
+    --muted:      #5C6577;
+    --muted-2:    #8590A2;
+    --line:       #E5E8EE;
+    --line-2:     #EEF1F5;
+    --paper:      #FBFBF8;
+    --paper-2:    #FFFFFF;
+    --tint:       #F4F6FA;
+    --accent:     #1E3A8A;
+    --accent-2:   #2952C8;
+    --accent-3:   #DDE4F3;
+    --green:      #047857;
+    --green-tint: #E6F4EE;
+    --amber:      #B25E09;
+    --amber-tint: #FBEFD9;
+    --red:        #B42318;
+    --red-tint:   #FBE7E4;
+    --crimson:    #7A0E13;
+    --crimson-tint:#F0D4D2;
+    --shadow-sm:  0 1px 0 rgba(11,18,32,.04), 0 1px 2px rgba(11,18,32,.04);
+    --shadow-md:  0 1px 0 rgba(11,18,32,.04), 0 8px 24px -12px rgba(11,18,32,.18);
+    --radius:     6px;
+    --radius-lg:  10px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    color: var(--ink);
+    background:
+      radial-gradient(1200px 600px at 20% -10%, rgba(30,58,138,.05), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, rgba(30,58,138,.04), transparent 60%),
+      var(--paper);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    line-height: 1.45;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* === Numerics === */
+  .mono, .num {
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    font-feature-settings: 'tnum' 1, 'zero' 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.005em;
+  }
+  .num-lg {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  /* ============================ HEADER ============================ */
+  .topbar {
+    position: sticky; top: 0; z-index: 40;
+    background: rgba(251,251,248,.92);
+    backdrop-filter: saturate(160%) blur(8px);
+    -webkit-backdrop-filter: saturate(160%) blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar-inner {
+    max-width: 1480px; margin: 0 auto;
+    padding: 14px 28px;
+    display: flex; align-items: center; gap: 24px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .crest {
+    width: 30px; height: 30px;
+    border-radius: 7px;
+    background: var(--accent);
+    color: #fff;
+    display: grid; place-items: center;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    font-size: 14px;
+    box-shadow: inset 0 -1px 0 rgba(0,0,0,.18), 0 1px 0 rgba(11,18,32,.08);
+    position: relative;
+  }
+  .crest::after {
+    content: ''; position: absolute; inset: 4px;
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 4px;
+  }
+  .brand-name {
+    font-family: 'Newsreader', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 19px;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .brand-name b {
+    font-family: 'Inter', sans-serif;
+    font-style: normal;
+    font-weight: 700;
+    margin-right: 2px;
+  }
+  .brand-tag {
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .live-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 10px 5px 9px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #16A34A;
+    box-shadow: 0 0 0 0 rgba(22,163,74,.55);
+    animation: pulse 1.6s ease-out infinite;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(22,163,74,.55); }
+    70%  { box-shadow: 0 0 0 8px rgba(22,163,74,0); }
+    100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); }
+  }
+
+  .ctx-meta {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 18px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .ctx-meta .ctx { display: flex; align-items: center; gap: 6px; }
+  .ctx-meta .ctx span:first-child {
+    color: var(--muted-2);
+    text-transform: uppercase; letter-spacing: .1em;
+    font-size: 10.5px; font-weight: 600;
+  }
+  .ctx-meta .ctx span:last-child { color: var(--ink-2); font-weight: 500; }
+  .clock { font-feature-settings: 'tnum' 1; }
+
+  .user-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 10px 5px 5px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+  }
+  .user-chip .avatar {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(135deg, #1E3A8A, #5B7BD8);
+    color: #fff; font-size: 10px; font-weight: 700;
+    display: grid; place-items: center;
+    letter-spacing: 0;
+  }
+  .user-chip span { font-size: 12px; font-weight: 500; color: var(--ink-2); }
+
+  /* ============================ SUBNAV ============================ */
+  .subnav {
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .subnav-inner {
+    max-width: 1480px; margin: 0 auto;
+    padding: 0 28px;
+    display: flex; align-items: stretch; gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .subnav-inner::-webkit-scrollbar { display: none; }
+  .subnav a {
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 13px; font-weight: 500;
+    padding: 14px 14px;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color .15s ease, border-color .15s ease;
+  }
+  .subnav a.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .subnav a:hover { color: var(--ink); }
+  .subnav .spacer { flex: 1; }
+  .subnav .compliance-tags {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing: .04em;
+  }
+  .compliance-tags .tag {
+    padding: 3px 7px;
+    background: var(--tint);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+
+  /* ============================ FILTERS ============================ */
+  .filters {
+    max-width: 1480px; margin: 0 auto;
+    padding: 18px 28px 0;
+    display: flex; flex-wrap: wrap; gap: 8px;
+    align-items: center;
+  }
+  .filter-label {
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    font-size: 12px;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: all .12s ease;
+  }
+  .chip:hover { border-color: var(--ink-2); background: #F4F6FA; }
+  .chip:active { transform: scale(0.97); }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .chip.is-on {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .chip.is-on:hover { background: var(--accent-2); border-color: var(--accent-2); }
+  .chip .caret {
+    width: 8px; height: 8px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg) translate(-1px,-1px);
+    opacity: .6;
+  }
+  .chip.is-on .caret { opacity: .9; }
+
+  .filter-count {
+    margin-left: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .02em;
+  }
+  .region-pill {
+    margin-left: 8px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px 4px 8px;
+    border: 1px solid var(--accent-3);
+    background: #F4F7FD;
+    border-radius: 999px;
+    font-size: 11.5px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .region-pill[hidden] { display: none; }
+  .region-pill .x {
+    cursor: pointer;
+    color: var(--accent);
+    opacity: .6;
+    font-weight: 700;
+    margin-left: 2px;
+  }
+  .region-pill .x:hover { opacity: 1; }
+
+  /* Region highlight on feed rows */
+  .feed-table tbody tr.region-hit {
+    background: #FFF7E6;
+    box-shadow: inset 3px 0 0 #B25E09;
+  }
+  .feed-table tbody tr.region-hit:hover { background: #FCEFCC; }
+
+  /* Filtered-out rows */
+  .feed-table tbody tr.is-hidden { display: none; }
+
+  /* Fade-out animation for cleared rows */
+  @keyframes rowOut {
+    0%   { opacity: 1; transform: translateX(0); max-height: 60px; }
+    60%  { opacity: 0; transform: translateX(20px); max-height: 60px; }
+    100% { opacity: 0; transform: translateX(20px); max-height: 0; padding-top: 0; padding-bottom: 0; }
+  }
+  .feed-table tbody tr.removing { animation: rowOut .55s ease forwards; pointer-events: none; }
+  .feed-table tbody tr.removing td { transition: padding .3s ease; }
+
+  /* SAR badge variant */
+  .badge.b-sar {
+    color: #fff;
+    background: var(--crimson);
+    border-color: var(--crimson);
+    text-transform: none;
+    letter-spacing: .02em;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .badge.b-sar::before { background: #fff; }
+
+  /* Paused indicator near feed header */
+  .paused-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--amber-tint);
+    color: var(--amber);
+    border: 1px solid #F2DCAA;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-left: 8px;
+  }
+  .paused-pill[hidden] { display: none; }
+  .paused-pill::before {
+    content: '';
+    width: 6px; height: 8px;
+    border-left: 2px solid currentColor;
+    border-right: 2px solid currentColor;
+    display: inline-block;
+  }
+
+  /* Recent decisions log */
+  .decisions {
+    border-top: 1px solid var(--line-2);
+    background: #FBFCFE;
+    padding: 10px 18px 12px;
+    max-height: 124px;
+    overflow-y: auto;
+  }
+  .decisions-h {
+    font-size: 10.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .decisions-h .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted-2);
+    letter-spacing: .02em;
+    text-transform: none;
+    font-weight: 500;
+  }
+  .decisions-list {
+    display: flex; flex-direction: column; gap: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+  .decisions-list:empty::before {
+    content: 'No decisions yet — open a transaction and click Mark cleared or Escalate to SAR.';
+    font-family: 'Inter', sans-serif;
+    font-size: 11.5px;
+    color: var(--muted-2);
+    font-style: italic;
+  }
+  .decision {
+    display: flex; gap: 8px; align-items: center;
+    padding: 2px 0;
+  }
+  .decision .d-ts { color: var(--muted-2); }
+  .decision .d-act-cleared { color: var(--green); font-weight: 600; }
+  .decision .d-act-sar { color: var(--crimson); font-weight: 600; }
+  .decision .d-id { color: var(--ink); }
+  .decision .d-tail { color: var(--muted); }
+
+  /* ============================ MAIN GRID ============================ */
+  .main {
+    max-width: 1480px; margin: 0 auto;
+    padding: 18px 28px 56px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  /* === KPI === */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .kpi {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px 16px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .kpi::after {
+    content: ''; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  .kpi:hover::after { opacity: 1; }
+  .kpi-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .kpi-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .kpi-delta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .kpi-delta.up   { color: var(--green); background: var(--green-tint); }
+  .kpi-delta.down { color: var(--red);   background: var(--red-tint); }
+  .kpi-delta.flat { color: var(--muted); background: var(--tint); }
+
+  .kpi-value {
+    display: flex; align-items: baseline; gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 30px; font-weight: 500;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+  .kpi-value .unit {
+    font-size: 13px; color: var(--muted-2);
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+  .kpi-foot {
+    margin-top: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .spark { width: 84px; height: 22px; }
+
+  /* === Layout: feed / right column === */
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .panel {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex; align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line-2);
+    gap: 12px;
+  }
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+  }
+  .panel-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .02em;
+  }
+  .panel-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .ghost-btn {
+    background: none; border: 1px solid var(--line);
+    color: var(--ink-2);
+    padding: 5px 10px; border-radius: 6px;
+    font-size: 11.5px; font-weight: 500;
+    cursor: pointer;
+    transition: all .12s ease;
+    font-family: 'Inter', sans-serif;
+  }
+  .ghost-btn:hover { border-color: var(--ink-2); background: var(--tint); }
+  .ghost-btn:active { transform: scale(0.98); }
+  .ghost-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ghost-btn.is-primary {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .ghost-btn.is-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+
+  /* === Feed table === */
+  .feed-wrap {
+    max-height: 640px;
+    overflow-y: auto;
+  }
+
+  /* === Always-visible custom scrollbars === */
+  html { scrollbar-color: rgba(11,18,32,.28) rgba(11,18,32,.05); scrollbar-width: thin; }
+  body::-webkit-scrollbar,
+  .feed-wrap::-webkit-scrollbar,
+  .drill-body::-webkit-scrollbar,
+  .alerts-list::-webkit-scrollbar,
+  .scrollable-container::-webkit-scrollbar {
+    width: 10px; height: 10px;
+    display: block !important;
+    -webkit-appearance: none;
+  }
+  body::-webkit-scrollbar-track,
+  .feed-wrap::-webkit-scrollbar-track,
+  .drill-body::-webkit-scrollbar-track,
+  .alerts-list::-webkit-scrollbar-track,
+  .scrollable-container::-webkit-scrollbar-track {
+    background: rgba(11,18,32,.04);
+    border-radius: 99px;
+  }
+  body::-webkit-scrollbar-thumb,
+  .feed-wrap::-webkit-scrollbar-thumb,
+  .drill-body::-webkit-scrollbar-thumb,
+  .alerts-list::-webkit-scrollbar-thumb,
+  .scrollable-container::-webkit-scrollbar-thumb {
+    background: rgba(11,18,32,.28);
+    border-radius: 99px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  body::-webkit-scrollbar-thumb:hover,
+  .feed-wrap::-webkit-scrollbar-thumb:hover,
+  .drill-body::-webkit-scrollbar-thumb:hover,
+  .alerts-list::-webkit-scrollbar-thumb:hover,
+  .scrollable-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(11,18,32,.5);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+  }
+  .feed-wrap, .drill-body, .alerts-list {
+    scrollbar-color: rgba(11,18,32,.28) rgba(11,18,32,.05);
+    scrollbar-width: thin;
+  }
+
+  .feed-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  .feed-table thead th {
+    position: sticky; top: 0;
+    background: #FBFCFE;
+    border-bottom: 1px solid var(--line);
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    text-align: left;
+    padding: 10px 14px;
+    z-index: 2;
+  }
+  .feed-table thead th:last-child { text-align: right; padding-right: 18px; }
+  .feed-table thead th:nth-child(4) { text-align: right; }
+  .feed-table thead th:nth-child(5) { text-align: right; }
+
+  .feed-table tbody tr {
+    border-bottom: 1px solid var(--line-2);
+    transition: background .12s ease;
+    cursor: pointer;
+  }
+  .feed-table tbody tr:hover { background: #F8FAFE; }
+  .feed-table tbody tr.is-active { background: #EEF3FC; }
+
+  .feed-table td {
+    padding: 11px 14px;
+    vertical-align: middle;
+  }
+  .feed-table td:last-child { text-align: right; padding-right: 18px; }
+
+  .ts {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--muted-2);
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  .party { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .party-name {
+    font-weight: 500; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 200px;
+  }
+  .party-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted-2);
+    letter-spacing: .02em;
+  }
+  .arrow {
+    color: var(--muted-2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 0 2px;
+  }
+
+  .amt {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    color: var(--ink);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .amt .ccy {
+    color: var(--muted-2);
+    font-weight: 400;
+    margin-left: 4px;
+    font-size: 10.5px;
+  }
+
+  /* Risk score cell */
+  .risk-cell {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .risk-bar-wrap {
+    width: 56px; height: 5px;
+    background: var(--line-2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .risk-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width .35s ease;
+  }
+  .risk-low    .risk-bar { background: #16A34A; }
+  .risk-mid    .risk-bar { background: #B25E09; }
+  .risk-high   .risk-bar { background: #B42318; }
+  .risk-crit   .risk-bar { background: #7A0E13; }
+  .risk-cell.risk-low .score    { color: #047857; }
+  .risk-cell.risk-mid .score    { color: #B25E09; }
+  .risk-cell.risk-high .score   { color: #B42318; }
+  .risk-cell.risk-crit .score   { color: #7A0E13; }
+
+  /* Status badge */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px 3px 7px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    font-family: 'Inter', sans-serif;
+  }
+  .badge::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+  .b-cleared    { color: var(--green);  background: var(--green-tint);   border-color: #BFE0CE; }
+  .b-reviewing  { color: var(--amber);  background: var(--amber-tint);   border-color: #F2DCAA; }
+  .b-escalated  { color: var(--red);    background: var(--red-tint);     border-color: #F2C8C2; }
+  .b-frozen     { color: var(--crimson);background: var(--crimson-tint); border-color: #E0B0AD; }
+
+  /* Slide-in for new rows */
+  @keyframes rowIn {
+    from { opacity: 0; transform: translateY(-6px); background: #EEF3FC; }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  tr.fresh { animation: rowIn .55s ease; }
+  tr.fresh td:first-child { position: relative; }
+  tr.fresh td:first-child::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 2px; background: var(--accent);
+    animation: fadeOut 2.4s ease forwards;
+  }
+  @keyframes fadeOut { to { opacity: 0; } }
+
+  /* === Right column === */
+  .right-col { display: flex; flex-direction: column; gap: 18px; }
+
+  /* Risk distribution */
+  .hist {
+    padding: 16px 18px 18px;
+  }
+  .hist-meta {
+    display: flex; align-items: baseline; gap: 14px;
+    margin-bottom: 14px;
+  }
+  .hist-headline {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px; font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+  .hist-sub {
+    font-size: 11.5px; color: var(--muted);
+  }
+  .hist-svg { width: 100%; height: 130px; display: block; }
+  .hist-axis {
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted-2);
+    margin-top: 6px;
+    letter-spacing: .03em;
+  }
+  .hist-legend {
+    display: flex; gap: 14px; margin-top: 12px;
+    font-size: 11px; color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .legend-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 2px; margin-right: 5px; vertical-align: middle;
+  }
+
+  /* Alerts */
+  .alerts-list { display: flex; flex-direction: column; }
+  .alert-row {
+    display: grid;
+    grid-template-columns: 26px 1fr auto;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--line-2);
+    align-items: center;
+  }
+  .alert-row:last-child { border-bottom: none; }
+  .alert-row:hover { background: #FBFCFE; }
+  .alert-icn {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    display: grid; place-items: center;
+    background: var(--red-tint);
+    color: var(--red);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 600;
+  }
+  .alert-row.sev-crit .alert-icn { background: var(--crimson-tint); color: var(--crimson); }
+  .alert-row.sev-mid .alert-icn  { background: var(--amber-tint); color: var(--amber); }
+
+  .alert-rule {
+    font-size: 12.5px; font-weight: 600; color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .alert-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: .01em;
+  }
+  .alert-meta .dot { margin: 0 6px; opacity: .5; }
+
+  .alert-cta {
+    font-size: 11px; font-weight: 600;
+    color: var(--accent);
+    background: none; border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 4px 8px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-family: 'Inter', sans-serif;
+    transition: all .12s ease;
+  }
+  .alert-cta:hover { color: var(--accent-2); background: var(--accent-3); border-color: var(--accent-3); }
+  .alert-cta:active { transform: scale(0.97); }
+  .alert-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .alert-row { transition: background .12s ease; cursor: default; }
+
+  /* Geo map */
+  .geo {
+    padding: 14px 18px 18px;
+  }
+  .geo-svg {
+    width: 100%; height: 240px;
+    display: block;
+  }
+  .geo-svg .ctry {
+    fill: #EEF1F5;
+    stroke: #DEE3EC;
+    stroke-width: .6;
+    transition: fill .2s ease;
+  }
+  .geo-svg .ctry:hover { fill: #E2E8F2; }
+  .geo-dot { cursor: pointer; }
+  .geo-dot:hover circle:first-child { transform: scale(1.4); transform-origin: center; }
+  .geo-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .subnav a { cursor: pointer; }
+  .subnav a:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+  .kpi { cursor: default; transition: transform .15s ease, box-shadow .15s ease; }
+  .kpi:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .user-chip { cursor: pointer; transition: all .12s ease; }
+  .user-chip:hover { border-color: var(--ink-2); background: var(--tint); }
+  .user-chip:active { transform: scale(0.98); }
+  button { font-family: inherit; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .geo-grat {
+    stroke: #E5E8EE;
+    stroke-width: .35;
+    fill: none;
+    opacity: .8;
+  }
+  .geo-dot {
+    transform-origin: center;
+    animation: dotPulse 2.4s ease-in-out infinite;
+  }
+  .geo-dot circle:first-child { opacity: .85; }
+  .geo-dot.r-low circle:first-child  { fill: #16A34A; }
+  .geo-dot.r-mid circle:first-child  { fill: #B25E09; }
+  .geo-dot.r-high circle:first-child { fill: #B42318; }
+  .geo-dot.r-crit circle:first-child { fill: #7A0E13; }
+  .geo-dot circle:last-child {
+    fill: none; stroke: currentColor; stroke-width: 1;
+    opacity: .35;
+    animation: ringPulse 2.4s ease-out infinite;
+  }
+  @keyframes dotPulse {
+    0%,100% { opacity: 1; }
+    50%     { opacity: .55; }
+  }
+  @keyframes ringPulse {
+    0%   { r: 4; opacity: .55; }
+    100% { r: 14; opacity: 0; }
+  }
+  .geo-legend {
+    display: flex; gap: 14px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .geo-legend .lg-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block; margin-right: 5px; vertical-align: middle;
+  }
+
+  /* ============================ DRILL-DOWN PANEL ============================ */
+  .scrim {
+    position: fixed; inset: 0;
+    background: rgba(11,18,32,.32);
+    backdrop-filter: blur(2px);
+    z-index: 80;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+  }
+  .scrim.is-open { opacity: 1; pointer-events: auto; }
+
+  .drill {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 480px;
+    max-width: 100vw;
+    background: #FFF;
+    border-left: 1px solid var(--line);
+    box-shadow: -32px 0 64px -32px rgba(11,18,32,.18);
+    z-index: 90;
+    transform: translateX(100%);
+    transition: transform .28s cubic-bezier(.2,.8,.2,1);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .drill.is-open { transform: translateX(0); }
+
+  .drill-head {
+    padding: 16px 22px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: flex-start;
+    gap: 14px;
+  }
+  .drill-id-row { flex: 1; min-width: 0; }
+  .drill-eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .04em;
+  }
+  .drill-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin: 4px 0 6px;
+  }
+  .drill-sub {
+    font-size: 12px; color: var(--muted);
+  }
+  .drill-close {
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: #fff;
+    cursor: pointer;
+    color: var(--ink-2);
+    display: grid; place-items: center;
+    font-size: 14px;
+  }
+  .drill-close:hover { border-color: var(--ink-2); background: var(--tint); }
+  .drill-close:active { transform: scale(0.95); }
+  .drill-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .drill-body {
+    flex: 1; overflow-y: auto;
+    padding: 4px 0 96px;
+  }
+  .dl-section { padding: 16px 22px; border-bottom: 1px solid var(--line-2); }
+  .dl-h {
+    font-size: 10.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .dl-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+  }
+  .dl-item .k {
+    font-size: 10.5px;
+    color: var(--muted-2);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 3px;
+  }
+  .dl-item .v {
+    font-size: 13px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .dl-item .v.mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 12.5px;
+  }
+
+  .pattern-list { display: flex; flex-direction: column; gap: 8px; }
+  .pattern {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .pattern .ptag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    padding: 2px 6px;
+    background: var(--tint);
+    border-radius: 4px;
+    color: var(--ink-2);
+  }
+  .pattern .pmeta {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .reco {
+    padding: 14px;
+    background: linear-gradient(180deg, #F4F7FD, #FBFCFE);
+    border: 1px solid var(--accent-3);
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+  .reco strong { color: var(--accent); }
+
+  .drill-actions {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: #fff;
+    border-top: 1px solid var(--line);
+    padding: 14px 22px;
+    display: flex; gap: 8px;
+  }
+  .drill-actions .ghost-btn { flex: 1; padding: 10px 12px; font-size: 12.5px; font-weight: 600; }
+  .ghost-btn.is-danger {
+    background: var(--red);
+    color: #fff;
+    border-color: var(--red);
+  }
+  .ghost-btn.is-danger:hover { background: #921C13; border-color: #921C13; }
+  .ghost-btn.is-cleared {
+    background: #fff;
+    color: var(--green);
+    border-color: #BFE0CE;
+  }
+  .ghost-btn.is-cleared:hover { background: var(--green-tint); }
+
+  /* Footer */
+  .footer {
+    max-width: 1480px; margin: 0 auto;
+    padding: 20px 28px 30px;
+    display: flex; gap: 18px; flex-wrap: wrap;
+    align-items: center;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .footer .mono { font-size: 11px; }
+  .footer .sep { opacity: .35; }
+
+  /* ============================ RESPONSIVE ============================ */
+  @media (max-width: 1180px) {
+    .layout { grid-template-columns: 1fr; }
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 760px) {
+    .topbar-inner { padding: 12px 16px; gap: 12px; flex-wrap: wrap; }
+    .ctx-meta { display: none; }
+    .user-chip { margin-left: auto; }
+    .subnav-inner { padding: 0 16px; }
+    .subnav .compliance-tags { display: none; }
+    .filters { padding: 14px 16px 0; }
+    .main { padding: 14px 16px 32px; gap: 14px; }
+    .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .kpi { padding: 14px 14px 12px; }
+    .kpi-value { font-size: 22px; }
+    .spark { width: 60px; }
+    .panel-head { padding: 12px 14px; }
+    .panel-title { font-size: 12.5px; }
+    .feed-table { font-size: 11.5px; }
+    .feed-table thead th { padding: 8px 10px; font-size: 9.5px; }
+    .feed-table td { padding: 9px 10px; }
+    .feed-table .col-hide-sm { display: none; }
+    .party-name { max-width: 110px; }
+    .ts { font-size: 10.5px; }
+    .risk-bar-wrap { width: 36px; }
+    .drill { width: 100vw; }
+    .drill-head { padding: 14px 16px; }
+    .dl-section { padding: 14px 16px; }
+    .drill-actions { padding: 12px 16px; }
+    .footer { padding: 16px 16px 24px; gap: 10px; font-size: 10.5px; }
+    .geo-svg { height: 180px; }
+    .hist-headline { font-size: 22px; }
+  }
+  @media (max-width: 420px) {
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+    .kpi-value { font-size: 20px; }
+    .feed-table .col-hide-xs { display: none; }
+    .badge { font-size: 9.5px; padding: 2px 7px 2px 5px; }
+    .filter-label { display: none; }
+  }
+
+/* ============================================================
+   PROJECTOR READABILITY — bump small text at 1920px+ for big screens
+   ============================================================ */
+@media (min-width: 1920px) {
+  html { font-size: 17px; }
+  table, tbody, td, th { font-size: 14.5px !important; }
+  .pill, .chip, .badge, .tag, [class*="label"], [class*="-pct"],
+  [class*="-time"], [class*="-count"], [class*="-id"], [class*="status"],
+  .meta, .small, .tid, .ts, .who, .stamp { font-size: 13.5px !important; }
+  .feed-table td, .feed-table th, .queue td, .audit td { font-size: 14px !important; }
+}
+
+/* ============================================================
+   MULTI-VIEW SUPPORT — view containers and per-view styling
+   ============================================================ */
+.view { display: none; }
+.view.is-visible { display: block; }
+.view-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  flex-wrap: wrap; gap: 14px;
+  padding: 4px 0 4px;
+  margin-bottom: -4px;
+}
+.view-head h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.view-head h1 .view-eyebrow {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.view-head .view-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Generic data table reused across views */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.data-table thead th {
+  position: sticky; top: 0;
+  background: #FBFCFE;
+  border-bottom: 1px solid var(--line);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  text-align: left;
+  padding: 10px 14px;
+  z-index: 2;
+}
+.data-table tbody tr {
+  border-bottom: 1px solid var(--line-2);
+  transition: background .12s ease;
+}
+.data-table tbody tr:hover { background: #F8FAFE; }
+.data-table td {
+  padding: 11px 14px;
+  vertical-align: middle;
+  color: var(--ink);
+}
+.data-table td.num, .data-table th.num {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.data-table .row-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--muted-2);
+  letter-spacing: .02em;
+}
+
+/* Status badges shared */
+.badge.b-drafting   { color: #5C6577; background: #EEF1F5; border-color: #DEE3EC; }
+.badge.b-review     { color: var(--amber); background: var(--amber-tint); border-color: #F2DCAA; }
+.badge.b-filed      { color: var(--accent); background: var(--accent-3); border-color: #C8D3EE; }
+.badge.b-approved   { color: var(--green); background: var(--green-tint); border-color: #BFE0CE; }
+.badge.b-active     { color: var(--green); background: var(--green-tint); border-color: #BFE0CE; }
+.badge.b-tuning     { color: var(--amber); background: var(--amber-tint); border-color: #F2DCAA; }
+.badge.b-disabled   { color: var(--muted); background: #EEF1F5; border-color: #DEE3EC; }
+.badge.b-tier1      { color: var(--green); background: var(--green-tint); border-color: #BFE0CE; }
+.badge.b-tier2      { color: var(--amber); background: var(--amber-tint); border-color: #F2DCAA; }
+.badge.b-tier3      { color: var(--red); background: var(--red-tint); border-color: #F2C8C2; }
+.badge.b-tier4      { color: var(--crimson); background: var(--crimson-tint); border-color: #E0B0AD; }
+
+/* Cases — inline expand */
+.cases-table tbody tr.case-row { cursor: pointer; }
+.cases-table tbody tr.case-row.is-open { background: #EEF3FC; }
+.case-detail-row td {
+  background: #FBFCFE;
+  padding: 0;
+}
+.case-detail {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  padding: 16px 18px;
+  border-top: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #F4F7FD, #FBFCFE);
+}
+.case-detail .dl-item .k {
+  font-size: 10.5px;
+  color: var(--muted-2);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: 3px;
+}
+.case-detail .dl-item .v { font-size: 12.5px; color: var(--ink); font-weight: 500; }
+.case-detail .dl-item .v.mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.case-detail .dl-narrative {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+/* Counterparties tier filter */
+.tier-filter {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--muted);
+}
+.tier-filter .chip { font-size: 11.5px; padding: 4px 10px; }
+
+/* SAR Workbench kanban */
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.kanban-col {
+  background: #FBFCFE;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  display: flex; flex-direction: column;
+  min-height: 360px;
+}
+.kanban-col-h {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line-2);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.kanban-col-h .count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 1px 7px;
+  border-radius: 999px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.kanban-col-body {
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+  flex: 1;
+}
+.sar-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 12px 10px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.sar-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); border-color: var(--accent-3); }
+.sar-card-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: .02em;
+  margin-bottom: 4px;
+}
+.sar-card-cust {
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  margin-bottom: 6px;
+}
+.sar-card-foot {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.sar-card.due-soon { border-left: 3px solid var(--red); padding-left: 9px; }
+.sar-card.due-soon .sar-card-foot .due { color: var(--red); font-weight: 600; }
+
+/* Toggle switch (rules) */
+.toggle {
+  position: relative;
+  width: 30px; height: 16px;
+  background: var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s ease;
+  border: none; padding: 0;
+  display: inline-block; vertical-align: middle;
+}
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .15s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+.toggle.is-on { background: var(--accent); }
+.toggle.is-on::after { transform: translateX(14px); }
+
+/* Audit log */
+.audit-stream { display: flex; flex-direction: column; }
+.audit-row {
+  display: grid;
+  grid-template-columns: 130px 110px 130px 1fr 160px;
+  gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line-2);
+  font-size: 12px;
+  align-items: center;
+}
+.audit-row:hover { background: #FBFCFE; }
+.audit-row .a-ts { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted-2); }
+.audit-row .a-actor {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-2);
+  background: var(--tint);
+  border: 1px solid var(--line);
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+.audit-row .a-actor.system { color: var(--accent); background: var(--accent-3); border-color: #C8D3EE; }
+.audit-row .a-actor.agent  { color: var(--crimson); background: var(--crimson-tint); border-color: #E0B0AD; }
+.audit-row .a-evt {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.audit-row .a-detail { color: var(--ink-2); font-size: 12px; }
+.audit-row .a-hash {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--muted-2);
+  text-align: right;
+  letter-spacing: 0;
+}
+.audit-row.is-hidden { display: none; }
+
+/* Alerts view: full-width */
+.alerts-view-list { display: flex; flex-direction: column; }
+.alerts-view-list .alert-row { padding: 14px 22px; }
+.alerts-view-list .alert-row .ack-btn {
+  font-size: 11px; font-weight: 600;
+  color: var(--accent);
+  background: #fff; border: 1px solid var(--accent-3);
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 6px 12px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  font-family: 'Inter', sans-serif;
+  transition: all .12s ease;
+}
+.alerts-view-list .alert-row .ack-btn:hover { background: var(--accent); color: #fff; }
+.alerts-view-list .alert-row .ack-btn:disabled { opacity: .45; cursor: default; background: #fff; color: var(--muted); border-color: var(--line); }
+.alerts-view-list .alert-row.is-acked { opacity: .55; }
+.alerts-view-list .alert-row.is-acked .alert-rule { text-decoration: line-through; }
+.alerts-view-list .alert-row .alert-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+/* Per-view KPI strip */
+.kpi-row.compact { grid-template-columns: repeat(4, 1fr); }
+.kpi-row.compact .kpi { padding: 14px 16px 12px; }
+.kpi-row.compact .kpi-value { font-size: 24px; }
+
+/* Responsive */
+@media (max-width: 1180px) {
+  .case-detail { grid-template-columns: repeat(2, 1fr); }
+  .kanban { grid-template-columns: 1fr; }
+  .audit-row { grid-template-columns: 100px 90px 110px 1fr; }
+  .audit-row .a-hash { display: none; }
+  .kpi-row.compact { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 760px) {
+  .view-head h1 { font-size: 18px; }
+  .case-detail { grid-template-columns: 1fr 1fr; padding: 12px; gap: 10px; }
+  .audit-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 10px 16px;
+  }
+  .audit-row .a-actor { justify-self: start; }
+  .data-table { font-size: 11.5px; }
+  .data-table thead th { padding: 8px 10px; font-size: 9.5px; }
+  .data-table td { padding: 9px 10px; }
+  .data-table .col-hide-sm { display: none; }
+  .alerts-view-list .alert-row { padding: 12px 14px; }
+  .sar-card-cust { font-size: 12.5px; }
+}
+@media (min-width: 1920px) {
+  .data-table td, .data-table th { font-size: 14.5px !important; }
+  .audit-row { font-size: 14px !important; }
+  .audit-row .a-ts, .audit-row .a-actor, .audit-row .a-evt, .audit-row .a-hash { font-size: 13.5px !important; }
+  .sar-card-cust { font-size: 15px; }
+  .view-head h1 { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================ TOP BAR ============================ -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="crest">A</div>
+      <div>
+        <div class="brand-name"><b>AEGIS</b><i>Console</i></div>
+        <div class="brand-tag">AML / Transaction Surveillance</div>
+      </div>
+    </div>
+
+    <div class="live-pill">
+      <span class="live-dot"></span>
+      Monitoring
+    </div>
+
+    <div class="ctx-meta">
+      <div class="ctx"><span>Org</span><span>Coinbase Global, Inc.</span></div>
+      <div class="ctx"><span>Desk</span><span>Financial Crime — NA</span></div>
+      <div class="ctx"><span>UTC</span><span class="mono clock" id="clock">14:23:07</span></div>
+    </div>
+
+    <div class="user-chip">
+      <div class="avatar">GC</div>
+      <span>G. Chimion</span>
+    </div>
+  </div>
+
+  <nav class="subnav">
+    <div class="subnav-inner">
+      <a href="#" class="active" data-view="surveillance">Surveillance</a>
+      <a href="#" data-view="cases">Cases</a>
+      <a href="#" data-view="alerts">Alerts</a>
+      <a href="#" data-view="counterparties">Counterparties</a>
+      <a href="#" data-view="sar">SAR Workbench</a>
+      <a href="#" data-view="rules">Rules &amp; Models</a>
+      <a href="#" data-view="audit">Audit Log</a>
+      <div class="spacer"></div>
+      <div class="compliance-tags">
+        <span class="tag">FinCEN 31 CFR 1010</span>
+        <span class="tag">OFAC SDN</span>
+        <span class="tag">SAR / CTR</span>
+        <span class="tag">BSA</span>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<!-- ============================ SURVEILLANCE VIEW ============================ -->
+<section class="view is-visible" data-view="surveillance">
+
+<!-- ============================ FILTERS ============================ -->
+<section class="filters" id="filters">
+  <span class="filter-label">Filter</span>
+  <button class="chip" data-filter="risk-high" title="Hide rows with risk score &lt; 70">High risk only</button>
+  <button class="chip" data-filter="risk-crit" title="Critical only (risk &ge; 90)">Critical only</button>
+  <button class="chip" data-filter="ccy-usd" title="USD currency only">USD only</button>
+  <button class="chip" data-filter="type-crypto" title="Crypto rails only">Crypto only</button>
+  <button class="chip" data-filter="type-wire" title="Wire rails only">Wire only</button>
+  <button class="chip" data-filter="status-escalated" title="Escalated &amp; frozen only">Escalated &amp; frozen</button>
+  <button class="chip" data-filter="amount-10k" title="Amount &gt; USD 10,000 equivalent">Amount &gt; 10k</button>
+  <span id="filter-count" class="filter-count"></span>
+  <span id="region-pill" class="region-pill" hidden></span>
+</section>
+
+<!-- ============================ MAIN ============================ -->
+<main class="main">
+
+  <!-- KPI ROW -->
+  <section class="kpi-row" aria-label="Key indicators">
+    <div class="kpi">
+      <div class="kpi-head">
+        <div class="kpi-label">Transactions today</div>
+        <div class="kpi-delta up">+4.8%</div>
+      </div>
+      <div class="kpi-value"><span class="num-lg" id="kpi-tx">12,847</span></div>
+      <div class="kpi-foot">
+        <span>vs yesterday</span>
+        <svg class="spark" viewBox="0 0 84 22" preserveAspectRatio="none" aria-hidden="true">
+          <polyline fill="none" stroke="#1E3A8A" stroke-width="1.5"
+            points="0,16 8,14 16,15 24,11 32,12 40,8 48,9 56,5 64,7 72,4 84,2" />
+        </svg>
+      </div>
+    </div>
+
+    <div class="kpi">
+      <div class="kpi-head">
+        <div class="kpi-label">High-risk flagged</div>
+        <div class="kpi-delta up" style="background:var(--red-tint);color:var(--red);">+3</div>
+      </div>
+      <div class="kpi-value"><span class="num-lg" id="kpi-hr">23</span></div>
+      <div class="kpi-foot">
+        <span>score &ge; 70</span>
+        <svg class="spark" viewBox="0 0 84 22" preserveAspectRatio="none" aria-hidden="true">
+          <polyline fill="none" stroke="#B42318" stroke-width="1.5"
+            points="0,18 8,17 16,15 24,16 32,12 40,13 48,10 56,11 64,7 72,8 84,4" />
+        </svg>
+      </div>
+    </div>
+
+    <div class="kpi">
+      <div class="kpi-head">
+        <div class="kpi-label">SARs in review</div>
+        <div class="kpi-delta flat">&plusmn;0</div>
+      </div>
+      <div class="kpi-value"><span class="num-lg" id="kpi-sar">7</span></div>
+      <div class="kpi-foot">
+        <span>median age 2.3d</span>
+        <svg class="spark" viewBox="0 0 84 22" preserveAspectRatio="none" aria-hidden="true">
+          <polyline fill="none" stroke="#5C6577" stroke-width="1.5"
+            points="0,12 8,11 16,13 24,12 32,11 40,12 48,11 56,12 64,11 72,12 84,11" />
+        </svg>
+      </div>
+    </div>
+
+    <div class="kpi">
+      <div class="kpi-head">
+        <div class="kpi-label">Avg analyst response</div>
+        <div class="kpi-delta down" style="background:var(--green-tint);color:var(--green);">-18s</div>
+      </div>
+      <div class="kpi-value"><span class="num-lg" id="kpi-rt">4m 12s</span></div>
+      <div class="kpi-foot">
+        <span>SLA 6m 00s</span>
+        <svg class="spark" viewBox="0 0 84 22" preserveAspectRatio="none" aria-hidden="true">
+          <polyline fill="none" stroke="#047857" stroke-width="1.5"
+            points="0,6 8,8 16,7 24,9 32,8 40,11 48,10 56,12 64,11 72,14 84,15" />
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- LAYOUT: feed + right column -->
+  <section class="layout">
+
+    <!-- LIVE FEED -->
+    <div class="panel">
+      <div class="panel-head">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div>
+            <div class="panel-title">Live transaction feed</div>
+            <div class="panel-sub" id="feed-meta">streaming &middot; window 00:00 — 14:23:07Z</div>
+          </div>
+          <span id="paused-pill" class="paused-pill" hidden>Paused at <span id="paused-time" style="margin-left:4px"></span></span>
+        </div>
+        <div class="panel-actions">
+          <button class="ghost-btn" id="pause-btn">Pause stream</button>
+          <button class="ghost-btn">Export</button>
+        </div>
+      </div>
+      <div class="feed-wrap">
+        <table class="feed-table" aria-label="Live transactions">
+          <thead>
+            <tr>
+              <th>Timestamp (UTC)</th>
+              <th>Sender</th>
+              <th class="col-hide-sm">Recipient</th>
+              <th>Amount</th>
+              <th class="col-hide-xs">Risk</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="feed-body"><!-- rows injected --></tbody>
+        </table>
+      </div>
+      <div class="decisions" aria-label="Recent analyst decisions">
+        <div class="decisions-h">Recent decisions <span class="count" id="decisions-count">0</span></div>
+        <div class="decisions-list" id="decisions-list"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="right-col">
+
+      <!-- Risk distribution -->
+      <div class="panel hist">
+        <div class="panel-head" style="padding:0 0 12px;border:none;">
+          <div>
+            <div class="panel-title">Risk distribution</div>
+            <div class="panel-sub">Last 1h &middot; bucket size 10</div>
+          </div>
+        </div>
+        <div class="hist-meta">
+          <div class="hist-headline" id="hist-total">1,284</div>
+          <div class="hist-sub">transactions scored &middot; <span style="color:var(--red);font-weight:600">96 above 70</span></div>
+        </div>
+        <svg class="hist-svg" id="hist-svg" viewBox="0 0 320 130" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div class="hist-axis">
+          <span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100</span>
+        </div>
+        <div class="hist-legend">
+          <span><span class="legend-dot" style="background:#16A34A"></span>Low (0-39)</span>
+          <span><span class="legend-dot" style="background:#B25E09"></span>Medium (40-69)</span>
+          <span><span class="legend-dot" style="background:#B42318"></span>High (70-89)</span>
+          <span><span class="legend-dot" style="background:#7A0E13"></span>Critical (90+)</span>
+        </div>
+      </div>
+
+      <!-- Active alerts -->
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Active alerts</div>
+            <div class="panel-sub">5 open &middot; rules engine v4.2</div>
+          </div>
+          <div class="panel-actions">
+            <button class="ghost-btn">Triage all</button>
+          </div>
+        </div>
+        <div class="alerts-list" id="alerts-list"><!-- alerts injected --></div>
+      </div>
+
+      <!-- Geo map -->
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Geographic risk</div>
+            <div class="panel-sub">Origin of flagged transactions &middot; last 6h</div>
+          </div>
+        </div>
+        <div class="geo">
+          <svg class="geo-svg" viewBox="0 0 360 200" aria-hidden="true">
+            <!-- Stylized continents (abstract blobs, not geographically precise) -->
+            <g class="continents">
+              <!-- North America -->
+              <path class="ctry" d="M22,46 Q34,28 56,30 Q82,28 96,42 Q108,56 100,78 Q104,92 88,102 Q72,108 60,98 Q44,104 38,90 Q22,82 18,68 Z" />
+              <!-- Central / South America -->
+              <path class="ctry" d="M82,108 Q92,108 96,120 Q102,138 92,156 Q88,172 78,178 Q70,168 74,150 Q72,134 78,122 Z" />
+              <!-- Europe -->
+              <path class="ctry" d="M150,42 Q166,30 184,34 Q200,32 210,42 Q214,54 204,64 Q192,68 178,66 Q162,68 152,58 Z" />
+              <!-- Africa -->
+              <path class="ctry" d="M158,72 Q176,68 192,74 Q204,84 200,104 Q198,124 188,138 Q176,144 168,134 Q160,118 158,100 Z" />
+              <!-- Middle East / Central Asia -->
+              <path class="ctry" d="M210,52 Q230,46 246,52 Q256,62 250,74 Q236,80 220,76 Q210,68 210,58 Z" />
+              <!-- Asia -->
+              <path class="ctry" d="M246,40 Q272,30 296,36 Q318,42 326,58 Q330,76 318,86 Q300,90 282,88 Q264,90 252,80 Q244,66 244,52 Z" />
+              <!-- SE Asia -->
+              <path class="ctry" d="M286,92 Q300,88 308,98 Q310,110 300,114 Q290,112 286,104 Z" />
+              <!-- Australia -->
+              <path class="ctry" d="M298,138 Q318,132 332,140 Q338,152 328,160 Q314,164 304,158 Q296,150 298,142 Z" />
+            </g>
+            <!-- graticules -->
+            <g class="grat">
+              <line class="geo-grat" x1="0" y1="50" x2="360" y2="50"/>
+              <line class="geo-grat" x1="0" y1="100" x2="360" y2="100"/>
+              <line class="geo-grat" x1="0" y1="150" x2="360" y2="150"/>
+              <line class="geo-grat" x1="60" y1="0" x2="60" y2="200"/>
+              <line class="geo-grat" x1="120" y1="0" x2="120" y2="200"/>
+              <line class="geo-grat" x1="180" y1="0" x2="180" y2="200"/>
+              <line class="geo-grat" x1="240" y1="0" x2="240" y2="200"/>
+              <line class="geo-grat" x1="300" y1="0" x2="300" y2="200"/>
+            </g>
+            <!-- Risk dots -->
+            <g id="geo-dots"></g>
+          </svg>
+          <div class="geo-legend">
+            <span><span class="lg-dot" style="background:#16A34A"></span>Low risk origin</span>
+            <span><span class="lg-dot" style="background:#B25E09"></span>Medium</span>
+            <span><span class="lg-dot" style="background:#B42318"></span>High</span>
+            <span><span class="lg-dot" style="background:#7A0E13"></span>Critical / sanctioned</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  </section><!-- /surveillance view -->
+
+  <!-- ============================ CASES VIEW ============================ -->
+  <section class="view" data-view="cases">
+    <div class="view-head">
+      <h1><span class="view-eyebrow">Investigations</span>Active SAR Cases</h1>
+      <div class="view-actions">
+        <button class="ghost-btn">Filter</button>
+        <button class="ghost-btn is-primary">+ New case</button>
+      </div>
+    </div>
+
+    <section class="kpi-row compact" aria-label="Case indicators">
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Open cases</div><div class="kpi-delta up">+2</div></div>
+        <div class="kpi-value"><span class="num-lg">9</span></div>
+        <div class="kpi-foot"><span>across 4 analysts</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Filed (MTD)</div><div class="kpi-delta up">+5</div></div>
+        <div class="kpi-value"><span class="num-lg">23</span></div>
+        <div class="kpi-foot"><span>FinCEN BSA E-Filing</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Median age</div><div class="kpi-delta down" style="background:var(--green-tint);color:var(--green);">-1.2d</div></div>
+        <div class="kpi-value"><span class="num-lg">4.8</span><span class="unit">days</span></div>
+        <div class="kpi-foot"><span>SLA 30d</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Amount in scope</div><div class="kpi-delta up">+12.4%</div></div>
+        <div class="kpi-value"><span class="num-lg">$8.42</span><span class="unit">M</span></div>
+        <div class="kpi-foot"><span>aggregate exposure</span></div>
+      </div>
+    </section>
+
+    <div class="panel" style="margin-top:18px;">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Investigation queue</div>
+          <div class="panel-sub">9 active &middot; sorted by days open</div>
+        </div>
+        <div class="panel-actions">
+          <button class="ghost-btn">Export to BSA E-Filing</button>
+        </div>
+      </div>
+      <table class="data-table cases-table" id="cases-table">
+        <thead>
+          <tr>
+            <th>Case ID</th>
+            <th>Customer</th>
+            <th>Status</th>
+            <th class="num">Amount in scope</th>
+            <th class="num">Days open</th>
+            <th>Lead investigator</th>
+          </tr>
+        </thead>
+        <tbody id="cases-body"><!-- rows injected --></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================ ALERTS VIEW ============================ -->
+  <section class="view" data-view="alerts">
+    <div class="view-head">
+      <h1><span class="view-eyebrow">Rules engine v4.2</span>Active Alerts</h1>
+      <div class="view-actions">
+        <button class="ghost-btn">Filter by rule</button>
+        <button class="ghost-btn" id="ack-all-btn">Acknowledge all</button>
+      </div>
+    </div>
+
+    <section class="kpi-row compact" aria-label="Alert indicators">
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Firing now</div><div class="kpi-delta up" style="background:var(--red-tint);color:var(--red);">+4</div></div>
+        <div class="kpi-value"><span class="num-lg" id="alerts-firing-kpi">12</span></div>
+        <div class="kpi-foot"><span>across 11 rules</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Critical sev</div><div class="kpi-delta flat">&plusmn;0</div></div>
+        <div class="kpi-value"><span class="num-lg">3</span></div>
+        <div class="kpi-foot"><span>OFAC + sanctions</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Acked (24h)</div><div class="kpi-delta up">+18</div></div>
+        <div class="kpi-value"><span class="num-lg" id="alerts-acked-kpi">47</span></div>
+        <div class="kpi-foot"><span>operator-014 leading</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">FP rate</div><div class="kpi-delta down" style="background:var(--green-tint);color:var(--green);">-2.1%</div></div>
+        <div class="kpi-value"><span class="num-lg">14.7</span><span class="unit">%</span></div>
+        <div class="kpi-foot"><span>vs 30d baseline</span></div>
+      </div>
+    </section>
+
+    <div class="panel" style="margin-top:18px;">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">All firing alerts</div>
+          <div class="panel-sub">12 open &middot; window 14:00 &mdash; now</div>
+        </div>
+      </div>
+      <div class="alerts-view-list" id="alerts-view-list"><!-- alerts injected --></div>
+    </div>
+  </section>
+
+  <!-- ============================ COUNTERPARTIES VIEW ============================ -->
+  <section class="view" data-view="counterparties">
+    <div class="view-head">
+      <h1><span class="view-eyebrow">Watchlist &amp; KYC</span>Flagged Counterparties</h1>
+      <div class="view-actions tier-filter" id="cp-tier-filter">
+        <span style="margin-right:6px;">Tier:</span>
+        <button class="chip is-on" data-tier="all">All</button>
+        <button class="chip" data-tier="1">Tier 1</button>
+        <button class="chip" data-tier="2">Tier 2</button>
+        <button class="chip" data-tier="3">Tier 3</button>
+        <button class="chip" data-tier="4">Tier 4</button>
+      </div>
+    </div>
+
+    <section class="kpi-row compact" aria-label="Counterparty indicators">
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Flagged total</div><div class="kpi-delta up">+3</div></div>
+        <div class="kpi-value"><span class="num-lg">12</span></div>
+        <div class="kpi-foot"><span>active watchlist</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Tier 4 (critical)</div><div class="kpi-delta flat">&plusmn;0</div></div>
+        <div class="kpi-value"><span class="num-lg">2</span></div>
+        <div class="kpi-foot"><span>OFAC SDN exposed</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Volume YTD</div><div class="kpi-delta up">+8.4%</div></div>
+        <div class="kpi-value"><span class="num-lg">$184</span><span class="unit">M</span></div>
+        <div class="kpi-foot"><span>aggregate</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">KYC refresh due</div><div class="kpi-delta up" style="background:var(--amber-tint);color:var(--amber);">+5</div></div>
+        <div class="kpi-value"><span class="num-lg">7</span></div>
+        <div class="kpi-foot"><span>within 30d</span></div>
+      </div>
+    </section>
+
+    <div class="panel" style="margin-top:18px;">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Counterparty register</div>
+          <div class="panel-sub" id="cp-meta">12 of 12 visible</div>
+        </div>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Jurisdiction</th>
+            <th>LEI / Identifier</th>
+            <th>Risk tier</th>
+            <th>Last screen</th>
+            <th class="num">Volume YTD</th>
+            <th>Last activity</th>
+          </tr>
+        </thead>
+        <tbody id="cp-body"><!-- rows injected --></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================ SAR WORKBENCH VIEW ============================ -->
+  <section class="view" data-view="sar">
+    <div class="view-head">
+      <h1><span class="view-eyebrow">FinCEN 31 CFR 1020.320</span>SAR Filing Workbench</h1>
+      <div class="view-actions">
+        <button class="ghost-btn">Templates</button>
+        <button class="ghost-btn is-primary">+ New SAR draft</button>
+      </div>
+    </div>
+
+    <section class="kpi-row compact" aria-label="SAR indicators">
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">In progress</div><div class="kpi-delta flat">&plusmn;0</div></div>
+        <div class="kpi-value"><span class="num-lg">11</span></div>
+        <div class="kpi-foot"><span>4 drafting / 4 review / 3 filed</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Due &lt; 7 days</div><div class="kpi-delta up" style="background:var(--red-tint);color:var(--red);">+1</div></div>
+        <div class="kpi-value"><span class="num-lg">3</span></div>
+        <div class="kpi-foot"><span>statutory 30d clock</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Filed YTD</div><div class="kpi-delta up">+11</div></div>
+        <div class="kpi-value"><span class="num-lg">87</span></div>
+        <div class="kpi-foot"><span>BSA E-Filing</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Avg cycle time</div><div class="kpi-delta down" style="background:var(--green-tint);color:var(--green);">-0.6d</div></div>
+        <div class="kpi-value"><span class="num-lg">6.2</span><span class="unit">days</span></div>
+        <div class="kpi-foot"><span>draft &rarr; filed</span></div>
+      </div>
+    </section>
+
+    <div class="panel" style="margin-top:18px;">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Filing queue</div>
+          <div class="panel-sub">drag-equivalent kanban &middot; click a card to open the SAR editor</div>
+        </div>
+      </div>
+      <div style="padding:14px;">
+        <div class="kanban" id="sar-kanban"><!-- columns injected --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ RULES &amp; MODELS VIEW ============================ -->
+  <section class="view" data-view="rules">
+    <div class="view-head">
+      <h1><span class="view-eyebrow">Detection engine v4.2</span>Rules &amp; Models</h1>
+      <div class="view-actions">
+        <button class="ghost-btn">Calibrate all</button>
+        <button class="ghost-btn is-primary">+ New rule</button>
+      </div>
+    </div>
+
+    <section class="kpi-row compact" aria-label="Rule indicators">
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Active rules</div><div class="kpi-delta up">+1</div></div>
+        <div class="kpi-value"><span class="num-lg" id="rules-active-kpi">11</span></div>
+        <div class="kpi-foot"><span>of 14 total</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Hits (24h)</div><div class="kpi-delta up">+18%</div></div>
+        <div class="kpi-value"><span class="num-lg">3,184</span></div>
+        <div class="kpi-foot"><span>across all rules</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Avg FP rate</div><div class="kpi-delta down" style="background:var(--green-tint);color:var(--green);">-1.8%</div></div>
+        <div class="kpi-value"><span class="num-lg">12.4</span><span class="unit">%</span></div>
+        <div class="kpi-foot"><span>after Q1 tuning</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Tuning needed</div><div class="kpi-delta up" style="background:var(--amber-tint);color:var(--amber);">+2</div></div>
+        <div class="kpi-value"><span class="num-lg">3</span></div>
+        <div class="kpi-foot"><span>FP &gt; 25%</span></div>
+      </div>
+    </section>
+
+    <div class="panel" style="margin-top:18px;">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Detection rules</div>
+          <div class="panel-sub">14 rules &middot; BSA / AML / OFAC categories</div>
+        </div>
+      </div>
+      <table class="data-table" id="rules-table">
+        <thead>
+          <tr>
+            <th>Rule ID</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Last calibrated</th>
+            <th class="num">Hit rate</th>
+            <th class="num">FP rate</th>
+            <th style="text-align:right;padding-right:18px;">Toggle</th>
+          </tr>
+        </thead>
+        <tbody id="rules-body"><!-- rows injected --></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================ AUDIT LOG VIEW ============================ -->
+  <section class="view" data-view="audit">
+    <div class="view-head">
+      <h1><span class="view-eyebrow">Tamper-evident chain &middot; SHA-256</span>Audit Log</h1>
+      <div class="view-actions" id="audit-filter">
+        <button class="chip is-on" data-evt="all">All</button>
+        <button class="chip" data-evt="user">User</button>
+        <button class="chip" data-evt="system">System</button>
+        <button class="chip" data-evt="agent">Agent</button>
+      </div>
+    </div>
+
+    <section class="kpi-row compact" aria-label="Audit indicators">
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Events (24h)</div><div class="kpi-delta up">+412</div></div>
+        <div class="kpi-value"><span class="num-lg">8,412</span></div>
+        <div class="kpi-foot"><span>signed &amp; chained</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Operators active</div><div class="kpi-delta flat">&plusmn;0</div></div>
+        <div class="kpi-value"><span class="num-lg">14</span></div>
+        <div class="kpi-foot"><span>across 3 desks</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Agent actions</div><div class="kpi-delta up">+22%</div></div>
+        <div class="kpi-value"><span class="num-lg">1,247</span></div>
+        <div class="kpi-foot"><span>agent-pm + agent-tx</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-head"><div class="kpi-label">Chain integrity</div><div class="kpi-delta up" style="background:var(--green-tint);color:var(--green);">OK</div></div>
+        <div class="kpi-value" style="font-size:18px;"><span class="num-lg">verified</span></div>
+        <div class="kpi-foot"><span>last block 14:23:04</span></div>
+      </div>
+    </section>
+
+    <div class="panel" style="margin-top:18px;">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Event stream</div>
+          <div class="panel-sub" id="audit-meta">last 30 events</div>
+        </div>
+        <div class="panel-actions">
+          <button class="ghost-btn">Export</button>
+        </div>
+      </div>
+      <div class="audit-stream" id="audit-stream"><!-- events injected --></div>
+    </div>
+  </section>
+
+  <div class="footer">
+    <span>Aegis Console &middot; v4.2.118</span>
+    <span class="sep">|</span>
+    <span class="mono">env=prod</span>
+    <span class="sep">|</span>
+    <span class="mono">region=us-east-1</span>
+    <span class="sep">|</span>
+    <span>Data classification: <b style="color:var(--ink-2)">CONFIDENTIAL — INTERNAL USE</b></span>
+    <span class="sep">|</span>
+    <span>Suspicious Activity Report (SAR) workflow aligned to FinCEN 31 CFR 1020.320</span>
+  </div>
+</main>
+
+<!-- ============================ DRILL-DOWN ============================ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drill" id="drill" aria-hidden="true">
+  <div class="drill-head">
+    <div class="drill-id-row">
+      <div class="drill-eyebrow">
+        <span id="drill-id">TX-9F4C-2A81</span>
+        <span style="opacity:.5">|</span>
+        <span id="drill-ts">2026-04-24 14:22:51 UTC</span>
+      </div>
+      <div class="drill-title" id="drill-amount">$ 248,500.00</div>
+      <div class="drill-sub" id="drill-route">Norfolk Holdings Ltd <span style="color:var(--muted-2)"> &rarr; </span> BSC-2847-Wallet</div>
+    </div>
+    <button class="drill-close" id="drill-close" aria-label="Close case">&times;</button>
+  </div>
+
+  <div class="drill-body">
+
+    <div class="dl-section">
+      <div class="dl-h">Risk Assessment</div>
+      <div class="dl-grid">
+        <div class="dl-item"><div class="k">Composite score</div><div class="v mono" id="drill-score">87 / 100</div></div>
+        <div class="dl-item"><div class="k">Status</div><div class="v"><span class="badge b-escalated">Escalated</span></div></div>
+        <div class="dl-item"><div class="k">Triggered rules</div><div class="v">3 active</div></div>
+        <div class="dl-item"><div class="k">Auto-action</div><div class="v">Hold for review</div></div>
+      </div>
+    </div>
+
+    <div class="dl-section">
+      <div class="dl-h">Counterparty Profile — Sender</div>
+      <div class="dl-grid">
+        <div class="dl-item"><div class="k">Legal name</div><div class="v">Norfolk Holdings Ltd</div></div>
+        <div class="dl-item"><div class="k">LEI</div><div class="v mono">529900T8BM49AURSDO55</div></div>
+        <div class="dl-item"><div class="k">Jurisdiction</div><div class="v">British Virgin Islands</div></div>
+        <div class="dl-item"><div class="k">KYC tier</div><div class="v">Tier 2 &middot; refresh 14d</div></div>
+        <div class="dl-item"><div class="k">PEP exposure</div><div class="v" style="color:var(--amber)">Indirect (UBO)</div></div>
+        <div class="dl-item"><div class="k">SDN match</div><div class="v" style="color:var(--green)">No match</div></div>
+      </div>
+    </div>
+
+    <div class="dl-section">
+      <div class="dl-h">Pattern Match — Last 30 days</div>
+      <div class="pattern-list">
+        <div class="pattern">
+          <span class="ptag">SMURF</span>
+          <div>5 deposits below $10k threshold across 48h</div>
+          <span class="pmeta">+87% sim</span>
+        </div>
+        <div class="pattern">
+          <span class="ptag">VELO</span>
+          <div>Counterparty network grew 3.2&times; in 7d</div>
+          <span class="pmeta">+62% sim</span>
+        </div>
+        <div class="pattern">
+          <span class="ptag">RND</span>
+          <div>Round-amount cluster (USD 25k, 50k, 100k)</div>
+          <span class="pmeta">+41% sim</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-section">
+      <div class="dl-h">Recommended Action</div>
+      <div class="reco">
+        <strong>Escalate to SAR.</strong> Composite score of 87 combined with structuring pattern (5 sub-CTR deposits) and on-chain destination tagged in 2 prior cases triggers <b>FinCEN 31 CFR 1020.320(a)(2)</b>. Initiate SAR within 30 days; consider 314(b) information sharing with counterparty institution.
+      </div>
+    </div>
+
+  </div>
+
+  <div class="drill-actions">
+    <button class="ghost-btn is-cleared" id="btn-mark-cleared">Mark cleared</button>
+    <button class="ghost-btn is-danger" id="btn-escalate-sar">Escalate to SAR</button>
+  </div>
+</aside>
+
+<!-- ============================ TOAST ============================ -->
+<div id="demoToast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(140%);transition:transform .3s cubic-bezier(.2,.8,.2,1);background:#1E3A8A;color:#fff;padding:12px 20px;border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:9999;pointer-events:none;max-width:520px;text-align:center;"></div>
+
+<script>
+/* ====================================================================
+   Aegis AML Console — synthetic, deterministic-feeling demo data
+   ==================================================================== */
+
+/* Toast notification system */
+function demoToast(msg){
+  const t = document.getElementById('demoToast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>{
+    t.style.transform = 'translateX(-50%) translateY(140%)';
+  }, 2200);
+}
+
+const SENDERS = [
+  ['Norfolk Holdings Ltd',          'LEI 5299..DO55', 'corp'],
+  ['Maria Santos',                  'IBAN ES91..2178', 'ind'],
+  ['Cayman Capital Trust',          'LEI 9845..KH22', 'corp'],
+  ['BSC-2847-Wallet',               '0x4f8b..a92c',   'wallet'],
+  ['ATLAS Bank, Frankfurt',         'BIC ATLDEFFXXX', 'bank'],
+  ['Pemberton & Co. LLP',           'GIIN 7H4..K11',  'corp'],
+  ['Kwame Adjei',                   'GH-A4..29',      'ind'],
+  ['HALCYON Trading Ltd',           'LEI 8845..LZ91', 'corp'],
+  ['BTC-3K9F-Wallet',               'bc1q..f8h',      'wallet'],
+  ['Rho Industries Pte',            'SG-UEN 201..8K', 'corp'],
+  ['Ivanov Logistics OOO',          'INN 7704..118',  'corp'],
+  ['Yuki Tanaka',                   'JP-MIZUHO..217', 'ind'],
+  ['Banco Atlantico SA',            'BIC BAATESBB',   'bank'],
+  ['ZENITH MarketMakers Ltd',       'LEI 5481..PR03', 'corp'],
+  ['ETH-7B12-Wallet',               '0x9d2e..b417',   'wallet'],
+  ['Luna Beltran',                  'MX-CLABE..924',  'ind'],
+  ['Northwind Resource Co.',        'LEI 7732..MW88', 'corp'],
+  ['First Pacific Holdings',        'LEI 9120..RC44', 'corp'],
+];
+const RECIPIENTS = [
+  ['BSC-2847-Wallet',          '0x4f8b..a92c',   'wallet'],
+  ['Coinbase Custody Trust',   'NY DFS-LIC',     'bank'],
+  ['ATLAS Bank, Frankfurt',    'BIC ATLDEFFXXX', 'bank'],
+  ['First Pacific Holdings',   'LEI 9120..RC44', 'corp'],
+  ['BTC-3K9F-Wallet',          'bc1q..f8h',      'wallet'],
+  ['Marcus Whelan',            'US-RT 0260..91', 'ind'],
+  ['Phoenix Bullion Pte',      'SG-UEN 199..3C', 'corp'],
+  ['ETH-7B12-Wallet',          '0x9d2e..b417',   'wallet'],
+  ['Banco Atlantico SA',       'BIC BAATESBB',   'bank'],
+  ['Cayman Capital Trust',     'LEI 9845..KH22', 'corp'],
+  ['XRP-RPL2-Wallet',          'rPL2..k29',      'wallet'],
+  ['Hannelore Weiss',          'DE-IBAN..7841',  'ind'],
+  ['Sigma Reinsurance Ltd',    'LEI 4421..UG02', 'corp'],
+];
+const CCY = [
+  ['USD', '$',  'fiat'],
+  ['EUR', '\u20AC', 'fiat'],
+  ['GBP', '\u00A3', 'fiat'],
+  ['BTC', '\u20BF', 'crypto'],
+  ['USDT','\u20AE', 'crypto'],
+  ['ETH', '\u039E', 'crypto'],
+];
+const STATUS = ['cleared','reviewing','escalated','frozen'];
+
+/* === seed initial rows === */
+function fmtMoney(amt, ccy) {
+  if (ccy === 'BTC' || ccy === 'ETH') {
+    return amt.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+  }
+  return amt.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+function pad(n){return n<10?'0'+n:''+n;}
+function fmtTime(d){
+  return pad(d.getUTCHours())+':'+pad(d.getUTCMinutes())+':'+pad(d.getUTCSeconds());
+}
+function fmtDate(d){
+  return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate())+' '+fmtTime(d)+' UTC';
+}
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function rand(min,max){ return Math.random()*(max-min)+min; }
+function randi(min,max){ return Math.floor(rand(min,max+1)); }
+
+// Regions used by geo map filtering
+const REGIONS = ['New York','Miami','London','Frankfurt','Moscow region','West Africa','UAE','Tokyo','Hong Kong','Jakarta','Sydney','Cayman Islands','Brazil','Berlin'];
+
+// Map currency / wallet prefix into a "type" used by chip filter
+function txType(ccy, sender, recipient) {
+  if (ccy[2] === 'crypto') return 'crypto';
+  // wallet senders/recipients also count as crypto
+  if (sender[2] === 'wallet' || recipient[2] === 'wallet') return 'crypto';
+  // banks → wire, individuals → ach, corps → wire (rough)
+  if (sender[2] === 'bank' || recipient[2] === 'bank') return 'wire';
+  if (sender[2] === 'ind' || recipient[2] === 'ind') return 'ach';
+  return 'wire';
+}
+
+function genTx(t) {
+  const sender = pick(SENDERS);
+  const recipient = pick(RECIPIENTS);
+  const ccy = pick(CCY);
+  let amount;
+  if (ccy[0] === 'BTC') amount = rand(0.05, 12);
+  else if (ccy[0] === 'ETH') amount = rand(0.5, 80);
+  else amount = Math.round(rand(800, 280000) / 50) * 50 + Math.random() * 0.99;
+  // Risk score with bias
+  const r = Math.random();
+  let risk;
+  if (r < 0.55) risk = randi(5, 39);
+  else if (r < 0.85) risk = randi(40, 69);
+  else if (r < 0.97) risk = randi(70, 89);
+  else risk = randi(90, 99);
+  let status;
+  if (risk >= 90) status = Math.random()<0.55 ? 'frozen' : 'escalated';
+  else if (risk >= 70) status = Math.random()<0.55 ? 'escalated' : 'reviewing';
+  else if (risk >= 40) status = Math.random()<0.5 ? 'reviewing' : 'cleared';
+  else status = 'cleared';
+  const id = 'TX-' + Math.random().toString(16).slice(2,6).toUpperCase() + '-' + Math.random().toString(16).slice(2,6).toUpperCase();
+  const region = pick(REGIONS);
+  const type = txType(ccy, sender, recipient);
+  // Approx USD value for "amount > 10k" filter
+  let amountUSD;
+  if (ccy[0] === 'BTC') amountUSD = amount * 65000;
+  else if (ccy[0] === 'ETH') amountUSD = amount * 3300;
+  else if (ccy[0] === 'USDT') amountUSD = amount;
+  else if (ccy[0] === 'EUR') amountUSD = amount * 1.08;
+  else if (ccy[0] === 'GBP') amountUSD = amount * 1.27;
+  else amountUSD = amount;
+  return { t, id, sender, recipient, ccy, amount, risk, status, region, type, amountUSD };
+}
+
+function riskClass(r) {
+  if (r >= 90) return 'risk-crit';
+  if (r >= 70) return 'risk-high';
+  if (r >= 40) return 'risk-mid';
+  return 'risk-low';
+}
+
+function rowHtml(tx) {
+  const rcls = riskClass(tx.risk);
+  return `
+    <tr data-id="${tx.id}" data-region="${tx.region}" data-type="${tx.type}" data-ccy="${tx.ccy[0]}" data-risk="${tx.risk}" data-status="${tx.status}" data-amount-usd="${tx.amountUSD.toFixed(2)}" data-tx='${JSON.stringify(tx).replace(/'/g,'&apos;')}'>
+      <td><span class="ts">${fmtTime(tx.t)}<span style="color:#C9CFDA"> &middot; </span>${tx.id}</span></td>
+      <td>
+        <div class="party">
+          <span class="party-name">${tx.sender[0]}</span>
+          <span class="party-meta">${tx.sender[1]}</span>
+        </div>
+      </td>
+      <td class="col-hide-sm">
+        <div class="party">
+          <span class="party-name"><span class="arrow">&rarr;</span>${tx.recipient[0]}</span>
+          <span class="party-meta">${tx.recipient[1]}</span>
+        </div>
+      </td>
+      <td class="amt">
+        ${tx.ccy[1]}${fmtMoney(tx.amount, tx.ccy[0])}
+        <span class="ccy">${tx.ccy[0]}</span>
+      </td>
+      <td class="col-hide-xs">
+        <span class="risk-cell ${rcls}">
+          <span class="risk-bar-wrap"><span class="risk-bar" style="width:${tx.risk}%"></span></span>
+          <span class="score">${tx.risk}</span>
+        </span>
+      </td>
+      <td>
+        <span class="badge b-${tx.status}">${tx.status}</span>
+      </td>
+    </tr>`;
+}
+
+const feedBody = document.getElementById('feed-body');
+const feedMeta = document.getElementById('feed-meta');
+let feedRows = [];
+let paused = false;
+const MAX_ROWS = 22;
+
+function seedFeed() {
+  const now = new Date();
+  for (let i = MAX_ROWS - 1; i >= 0; i--) {
+    const t = new Date(now.getTime() - i * (1500 + Math.random()*1500));
+    feedRows.push(genTx(t));
+  }
+  feedBody.innerHTML = feedRows.map(rowHtml).join('');
+  bindRowClicks();
+}
+
+function pushTx() {
+  if (paused) return;
+  const tx = genTx(new Date());
+  feedRows.unshift(tx);
+  if (feedRows.length > MAX_ROWS) feedRows.pop();
+  // Insert
+  const wrapper = document.createElement('tbody');
+  wrapper.innerHTML = rowHtml(tx);
+  const newRow = wrapper.firstElementChild;
+  newRow.classList.add('fresh');
+  feedBody.insertBefore(newRow, feedBody.firstChild);
+  // Remove last if too many
+  while (feedBody.children.length > MAX_ROWS) {
+    feedBody.removeChild(feedBody.lastChild);
+  }
+  bindRowClicks();
+  // Apply current filters to the freshly inserted row (and update count)
+  applyFilters();
+  // If a region highlight is sticky, re-apply to new row
+  applyRegionHighlight();
+  // Update window header
+  feedMeta.textContent = 'streaming \u00B7 window 00:00 \u2014 ' + fmtTime(tx.t) + 'Z';
+  // Tick KPIs
+  tickKpi(tx);
+}
+
+/* ============== Row click -> drill ============== */
+const drill = document.getElementById('drill');
+const scrim = document.getElementById('scrim');
+let currentDrillTx = null;
+function openDrill(tx) {
+  currentDrillTx = tx;
+  document.getElementById('drill-id').textContent = tx.id;
+  document.getElementById('drill-ts').textContent = fmtDate(tx.t);
+  document.getElementById('drill-amount').textContent = tx.ccy[1] + fmtMoney(tx.amount, tx.ccy[0]) + ' ' + tx.ccy[0];
+  document.getElementById('drill-route').innerHTML =
+    `${tx.sender[0]} <span style="color:var(--muted-2)"> &rarr; </span> ${tx.recipient[0]}`;
+  document.getElementById('drill-score').textContent = tx.risk + ' / 100';
+  // Update status badge in drill
+  const statusBadge = drill.querySelector('.dl-section .badge');
+  if (tx.status === 'sar' && tx.sarId) {
+    statusBadge.className = 'badge b-sar';
+    statusBadge.textContent = tx.sarId;
+  } else {
+    statusBadge.className = 'badge b-' + tx.status;
+    statusBadge.textContent = tx.status;
+  }
+  // If this drill came from an alert, swap the recommendation block to alert-specific copy
+  const recoEl = drill.querySelector('.reco');
+  if (recoEl) {
+    if (tx._alert) {
+      recoEl.innerHTML = `<strong>${tx._alert.rule}.</strong> ${tx._alert.reco}`;
+    } else {
+      recoEl.innerHTML = `<strong>Escalate to SAR.</strong> Composite score of ${tx.risk} combined with structuring pattern (5 sub-CTR deposits) and on-chain destination tagged in 2 prior cases triggers <b>FinCEN 31 CFR 1020.320(a)(2)</b>. Initiate SAR within 30 days; consider 314(b) information sharing with counterparty institution.`;
+    }
+  }
+  drill.classList.add('is-open');
+  scrim.classList.add('is-open');
+  drill.setAttribute('aria-hidden', 'false');
+  // Mark active row
+  document.querySelectorAll('#feed-body tr.is-active').forEach(r=>r.classList.remove('is-active'));
+  const row = document.querySelector(`#feed-body tr[data-id="${CSS.escape(tx.id)}"]`);
+  if (row) row.classList.add('is-active');
+}
+function closeDrill() {
+  drill.classList.remove('is-open');
+  scrim.classList.remove('is-open');
+  drill.setAttribute('aria-hidden', 'true');
+  document.querySelectorAll('#feed-body tr.is-active').forEach(r=>r.classList.remove('is-active'));
+}
+document.getElementById('drill-close').addEventListener('click', closeDrill);
+scrim.addEventListener('click', closeDrill);
+document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeDrill(); });
+
+function bindRowClicks() {
+  document.querySelectorAll('#feed-body tr').forEach(tr => {
+    if (tr.__bound) return;
+    tr.__bound = true;
+    tr.addEventListener('click', () => {
+      try {
+        const txData = tr.getAttribute('data-tx').replace(/&apos;/g, "'");
+        const tx = JSON.parse(txData);
+        // restore Date
+        tx.t = new Date(tx.t);
+        openDrill(tx);
+      } catch (err) { /* swallow */ }
+    });
+  });
+}
+
+/* ============== Pause/resume ============== */
+const pausedPill = document.getElementById('paused-pill');
+const pausedTime = document.getElementById('paused-time');
+document.getElementById('pause-btn').addEventListener('click', function(){
+  paused = !paused;
+  this.textContent = paused ? 'Resume stream' : 'Pause stream';
+  this.classList.toggle('is-primary', paused);
+  if (paused) {
+    pausedTime.textContent = fmtTime(new Date());
+    pausedPill.hidden = false;
+  } else {
+    pausedPill.hidden = true;
+  }
+});
+
+/* ============== Filter chips — REAL filtering ============== */
+const activeFilters = new Set();
+const filterCountEl = document.getElementById('filter-count');
+
+function rowMatchesFilters(tr) {
+  if (activeFilters.size === 0) return true;
+  const risk    = parseInt(tr.dataset.risk, 10);
+  const ccy     = tr.dataset.ccy;
+  const type    = tr.dataset.type;
+  const status  = tr.dataset.status;
+  const amtUSD  = parseFloat(tr.dataset.amountUsd);
+  for (const f of activeFilters) {
+    if (f === 'risk-high'        && !(risk >= 70)) return false;
+    if (f === 'risk-crit'        && !(risk >= 90)) return false;
+    if (f === 'ccy-usd'          && ccy !== 'USD') return false;
+    if (f === 'type-crypto'      && type !== 'crypto') return false;
+    if (f === 'type-wire'        && type !== 'wire') return false;
+    if (f === 'status-escalated' && !(status === 'escalated' || status === 'frozen' || status === 'sar')) return false;
+    if (f === 'amount-10k'       && !(amtUSD > 10000)) return false;
+  }
+  return true;
+}
+function applyFilters() {
+  const rows = document.querySelectorAll('#feed-body tr');
+  let visible = 0;
+  rows.forEach(tr => {
+    const match = rowMatchesFilters(tr);
+    tr.classList.toggle('is-hidden', !match);
+    if (match) visible += 1;
+  });
+  if (activeFilters.size === 0) {
+    filterCountEl.textContent = '';
+  } else {
+    filterCountEl.textContent = visible + ' of ' + rows.length + ' visible';
+  }
+}
+document.querySelectorAll('#filters .chip').forEach(c=>{
+  c.addEventListener('click', ()=>{
+    const f = c.dataset.filter;
+    if (activeFilters.has(f)) {
+      activeFilters.delete(f);
+      c.classList.remove('is-on');
+    } else {
+      activeFilters.add(f);
+      c.classList.add('is-on');
+    }
+    applyFilters();
+  });
+});
+
+/* ============== Drill action buttons — REAL state changes ============== */
+const decisionsList   = document.getElementById('decisions-list');
+const decisionsCount  = document.getElementById('decisions-count');
+let decisionsTotal = 0;
+function appendDecision(action, tx, extra) {
+  decisionsTotal += 1;
+  decisionsCount.textContent = decisionsTotal;
+  const ts = fmtTime(new Date());
+  const cls = action === 'cleared' ? 'd-act-cleared' : 'd-act-sar';
+  const verb = action === 'cleared' ? 'CLEARED' : 'SAR';
+  const el = document.createElement('div');
+  el.className = 'decision';
+  el.innerHTML =
+    `<span class="d-ts">${ts}</span>` +
+    `<span class="${cls}">${verb}</span>` +
+    `<span class="d-id">${tx.id}</span>` +
+    `<span class="d-tail">${tx.sender[0]} \u2192 ${tx.recipient[0]}` +
+    (extra ? ` \u00B7 ${extra}` : '') + `</span>`;
+  decisionsList.insertBefore(el, decisionsList.firstChild);
+  // Cap the list so it doesn't grow unbounded
+  while (decisionsList.children.length > 30) decisionsList.removeChild(decisionsList.lastChild);
+}
+
+function nextSarId(){
+  const n = 1000 + Math.floor(Math.random()*9000);
+  return 'SAR-2026-04-' + n;
+}
+
+function findFeedRow(id) {
+  return document.querySelector(`#feed-body tr[data-id="${CSS.escape(id)}"]`);
+}
+
+document.getElementById('btn-mark-cleared').addEventListener('click', ()=>{
+  if (!currentDrillTx) { closeDrill(); return; }
+  const tx = currentDrillTx;
+  const row = findFeedRow(tx.id);
+  appendDecision('cleared', tx);
+  if (row) {
+    // Decrement high-risk KPI if applicable
+    const wasHighRisk = parseInt(row.dataset.risk, 10) >= 70;
+    row.classList.add('removing');
+    setTimeout(()=>{
+      if (row.parentNode) row.parentNode.removeChild(row);
+      // Drop from feedRows model so it doesn't re-render or affect filters
+      feedRows = feedRows.filter(r => r.id !== tx.id);
+      applyFilters();
+    }, 560);
+    if (wasHighRisk && kpiState.hr > 0) {
+      kpiState.hr -= 1;
+      elHr.textContent = kpiState.hr.toLocaleString('en-US');
+    }
+  }
+  closeDrill();
+});
+
+document.getElementById('btn-escalate-sar').addEventListener('click', ()=>{
+  if (!currentDrillTx) { closeDrill(); return; }
+  const tx = currentDrillTx;
+  const sarId = nextSarId();
+  // Update KPI
+  kpiState.sar += 1;
+  elSar.textContent = kpiState.sar.toLocaleString('en-US');
+  // Update SAR delta from flat to up
+  const sarDelta = elSar.closest('.kpi').querySelector('.kpi-delta');
+  if (sarDelta) {
+    sarDelta.classList.remove('flat');
+    sarDelta.classList.add('up');
+    sarDelta.style.background = 'var(--crimson-tint)';
+    sarDelta.style.color = 'var(--crimson)';
+    sarDelta.textContent = '+' + (kpiState.sar - 7);
+  }
+  // Update the feed row's status badge → SAR-2026-04-NNNN with darker red color
+  const row = findFeedRow(tx.id);
+  if (row) {
+    row.dataset.status = 'sar';
+    const badge = row.querySelector('.badge');
+    if (badge) {
+      badge.className = 'badge b-sar';
+      badge.textContent = sarId;
+    }
+    // Persist new status into the row's data-tx so re-opening the drill reflects it
+    try {
+      const updated = Object.assign({}, tx, { status: 'sar', sarId });
+      row.setAttribute('data-tx', JSON.stringify(updated).replace(/'/g,'&apos;'));
+    } catch(e) { /* swallow */ }
+  }
+  // Update model
+  const r = feedRows.find(r => r.id === tx.id);
+  if (r) { r.status = 'sar'; r.sarId = sarId; }
+  appendDecision('sar', tx, sarId);
+  applyFilters();
+  closeDrill();
+});
+
+/* ============== Export button (header) ============== */
+document.querySelectorAll('.panel-actions .ghost-btn').forEach(b=>{
+  const t = (b.textContent || '').trim();
+  if (t === 'Export') {
+    b.addEventListener('click', ()=>demoToast('Exporting feed snapshot (CSV)'));
+  } else if (t === 'Triage all') {
+    b.addEventListener('click', ()=>demoToast('Triage queue opened (5 alerts)'));
+  }
+});
+
+/* ============== Subnav links — swap view + active state ============== */
+function showView(name) {
+  document.querySelectorAll('.subnav a').forEach(x=>{
+    x.classList.toggle('active', x.dataset.view === name);
+  });
+  document.querySelectorAll('section.view').forEach(s=>{
+    s.classList.toggle('is-visible', s.dataset.view === name);
+  });
+  // Lazy-render heavier views the first time they're shown
+  if (name === 'cases'          && !renderedViews.cases)          { renderCases();          renderedViews.cases = true; }
+  if (name === 'alerts'         && !renderedViews.alerts)         { renderAlertsView();     renderedViews.alerts = true; }
+  if (name === 'counterparties' && !renderedViews.counterparties) { renderCounterparties(); renderedViews.counterparties = true; }
+  if (name === 'sar'            && !renderedViews.sar)            { renderSarKanban();      renderedViews.sar = true; }
+  if (name === 'rules'          && !renderedViews.rules)          { renderRulesTable();     renderedViews.rules = true; }
+  if (name === 'audit'          && !renderedViews.audit)          { renderAuditLog();       renderedViews.audit = true; }
+  // Scroll to top so the user immediately sees the swapped header
+  window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+}
+const renderedViews = { cases:false, alerts:false, counterparties:false, sar:false, rules:false, audit:false };
+document.querySelectorAll('.subnav a').forEach(a=>{
+  a.addEventListener('click', (e)=>{
+    e.preventDefault();
+    const v = a.dataset.view;
+    if (v) showView(v);
+  });
+});
+
+/* ============== CASES VIEW ============== */
+const CASES = [
+  { id:'CASE-2026-04-0231', cust:'Norfolk Holdings Ltd',     status:'review',   amt:248500,  days:7,  lead:'A. Park',     trigger:'Structuring (5 sub-CTR deposits)',     juris:'British Virgin Islands', priors:2, narrative:'Five deposits between $9,200 and $9,850 across 48h from 3 distinct branches. Recipient wallet (BSC-2847) appears in 2 prior cases tagged for layering.' },
+  { id:'CASE-2026-04-0228', cust:'Ivanov Logistics OOO',     status:'drafting', amt:1840000, days:2,  lead:'M. Reyes',    trigger:'OFAC SDN potential match',              juris:'Russian Federation',     priors:0, narrative:'Beneficial owner shares surname and DOB with SDN-listed individual. Pending OFAC 502 license review.' },
+  { id:'CASE-2026-04-0224', cust:'Cayman Capital Trust',     status:'review',   amt:412000,  days:11, lead:'A. Park',     trigger:'PEP exposure via UBO chain',            juris:'Cayman Islands',         priors:1, narrative:'2-hop ownership traces to a foreign PEP (Tier-2). Source-of-funds attestation last refreshed 18 months ago.' },
+  { id:'CASE-2026-04-0219', cust:'HALCYON Trading Ltd',      status:'filed',    amt:725000,  days:18, lead:'D. Okafor',   trigger:'Layering — 4-hop cross-border',         juris:'Cyprus',                 priors:3, narrative:'Funds traced BVI &rarr; Cyprus &rarr; Singapore &rarr; US within 36h. Filed FinCEN BSA E-Filing 2026-04-22.' },
+  { id:'CASE-2026-04-0212', cust:'Pemberton & Co. LLP',      status:'approved', amt:96400,   days:24, lead:'D. Okafor',   trigger:'Velocity anomaly (3.1x baseline)',      juris:'United Kingdom',         priors:0, narrative:'Approved by FinCEN. 314(b) information sharing initiated with HSBC compliance.' },
+  { id:'CASE-2026-04-0207', cust:'Rho Industries Pte',       status:'drafting', amt:184200,  days:4,  lead:'S. Cheng',    trigger:'Reverse hawala suspected',              juris:'Singapore',              priors:1, narrative:'Inbound USDT settlements correlate with offsetting fiat outflows in counterparty bank within 4h windows.' },
+  { id:'CASE-2026-04-0203', cust:'BSC-2847-Wallet (entity)', status:'review',   amt:62800,   days:9,  lead:'M. Reyes',    trigger:'On-chain cluster — mixer exposure',     juris:'On-chain',               priors:4, narrative:'Wallet received 0.84 BTC from Tornado Cash deposit address 14 hops upstream. Chain analysis flag confidence 0.92.' },
+  { id:'CASE-2026-04-0198', cust:'ATLAS Bank, Frankfurt',    status:'filed',    amt:2310000, days:13, lead:'A. Park',     trigger:'Correspondent banking — nested account', juris:'Germany',                priors:0, narrative:'Filed. Nested account discovered for shell entity registered in Marshall Islands with no beneficial owner disclosure.' },
+  { id:'CASE-2026-04-0192', cust:'Northwind Resource Co.',   status:'drafting', amt:331500,  days:6,  lead:'S. Cheng',    trigger:'Round-amount cluster ($25k/$50k/$100k)', juris:'Liberia',                priors:1, narrative:'12 transactions in round amounts within 72h. Stated business purpose (commodity hedging) lacks supporting invoices.' },
+];
+function casesRowHtml(c) {
+  const statusMap = { drafting:['Drafting','b-drafting'], review:['Under Review','b-review'], filed:['Filed','b-filed'], approved:['Approved by FinCEN','b-approved'] };
+  const [label, cls] = statusMap[c.status] || ['',''];
+  const amtStr = '$ ' + c.amt.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+  return `
+    <tr class="case-row" data-case-id="${c.id}">
+      <td><span class="row-id">${c.id}</span></td>
+      <td><b style="font-weight:600;">${c.cust}</b></td>
+      <td><span class="badge ${cls}">${label}</span></td>
+      <td class="num">${amtStr}</td>
+      <td class="num">${c.days}</td>
+      <td>${c.lead}</td>
+    </tr>
+    <tr class="case-detail-row" data-detail-for="${c.id}" hidden>
+      <td colspan="6">
+        <div class="case-detail">
+          <div class="dl-item"><div class="k">Trigger</div><div class="v">${c.trigger}</div></div>
+          <div class="dl-item"><div class="k">Jurisdiction</div><div class="v">${c.juris}</div></div>
+          <div class="dl-item"><div class="k">Prior cases</div><div class="v mono">${c.priors}</div></div>
+          <div class="dl-item"><div class="k">Statutory deadline</div><div class="v mono">${30 - c.days}d remaining</div></div>
+          <div class="dl-narrative"><b style="color:var(--accent);">Investigator note &middot; </b>${c.narrative}</div>
+        </div>
+      </td>
+    </tr>`;
+}
+function renderCases() {
+  const body = document.getElementById('cases-body');
+  if (!body) return;
+  body.innerHTML = CASES.map(casesRowHtml).join('');
+  body.querySelectorAll('tr.case-row').forEach(tr=>{
+    tr.addEventListener('click', ()=>{
+      const id = tr.dataset.caseId;
+      const detail = body.querySelector(`tr.case-detail-row[data-detail-for="${CSS.escape(id)}"]`);
+      if (!detail) return;
+      const willOpen = detail.hasAttribute('hidden');
+      // Close all others
+      body.querySelectorAll('tr.case-detail-row').forEach(r => r.setAttribute('hidden',''));
+      body.querySelectorAll('tr.case-row').forEach(r => r.classList.remove('is-open'));
+      if (willOpen) {
+        detail.removeAttribute('hidden');
+        tr.classList.add('is-open');
+      }
+    });
+  });
+}
+
+/* ============== ALERTS VIEW ============== */
+const ALERTS_FULL = [
+  { sev:'crit', code:'OFAC', rule:'OFAC SDN match',                cp:'Ivanov Logistics OOO',     time:'14:22:51' },
+  { sev:'crit', code:'SANC', rule:'Sanctions cluster — 3 hops',    cp:'BSC-2847-Wallet',          time:'14:21:08' },
+  { sev:'high', code:'STR',  rule:'Structuring',                   cp:'Norfolk Holdings Ltd',     time:'14:18:42' },
+  { sev:'high', code:'SMU',  rule:'Smurfing',                      cp:'Maria Santos',             time:'14:17:19' },
+  { sev:'high', code:'LAY',  rule:'Layering',                      cp:'HALCYON Trading Ltd',      time:'14:14:03' },
+  { sev:'high', code:'PEP',  rule:'PEP exposure',                  cp:'Cayman Capital Trust',     time:'14:11:55' },
+  { sev:'high', code:'BOM',  rule:'Beneficial owner mismatch',     cp:'Rho Industries Pte',       time:'14:09:21' },
+  { sev:'mid',  code:'VEL',  rule:'Velocity anomaly',              cp:'BSC-2847-Wallet',          time:'14:06:48' },
+  { sev:'mid',  code:'RND',  rule:'Round-amount cluster',          cp:'Northwind Resource Co.',   time:'14:04:32' },
+  { sev:'mid',  code:'GEO',  rule:'Geographic risk',               cp:'Banco Atlantico SA',       time:'14:02:11' },
+  { sev:'mid',  code:'RHA',  rule:'Reverse hawala',                cp:'Kwame Adjei',              time:'13:58:47' },
+  { sev:'mid',  code:'VAC',  rule:'Velocity acceleration',         cp:'ZENITH MarketMakers Ltd',  time:'13:55:22' },
+];
+function renderAlertsView() {
+  const list = document.getElementById('alerts-view-list');
+  if (!list) return;
+  list.innerHTML = ALERTS_FULL.map((a,i)=>`
+    <div class="alert-row sev-${a.sev}" data-i="${i}">
+      <div class="alert-icn">${a.code}</div>
+      <div>
+        <div class="alert-rule">${a.rule}</div>
+        <div class="alert-meta">${a.cp}<span class="dot">&middot;</span><span class="alert-time">${a.time} UTC</span><span class="dot">&middot;</span>severity ${a.sev.toUpperCase()}</div>
+      </div>
+      <button class="ack-btn">Acknowledge</button>
+    </div>`).join('');
+  let acked = 47;
+  let firing = ALERTS_FULL.length;
+  const firingKpi = document.getElementById('alerts-firing-kpi');
+  const ackedKpi  = document.getElementById('alerts-acked-kpi');
+  list.querySelectorAll('.alert-row').forEach(row=>{
+    const btn = row.querySelector('.ack-btn');
+    btn.addEventListener('click', ()=>{
+      if (row.classList.contains('is-acked')) return;
+      row.classList.add('is-acked');
+      btn.disabled = true;
+      btn.textContent = 'Acknowledged';
+      acked += 1; firing -= 1;
+      if (firingKpi) firingKpi.textContent = firing;
+      if (ackedKpi)  ackedKpi.textContent  = acked;
+      demoToast('Alert acknowledged \u00B7 logged to audit chain');
+    });
+  });
+  const ackAll = document.getElementById('ack-all-btn');
+  if (ackAll && !ackAll.__bound) {
+    ackAll.__bound = true;
+    ackAll.addEventListener('click', ()=>{
+      list.querySelectorAll('.alert-row').forEach(r=>{
+        const b = r.querySelector('.ack-btn');
+        if (b && !b.disabled) b.click();
+      });
+    });
+  }
+}
+
+/* ============== COUNTERPARTIES VIEW ============== */
+const CPARTIES = [
+  { name:'Ivanov Logistics OOO',     juris:'Russia',           id:'INN 7704..118',         tier:4, screen:'SDN potential match', volume:18400000, last:'2m ago' },
+  { name:'BSC-2847-Wallet',          juris:'On-chain',         id:'0x4f8b..a92c',          tier:4, screen:'Mixer exposure',      volume:9220000,  last:'4m ago' },
+  { name:'Norfolk Holdings Ltd',     juris:'British Virgin Is.', id:'LEI 5299..DO55',      tier:3, screen:'Structuring',         volume:14800000, last:'8m ago' },
+  { name:'HALCYON Trading Ltd',      juris:'Cyprus',           id:'LEI 8845..LZ91',        tier:3, screen:'Layering',            volume:22600000, last:'24m ago' },
+  { name:'Cayman Capital Trust',     juris:'Cayman Islands',   id:'LEI 9845..KH22',        tier:3, screen:'PEP UBO',             volume:11900000, last:'1h ago' },
+  { name:'Rho Industries Pte',       juris:'Singapore',        id:'UEN 201..8K',           tier:3, screen:'Reverse hawala',      volume:8420000,  last:'2h ago' },
+  { name:'Northwind Resource Co.',   juris:'Liberia',          id:'LEI 7732..MW88',        tier:2, screen:'Round-amount',        volume:6310000,  last:'3h ago' },
+  { name:'ATLAS Bank, Frankfurt',    juris:'Germany',          id:'BIC ATLDEFFXXX',        tier:2, screen:'Nested correspondent',volume:31200000, last:'5h ago' },
+  { name:'Kwame Adjei',              juris:'Ghana',            id:'GH-A4..29',             tier:2, screen:'Geographic risk',     volume:482000,   last:'6h ago' },
+  { name:'Pemberton & Co. LLP',      juris:'United Kingdom',   id:'GIIN 7H4..K11',         tier:2, screen:'Velocity',            volume:12800000, last:'9h ago' },
+  { name:'First Pacific Holdings',   juris:'Hong Kong',        id:'LEI 9120..RC44',        tier:1, screen:'Clean',               volume:24100000, last:'1d ago' },
+  { name:'ZENITH MarketMakers Ltd',  juris:'United Kingdom',   id:'LEI 5481..PR03',        tier:1, screen:'Clean',               volume:18700000, last:'2d ago' },
+];
+function renderCounterparties() {
+  const body = document.getElementById('cp-body');
+  if (!body) return;
+  function rowHtml(c) {
+    const screenColor = (c.tier >= 3) ? 'var(--red)' : (c.tier === 2 ? 'var(--amber)' : 'var(--green)');
+    return `
+      <tr data-tier="${c.tier}">
+        <td><b style="font-weight:600;">${c.name}</b></td>
+        <td>${c.juris}</td>
+        <td><span class="row-id">${c.id}</span></td>
+        <td><span class="badge b-tier${c.tier}">Tier ${c.tier}</span></td>
+        <td style="color:${screenColor};font-weight:500;font-size:12px;">${c.screen}</td>
+        <td class="num">$ ${(c.volume/1000000).toFixed(2)}M</td>
+        <td><span class="row-id">${c.last}</span></td>
+      </tr>`;
+  }
+  body.innerHTML = CPARTIES.map(rowHtml).join('');
+  // Tier filter
+  const filter = document.getElementById('cp-tier-filter');
+  const meta = document.getElementById('cp-meta');
+  if (filter && !filter.__bound) {
+    filter.__bound = true;
+    filter.querySelectorAll('.chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        filter.querySelectorAll('.chip').forEach(c=>c.classList.remove('is-on'));
+        chip.classList.add('is-on');
+        const tier = chip.dataset.tier;
+        let visible = 0;
+        body.querySelectorAll('tr').forEach(tr=>{
+          const show = (tier === 'all') || (tr.dataset.tier === tier);
+          tr.style.display = show ? '' : 'none';
+          if (show) visible += 1;
+        });
+        if (meta) meta.textContent = visible + ' of ' + CPARTIES.length + ' visible';
+      });
+    });
+  }
+}
+
+/* ============== SAR WORKBENCH VIEW ============== */
+const SAR_CARDS = [
+  // Drafting
+  { col:'drafting', id:'SAR-2026-04-1184', cust:'Ivanov Logistics OOO',     due:'4d',  filer:'M. Reyes',  soon:true },
+  { col:'drafting', id:'SAR-2026-04-1182', cust:'Rho Industries Pte',       due:'12d', filer:'S. Cheng',  soon:false },
+  { col:'drafting', id:'SAR-2026-04-1179', cust:'Northwind Resource Co.',   due:'9d',  filer:'S. Cheng',  soon:false },
+  { col:'drafting', id:'SAR-2026-04-1175', cust:'Banco Atlantico SA',       due:'18d', filer:'A. Park',   soon:false },
+  // In Review
+  { col:'review',   id:'SAR-2026-04-1171', cust:'Norfolk Holdings Ltd',     due:'6d',  filer:'A. Park',   soon:true },
+  { col:'review',   id:'SAR-2026-04-1168', cust:'Cayman Capital Trust',     due:'14d', filer:'A. Park',   soon:false },
+  { col:'review',   id:'SAR-2026-04-1166', cust:'BSC-2847-Wallet (entity)', due:'3d',  filer:'M. Reyes',  soon:true },
+  { col:'review',   id:'SAR-2026-04-1163', cust:'Kwame Adjei',              due:'21d', filer:'D. Okafor', soon:false },
+  // Filed
+  { col:'filed',    id:'SAR-2026-04-1158', cust:'HALCYON Trading Ltd',      due:'filed 2d ago',  filer:'D. Okafor', soon:false },
+  { col:'filed',    id:'SAR-2026-04-1152', cust:'Pemberton & Co. LLP',      due:'filed 5d ago',  filer:'D. Okafor', soon:false },
+  { col:'filed',    id:'SAR-2026-04-1147', cust:'ATLAS Bank, Frankfurt',    due:'filed 8d ago',  filer:'A. Park',   soon:false },
+];
+function renderSarKanban() {
+  const root = document.getElementById('sar-kanban');
+  if (!root) return;
+  const cols = [
+    { key:'drafting', label:'Drafting' },
+    { key:'review',   label:'In Review' },
+    { key:'filed',    label:'Filed' },
+  ];
+  root.innerHTML = cols.map(col=>{
+    const items = SAR_CARDS.filter(c=>c.col===col.key);
+    const cards = items.map(c=>`
+      <div class="sar-card ${c.soon?'due-soon':''}" data-id="${c.id}">
+        <div class="sar-card-id">${c.id}</div>
+        <div class="sar-card-cust">${c.cust}</div>
+        <div class="sar-card-foot">
+          <span class="due">${col.key==='filed'?c.due:'due '+c.due}</span>
+          <span>${c.filer}</span>
+        </div>
+      </div>`).join('');
+    return `
+      <div class="kanban-col">
+        <div class="kanban-col-h"><span>${col.label}</span><span class="count">${items.length}</span></div>
+        <div class="kanban-col-body">${cards}</div>
+      </div>`;
+  }).join('');
+  root.querySelectorAll('.sar-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      demoToast('Opening SAR editor \u00B7 ' + card.dataset.id);
+    });
+  });
+}
+
+/* ============== RULES & MODELS VIEW ============== */
+const RULES = [
+  { id:'R-001', name:'Structuring (sub-CTR deposits)',     cat:'BSA',  status:'active',   cal:'2026-03-18', hit:8.4,  fp:11.2 },
+  { id:'R-002', name:'Smurfing across accounts',           cat:'BSA',  status:'active',   cal:'2026-03-18', hit:6.1,  fp:14.7 },
+  { id:'R-003', name:'Layering — multi-hop',               cat:'AML',  status:'active',   cal:'2026-04-02', hit:4.8,  fp:18.3 },
+  { id:'R-004', name:'OFAC SDN screening',                 cat:'OFAC', status:'active',   cal:'2026-04-21', hit:0.4,  fp:2.1  },
+  { id:'R-005', name:'PEP exposure (UBO chain)',           cat:'AML',  status:'active',   cal:'2026-03-30', hit:2.7,  fp:9.8  },
+  { id:'R-006', name:'Velocity anomaly (3x baseline)',     cat:'AML',  status:'tuning',   cal:'2026-04-15', hit:14.2, fp:28.4 },
+  { id:'R-007', name:'Round-amount cluster',               cat:'AML',  status:'active',   cal:'2026-02-10', hit:9.1,  fp:21.3 },
+  { id:'R-008', name:'Geographic risk (FATF list)',        cat:'AML',  status:'active',   cal:'2026-04-08', hit:5.6,  fp:12.4 },
+  { id:'R-009', name:'Reverse hawala',                     cat:'AML',  status:'tuning',   cal:'2026-04-19', hit:3.2,  fp:31.7 },
+  { id:'R-010', name:'Beneficial owner mismatch',          cat:'AML',  status:'active',   cal:'2026-03-05', hit:4.4,  fp:16.8 },
+  { id:'R-011', name:'Sanctions cluster (graph)',          cat:'OFAC', status:'active',   cal:'2026-04-21', hit:0.8,  fp:3.9  },
+  { id:'R-012', name:'Velocity acceleration',              cat:'AML',  status:'active',   cal:'2026-03-22', hit:7.8,  fp:19.1 },
+  { id:'R-013', name:'CTR threshold ($10k cash)',          cat:'BSA',  status:'active',   cal:'2026-01-15', hit:11.3, fp:5.2  },
+  { id:'R-014', name:'Mixer / privacy-coin exposure',      cat:'OFAC', status:'tuning',   cal:'2026-04-10', hit:2.1,  fp:26.4 },
+];
+function renderRulesTable() {
+  const body = document.getElementById('rules-body');
+  if (!body) return;
+  function rowHtml(r) {
+    const sMap = { active:['Active','b-active'], tuning:['Tuning','b-tuning'], disabled:['Disabled','b-disabled'] };
+    const [label, cls] = sMap[r.status];
+    const fpColor = r.fp > 25 ? 'var(--red)' : (r.fp > 15 ? 'var(--amber)' : 'var(--green)');
+    return `
+      <tr data-id="${r.id}" data-status="${r.status}">
+        <td><span class="row-id">${r.id}</span></td>
+        <td><b style="font-weight:600;">${r.name}</b></td>
+        <td><span class="row-id" style="text-transform:none;">${r.cat}</span></td>
+        <td><span class="badge ${cls} status-cell">${label}</span></td>
+        <td><span class="row-id">${r.cal}</span></td>
+        <td class="num">${r.hit.toFixed(1)}%</td>
+        <td class="num" style="color:${fpColor};font-weight:500;">${r.fp.toFixed(1)}%</td>
+        <td style="text-align:right;padding-right:18px;">
+          <button class="toggle ${r.status==='active'?'is-on':''}" aria-label="Toggle ${r.name}"></button>
+        </td>
+      </tr>`;
+  }
+  body.innerHTML = RULES.map(rowHtml).join('');
+  const activeKpi = document.getElementById('rules-active-kpi');
+  body.querySelectorAll('.toggle').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const tr = btn.closest('tr');
+      const isOn = btn.classList.toggle('is-on');
+      const newStatus = isOn ? 'active' : 'disabled';
+      tr.dataset.status = newStatus;
+      const badge = tr.querySelector('.status-cell');
+      if (badge) {
+        badge.classList.remove('b-active','b-tuning','b-disabled');
+        badge.classList.add(isOn ? 'b-active' : 'b-disabled');
+        badge.textContent = isOn ? 'Active' : 'Disabled';
+      }
+      // Update active count KPI
+      if (activeKpi) {
+        const n = body.querySelectorAll('tr[data-status="active"]').length;
+        activeKpi.textContent = n;
+      }
+      demoToast('Rule ' + tr.dataset.id + ' ' + (isOn ? 'activated' : 'disabled'));
+    });
+  });
+}
+
+/* ============== AUDIT LOG VIEW ============== */
+const AUDIT_EVENTS = [
+  { ts:'14:23:04', actor:'system',       type:'BLOCK_SEAL',     detail:'Block #28419 sealed (412 events)',                                hash:'0x9a4f..c821' },
+  { ts:'14:22:51', actor:'operator-014', type:'CASE_OPEN',      detail:'Opened CASE-2026-04-0231 (Norfolk Holdings)',                     hash:'0x7b12..ee03' },
+  { ts:'14:22:18', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-001 Structuring fired on TX-9F4C-2A81',                         hash:'0x3d88..a14b' },
+  { ts:'14:21:47', actor:'operator-014', type:'TX_ESCALATE',    detail:'Escalated TX-9F4C-2A81 \u2192 SAR-2026-04-1184',                  hash:'0x1c29..b774' },
+  { ts:'14:21:08', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-011 Sanctions cluster fired on BSC-2847-Wallet',                hash:'0x8e44..f902' },
+  { ts:'14:20:33', actor:'operator-007', type:'KYC_REFRESH',    detail:'Initiated KYC refresh \u2014 Cayman Capital Trust',               hash:'0x5f71..2c10' },
+  { ts:'14:19:02', actor:'agent-pm',     type:'POLICY_LOAD',    detail:'Loaded policy bundle bsa-31cfr1010-v22',                          hash:'0x2a8b..91d4' },
+  { ts:'14:18:42', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-001 Structuring fired on Norfolk Holdings (5/5 sub-CTR)',       hash:'0x6c33..0e88' },
+  { ts:'14:17:55', actor:'operator-022', type:'TX_CLEAR',       detail:'Cleared TX-A8B1-7E0F after analyst review',                       hash:'0x4d15..7392' },
+  { ts:'14:17:19', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-002 Smurfing fired on Maria Santos',                            hash:'0x0e7f..b558' },
+  { ts:'14:16:48', actor:'operator-014', type:'NOTE_ADD',       detail:'Added narrative note to CASE-2026-04-0224',                       hash:'0x9b22..1cd6' },
+  { ts:'14:15:30', actor:'agent-pm',     type:'SAR_DRAFT',      detail:'Auto-drafted SAR-2026-04-1184 from CASE-2026-04-0231',            hash:'0x3e91..047a' },
+  { ts:'14:14:03', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-003 Layering fired on HALCYON Trading',                         hash:'0x7d4c..e2b1' },
+  { ts:'14:13:21', actor:'system',       type:'AUTH',           detail:'operator-007 authenticated (FIDO2 + SSO)',                        hash:'0x1844..fc09' },
+  { ts:'14:12:08', actor:'operator-014', type:'EXPORT',         detail:'Exported feed snapshot (CSV, 4,212 rows)',                        hash:'0x5a37..d40e' },
+  { ts:'14:11:55', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-005 PEP exposure fired on Cayman Capital Trust',                hash:'0x2f01..b9c3' },
+  { ts:'14:10:42', actor:'operator-022', type:'CASE_ASSIGN',    detail:'Assigned CASE-2026-04-0228 to M. Reyes',                          hash:'0x6e94..3818' },
+  { ts:'14:09:21', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-010 Beneficial owner mismatch fired on Rho Industries',         hash:'0x9c0d..47fa' },
+  { ts:'14:08:11', actor:'system',       type:'BLOCK_SEAL',     detail:'Block #28418 sealed (398 events)',                                hash:'0x4b58..a210' },
+  { ts:'14:07:33', actor:'operator-014', type:'TX_FREEZE',      detail:'Frozen TX-7C3D-1F94 pending OFAC review',                         hash:'0x0d72..ee47' },
+  { ts:'14:06:48', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-006 Velocity anomaly fired on BSC-2847-Wallet',                 hash:'0x3a16..91b8' },
+  { ts:'14:05:12', actor:'operator-007', type:'TX_CLEAR',       detail:'Cleared TX-B2E4-9A03 (low-risk false positive)',                  hash:'0x7f88..2c41' },
+  { ts:'14:04:32', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-007 Round-amount cluster fired on Northwind',                   hash:'0x1e44..d370' },
+  { ts:'14:03:18', actor:'operator-022', type:'NOTE_ADD',       detail:'Added 314(b) sharing request to CASE-2026-04-0212',               hash:'0x8d29..b108' },
+  { ts:'14:02:11', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-008 Geographic risk fired on Banco Atlantico',                  hash:'0x5c01..f491' },
+  { ts:'14:01:08', actor:'agent-pm',     type:'MODEL_TUNE',     detail:'Auto-tuned R-006 thresholds (FP-rate target 20%)',                hash:'0x9304..73aa' },
+  { ts:'13:59:42', actor:'operator-014', type:'CASE_OPEN',      detail:'Opened CASE-2026-04-0228 (Ivanov Logistics)',                     hash:'0x2b71..148c' },
+  { ts:'13:58:47', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-009 Reverse hawala fired on Kwame Adjei',                       hash:'0x6f15..a902' },
+  { ts:'13:57:29', actor:'system',       type:'CONFIG',         detail:'Updated rule R-014 threshold (mixer-exposure 0.7 \u2192 0.65)',   hash:'0x0a8b..ff03' },
+  { ts:'13:55:22', actor:'agent-tx',     type:'RULE_FIRE',      detail:'R-012 Velocity acceleration fired on ZENITH MarketMakers',        hash:'0x4e88..21d7' },
+];
+function actorClass(actor) {
+  if (actor === 'system') return 'system';
+  if (actor.startsWith('agent')) return 'agent';
+  return '';
+}
+function actorEvtClass(actor) {
+  if (actor === 'system') return 'system';
+  if (actor.startsWith('agent')) return 'agent';
+  return 'user';
+}
+function renderAuditLog() {
+  const root = document.getElementById('audit-stream');
+  if (!root) return;
+  root.innerHTML = AUDIT_EVENTS.map(e=>`
+    <div class="audit-row" data-cls="${actorEvtClass(e.actor)}">
+      <span class="a-ts">${e.ts} UTC</span>
+      <span class="a-actor ${actorClass(e.actor)}">${e.actor}</span>
+      <span class="a-evt">${e.type}</span>
+      <span class="a-detail">${e.detail}</span>
+      <span class="a-hash">signed ${e.hash}</span>
+    </div>`).join('');
+  const filter = document.getElementById('audit-filter');
+  const meta = document.getElementById('audit-meta');
+  if (filter && !filter.__bound) {
+    filter.__bound = true;
+    filter.querySelectorAll('.chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        filter.querySelectorAll('.chip').forEach(c=>c.classList.remove('is-on'));
+        chip.classList.add('is-on');
+        const evt = chip.dataset.evt;
+        let visible = 0;
+        root.querySelectorAll('.audit-row').forEach(row=>{
+          const show = (evt === 'all') || (row.dataset.cls === evt);
+          row.classList.toggle('is-hidden', !show);
+          if (show) visible += 1;
+        });
+        if (meta) meta.textContent = visible + ' of ' + AUDIT_EVENTS.length + ' events';
+      });
+    });
+  }
+}
+
+/* ============== User chip ============== */
+const userChip = document.querySelector('.user-chip');
+if (userChip) userChip.addEventListener('click', ()=>demoToast('Profile menu (demo)'));
+
+/* ============== KPI ticker ============== */
+let kpiState = { tx: 12847, hr: 23, sar: 7, rt: 252 /* seconds */ };
+const elTx  = document.getElementById('kpi-tx');
+const elHr  = document.getElementById('kpi-hr');
+const elSar = document.getElementById('kpi-sar');
+const elRt  = document.getElementById('kpi-rt');
+function tickKpi(tx) {
+  kpiState.tx += 1;
+  elTx.textContent = kpiState.tx.toLocaleString('en-US');
+  if (tx.risk >= 70) {
+    kpiState.hr += 1;
+    elHr.textContent = kpiState.hr.toLocaleString('en-US');
+  }
+  // Drift response time gently
+  kpiState.rt += (Math.random() - 0.55) * 1.4;
+  if (kpiState.rt < 180) kpiState.rt = 180;
+  if (kpiState.rt > 360) kpiState.rt = 360;
+  const m = Math.floor(kpiState.rt / 60);
+  const s = Math.floor(kpiState.rt % 60);
+  elRt.textContent = m + 'm ' + (s<10?'0'+s:s) + 's';
+}
+
+/* ============== Risk distribution histogram (SVG) ============== */
+const histBuckets = [];
+function recomputeHist(){
+  const buckets = new Array(10).fill(0);
+  // Synthetic curve biased low/medium with a high-risk tail
+  const base = [180, 230, 240, 200, 150, 110, 70, 45, 28, 14];
+  for (let i = 0; i < 10; i++) {
+    buckets[i] = base[i] + Math.round(Math.sin(Date.now()/9000 + i) * 6);
+  }
+  return buckets;
+}
+function renderHist(){
+  const data = recomputeHist();
+  const max = Math.max(...data);
+  const W = 320, H = 130, gap = 4, n = data.length;
+  const bw = (W - gap*(n+1)) / n;
+  const colors = ['#16A34A','#16A34A','#16A34A','#16A34A','#B25E09','#B25E09','#B25E09','#B42318','#B42318','#7A0E13'];
+  let svg = '';
+  // Soft baseline
+  svg += `<line x1="0" y1="${H-1}" x2="${W}" y2="${H-1}" stroke="#E5E8EE" stroke-width="1"/>`;
+  // gridlines
+  for (let g = 1; g <= 3; g++) {
+    const y = H - (H-12) * (g/4);
+    svg += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#EEF1F5" stroke-width="1" stroke-dasharray="2 4"/>`;
+  }
+  data.forEach((v,i)=>{
+    const h = Math.max(2, (v/max) * (H - 16));
+    const x = gap + i*(bw+gap);
+    const y = H - h - 2;
+    svg += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${bw.toFixed(2)}" height="${h.toFixed(2)}" rx="2" ry="2" fill="${colors[i]}" opacity="${i>=7?0.95:0.85}">
+              <title>Bucket ${i*10}-${i*10+9}: ${v} tx</title>
+            </rect>`;
+    // small label on top of high-risk bars
+    if (i >= 7) {
+      svg += `<text x="${(x+bw/2).toFixed(2)}" y="${(y-3).toFixed(2)}" font-size="9" font-family="JetBrains Mono, monospace" fill="${colors[i]}" text-anchor="middle">${v}</text>`;
+    }
+  });
+  document.getElementById('hist-svg').innerHTML = svg;
+  // headline number = total
+  const total = data.reduce((a,b)=>a+b,0);
+  const above70 = data[7]+data[8]+data[9];
+  document.getElementById('hist-total').textContent = total.toLocaleString('en-US');
+  const sub = document.querySelector('.hist-sub');
+  sub.innerHTML = `transactions scored &middot; <span style="color:var(--red);font-weight:600">${above70} above 70</span>`;
+}
+
+/* ============== Alerts ============== */
+const ALERTS = [
+  { sev:'crit', code:'OFAC', rule:'OFAC SDN match — sanctioned counterparty', cp:'Ivanov Logistics OOO',  ago:'2m ago',  reco:'Freeze immediately. SDN list match triggers OFAC 31 CFR 501 — block transfer, file blocked-property report within 10 business days.' },
+  { sev:'high', code:'STR',  rule:'Structuring pattern detected (sub-CTR deposits)', cp:'Norfolk Holdings Ltd', ago:'4m ago',  reco:'Escalate to SAR. 5 deposits below $10k in 48h triggers FinCEN 31 CFR 1020.320(a)(2) structuring rule.' },
+  { sev:'high', code:'PEP',  rule:'PEP exposure — indirect UBO link', cp:'Cayman Capital Trust', ago:'11m ago', reco:'Enhanced due diligence. UBO connected to PEP via 2-hop ownership; refresh KYC and document source-of-funds.' },
+  { sev:'mid',  code:'VEL',  rule:'Velocity anomaly — 3.2× baseline', cp:'BSC-2847-Wallet', ago:'17m ago', reco:'Review counterparty network. 3.2× baseline volume in 7d may indicate mule activity — pull on-chain trace.' },
+  { sev:'mid',  code:'LAY',  rule:'Layering pattern across 4 hops', cp:'HALCYON Trading Ltd', ago:'24m ago', reco:'Trace funds. 4-hop layering through 3 jurisdictions (BVI → Cyprus → Singapore → US) suggests placement-stage laundering.' },
+];
+function renderAlerts(){
+  const html = ALERTS.map(a => `
+    <div class="alert-row sev-${a.sev}">
+      <div class="alert-icn">${a.code}</div>
+      <div>
+        <div class="alert-rule">${a.rule}</div>
+        <div class="alert-meta">${a.cp}<span class="dot">&middot;</span>${a.ago}</div>
+      </div>
+      <button class="alert-cta">View case &rarr;</button>
+    </div>`).join('');
+  document.getElementById('alerts-list').innerHTML = html;
+  // Hook up "View case" to open drill populated with that alert's specific data
+  document.querySelectorAll('.alert-cta').forEach((btn,i)=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const a = ALERTS[i];
+      const synthetic = {
+        id:'CASE-' + a.code + '-' + (1000+i),
+        t: new Date(),
+        sender:[a.cp,'see profile','corp'],
+        recipient:['Coinbase Custody Trust','NY DFS-LIC','bank'],
+        ccy:['USD','$','fiat'],
+        amount: 124500 + i*15000,
+        risk: a.sev==='crit'?96:(a.sev==='high'?82:64),
+        status: a.sev==='crit'?'frozen':(a.sev==='high'?'escalated':'reviewing'),
+        _alert: a,
+      };
+      openDrill(synthetic);
+    });
+  });
+}
+
+/* ============== Geo dots ============== */
+const GEO_DOTS = [
+  { x:60,  y:62,  r:'low',  s:5, name:'New York',         tx:142 },
+  { x:48,  y:78,  r:'mid',  s:4, name:'Miami',            tx:87  },
+  { x:170, y:55,  r:'mid',  s:4, name:'London',           tx:198 },
+  { x:188, y:62,  r:'high', s:5, name:'Frankfurt',        tx:64  },
+  { x:225, y:60,  r:'crit', s:6, name:'Moscow region',    tx:38  },
+  { x:182, y:108, r:'high', s:4, name:'West Africa',      tx:29  },
+  { x:240, y:80,  r:'high', s:5, name:'UAE',              tx:74  },
+  { x:295, y:62,  r:'mid',  s:4, name:'Tokyo',            tx:91  },
+  { x:282, y:80,  r:'high', s:5, name:'Hong Kong',        tx:118 },
+  { x:300, y:108, r:'low',  s:3, name:'Jakarta',          tx:22  },
+  { x:320, y:148, r:'mid',  s:4, name:'Sydney',           tx:46  },
+  { x:88,  y:130, r:'high', s:4, name:'Cayman Islands',   tx:53  },
+  { x:90,  y:158, r:'mid',  s:3, name:'Brazil',           tx:31  },
+  { x:208, y:50,  r:'low',  s:3, name:'Berlin',           tx:67  },
+];
+function renderGeo(){
+  const g = document.getElementById('geo-dots');
+  g.innerHTML = GEO_DOTS.map((d,i)=>`
+    <g class="geo-dot r-${d.r}" data-i="${i}" tabindex="0" role="button" aria-label="${d.name}: ${d.tx} transactions" style="color:${
+      d.r==='crit'?'#7A0E13':d.r==='high'?'#B42318':d.r==='mid'?'#B25E09':'#16A34A'
+    }; animation-delay:${(i%6)*0.3}s;" transform="translate(${d.x},${d.y})">
+      <circle r="${d.s}"/>
+      <circle r="4"/>
+    </g>`).join('');
+  // Wire dot clicks → real region highlight on feed
+  document.querySelectorAll('#geo-dots .geo-dot').forEach(dot=>{
+    const handler = (e)=>{
+      if (e) e.stopPropagation();
+      const i = parseInt(dot.getAttribute('data-i'),10);
+      const d = GEO_DOTS[i];
+      setRegionHighlight(d.name);
+    };
+    dot.addEventListener('click', handler);
+    dot.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); } });
+  });
+  // Click on empty map area clears region
+  const geoSvg = document.querySelector('.geo-svg');
+  if (geoSvg) {
+    geoSvg.addEventListener('click', (e)=>{
+      // Only clear if click did NOT land on a dot
+      if (!e.target.closest('.geo-dot')) {
+        clearRegionHighlight();
+      }
+    });
+  }
+}
+
+/* Region highlight state */
+let activeRegion = null;
+let regionTimeout = null;
+const regionPill = document.getElementById('region-pill');
+function setRegionHighlight(name) {
+  activeRegion = name;
+  regionPill.innerHTML = `Filtered to <b style="margin:0 4px;color:var(--ink-2)">${name}</b><span class="x" id="region-clear">&times;</span>`;
+  regionPill.hidden = false;
+  document.getElementById('region-clear').addEventListener('click', clearRegionHighlight);
+  applyRegionHighlight();
+  // Sticky for 5 seconds
+  if (regionTimeout) clearTimeout(regionTimeout);
+  regionTimeout = setTimeout(clearRegionHighlight, 5000);
+}
+function clearRegionHighlight() {
+  activeRegion = null;
+  if (regionTimeout) { clearTimeout(regionTimeout); regionTimeout = null; }
+  regionPill.hidden = true;
+  document.querySelectorAll('#feed-body tr.region-hit').forEach(r => r.classList.remove('region-hit'));
+}
+function applyRegionHighlight() {
+  document.querySelectorAll('#feed-body tr').forEach(tr => {
+    if (activeRegion && tr.dataset.region === activeRegion) tr.classList.add('region-hit');
+    else tr.classList.remove('region-hit');
+  });
+}
+
+/* ============== Clock ============== */
+function tickClock(){
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    pad(d.getUTCHours())+':'+pad(d.getUTCMinutes())+':'+pad(d.getUTCSeconds());
+}
+
+/* ============================ INIT ============================ */
+seedFeed();
+renderAlerts();
+renderHist();
+renderGeo();
+tickClock();
+
+setInterval(tickClock, 1000);
+setInterval(renderHist, 4000);
+// Stream cadence: 2-3s
+function scheduleNext(){
+  const delay = 1800 + Math.random()*1400;
+  setTimeout(()=>{
+    pushTx();
+    scheduleNext();
+  }, delay);
+}
+scheduleNext();
+</script>
+</body>
+</html>

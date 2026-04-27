@@ -1,19 +1,20 @@
 /**
  * BaseAgent — Foundation class for all Factory agents.
  *
- * Each agent is a self-contained module with its own system prompt,
- * Claude API integration, and real-time broadcast capabilities.
+ * Each agent uses `claude -p` subprocess calls — $0 on Claude Max.
+ * No Anthropic SDK, no API key, no per-token costs.
  *
  * Agents communicate via SSE events that the factory UI renders
  * as office animations, chat messages, and console logs.
  */
 
+const { spawn } = require('child_process');
+
 class BaseAgent {
-    constructor({ anthropic, broadcast, trackUsage }) {
-        this.anthropic = anthropic;
+    constructor({ broadcast, trackUsage }) {
         this.broadcast = broadcast;
-        this.trackUsage = trackUsage;
-        this.model = 'claude-sonnet-4-5-20250929';
+        this.trackUsage = trackUsage || (async () => {});
+        this.claudePath = process.env.CLAUDE_PATH || 'claude';
     }
 
     // ---- Override in subclass ----
@@ -34,34 +35,65 @@ class BaseAgent {
     // ---- Shared methods ----
 
     /**
-     * Call Claude API with this agent's system prompt.
-     * Logs the call to console, tracks usage, returns raw text.
+     * Call Claude via `claude -p` subprocess — $0 on Max subscription.
+     * System prompt is prepended to the user message.
      */
-    async callClaude(input, { maxTokens, systemPrompt } = {}) {
+    async callClaude(input, { systemPrompt } = {}) {
         const inputStr = typeof input === 'string' ? input : JSON.stringify(input, null, 2);
-        const tokens = maxTokens || this.maxTokens;
+        const system = systemPrompt || this.systemPrompt;
 
-        this.log(`Calling Claude (${this.model}, max ${tokens} tokens, streaming)...`);
+        const fullPrompt = system
+            ? `${system}\n\n---\n\n${inputStr}`
+            : inputStr;
 
-        const stream = await this.anthropic.messages.stream({
-            model: this.model,
-            max_tokens: tokens,
-            system: systemPrompt || this.systemPrompt,
-            messages: [{ role: 'user', content: inputStr }]
-        });
+        this.log(`Calling Claude (claude -p, ${this.id})...`);
 
-        const response = await stream.finalMessage();
+        const text = await this._runClaudeProcess(fullPrompt);
 
-        await this.trackUsage(`factory_${this.id}`, response, null);
-
-        const text = response.content[0].text;
-        this.log(`Response: ${text.length.toLocaleString()} chars, ${response.usage.output_tokens} tokens (stop: ${response.stop_reason})`);
-
-        if (response.stop_reason === 'max_tokens') {
-            this.log(`⚠️ OUTPUT TRUNCATED — hit ${tokens} token limit!`);
-        }
+        this.log(`Response: ${text.length.toLocaleString()} chars`);
+        await this.trackUsage(`factory_${this.id}`, { usage: { input_tokens: 0, output_tokens: 0 } }, null);
 
         return text;
+    }
+
+    /**
+     * Spawn claude -p as a subprocess. Writes prompt to stdin, reads stdout.
+     */
+    _runClaudeProcess(prompt) {
+        return new Promise((resolve, reject) => {
+            const proc = spawn(this.claudePath, [
+                '-p', '-',
+                '--output-format', 'text',
+                '--max-turns', '1',
+            ], {
+                env: { ...process.env, TERM: 'dumb' },
+                stdio: ['pipe', 'pipe', 'pipe'],
+                timeout: 300000, // 5 min per agent call
+            });
+
+            let stdout = '';
+            let stderr = '';
+
+            proc.stdout.on('data', (d) => { stdout += d.toString(); });
+            proc.stderr.on('data', (d) => { stderr += d.toString(); });
+
+            proc.on('close', (code) => {
+                if (code !== 0 && !stdout) {
+                    this.log(`Claude error (exit ${code}): ${stderr.slice(0, 300)}`);
+                    reject(new Error(`claude -p failed (exit ${code}): ${stderr.slice(0, 200)}`));
+                } else {
+                    resolve(stdout.trim());
+                }
+            });
+
+            proc.on('error', (err) => {
+                reject(new Error(`Failed to start claude: ${err.message}`));
+            });
+
+            // Write prompt to stdin and close
+            proc.stdin.write(prompt);
+            proc.stdin.end();
+        });
     }
 
     /**
@@ -127,8 +159,7 @@ class BaseAgent {
             emoji: this.emoji,
             description: this.description,
             capabilities: this.capabilities,
-            model: this.model,
-            maxTokens: this.maxTokens,
+            model: 'claude -p (Max, $0)',
             systemPrompt: this.systemPrompt,
         };
     }

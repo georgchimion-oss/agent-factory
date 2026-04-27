@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Agent Factory — MiamiNeon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Big+Shoulders+Display:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#0b0a3a;--indigo:#1f1466;--magenta:#b1247a;--coral:#ff8a5c;
+  --pink:#FF2D7B;--teal:#0FE4D4;--gold:#FFC977;--cream:#FFF1D9;
+  --pm:#4A9EFF;--eng:#10E0B0;--rev:#C58BFF;--ship:#FF8A5C;
+}
+html,body{width:100%;height:100dvh;overflow:hidden;background:var(--navy);color:var(--cream);font-family:'Outfit',sans-serif;-webkit-font-smoothing:antialiased}
+#root{width:100%;height:100%}
+
+/* === ANIMATIONS === */
+@keyframes breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.015)}}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(0.08)}}
+@keyframes walkBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes legSwing{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+@keyframes armSwing{from{transform:rotate(-18deg)}to{transform:rotate(18deg)}}
+@keyframes workBob{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-3px) rotate(-1deg)}75%{transform:translateY(-3px) rotate(1deg)}}
+@keyframes typing{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}50%{transform:rotate(0)}75%{transform:rotate(8deg)}}
+@keyframes inspect{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+@keyframes celebrate{0%{transform:translateY(0) scale(1)}30%{transform:translateY(-20px) scale(1.08)}50%{transform:translateY(-24px) scale(1.1)}70%{transform:translateY(-20px) scale(1.08)}100%{transform:translateY(0) scale(1)}}
+@keyframes celebrateArms{0%,100%{transform:rotate(0)}50%{transform:rotate(-60deg)}}
+@keyframes floatUp{0%{transform:translateY(0) scale(1);opacity:0.7}100%{transform:translateY(-60px) scale(0.4);opacity:0}}
+@keyframes gridScroll{from{background-position-y:0}to{background-position-y:20px}}
+@keyframes pulseDot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:0.5}}
+@keyframes courierFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-8px) rotate(2deg)}}
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes typewriter{from{width:0}to{width:100%}}
+@keyframes countdownPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04);text-shadow:0 0 30px var(--pink)}}
+@keyframes progressSurge{0%{width:var(--from)}100%{width:var(--to)}}
+@keyframes shineSweep{0%{left:-30%}100%{left:130%}}
+
+/* SVG character animation classes */
+.char-idle .char-body{animation:breathe 3.5s ease-in-out infinite}
+.char-idle .eyes{animation:blink 4s ease-in-out infinite}
+.char-working .char-body{animation:workBob 1.2s ease-in-out infinite}
+.char-working .eyes{animation:blink 3s ease-in-out infinite}
+.char-working[data-role="engineer"] .arm-r{animation:typing 0.5s ease-in-out infinite;transform-origin:56px 50px}
+.char-working[data-role="reviewer"] .head-group{animation:inspect 2s ease-in-out infinite}
+.char-walking .char-body{animation:walkBob 0.32s ease-in-out infinite}
+.char-walking .leg-l{animation:legSwing 0.32s ease-in-out infinite alternate;transform-origin:33px 76px}
+.char-walking .leg-r{animation:legSwing 0.32s ease-in-out infinite alternate-reverse;transform-origin:47px 76px}
+.char-walking .arm-l{animation:armSwing 0.32s ease-in-out infinite alternate-reverse;transform-origin:24px 48px}
+.char-walking .arm-r{animation:armSwing 0.32s ease-in-out infinite alternate;transform-origin:56px 48px}
+.char-done .char-body{filter:drop-shadow(0 0 12px var(--c))}
+.char-celebrate .char-body{animation:celebrate 0.8s ease-in-out infinite}
+.char-celebrate .arm-l,.char-celebrate .arm-r{animation:celebrateArms 0.8s ease-in-out infinite;transform-origin:40px 48px}
+</style>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// ─── CONSTANTS ───
+const COLORS = { pm:'#4A9EFF', engineer:'#10E0B0', reviewer:'#C58BFF', deployer:'#FF8A5C' };
+const NAMES = { pm:'Project Manager', engineer:'Engineer', reviewer:'Reviewer', deployer:'Deployer' };
+const SHORT = { pm:'PM', engineer:'ENG', reviewer:'REV', deployer:'SHIP' };
+const AGENT_ORDER = ['pm','engineer','reviewer','deployer'];
+
+const VOTE_OPTIONS = [
+  { id:1, label:'AML Transaction Monitoring Console', desc:'SAR-ready alerts, FinCEN-aligned scoring.' },
+  { id:2, label:'KYC/CIP Intake Pipeline', desc:'OFAC screening, document verification, audit trail.' },
+  { id:3, label:'Engagement Workstream Tracker', desc:'SOX-auditable assignments, segregation of duties.' },
+];
+
+// ─── CHARACTER SVG ───
+function AgentCharacter({ role, state }) {
+  const c = COLORS[role];
+  const cls = `char-${state}`;
+  // Each character has unique body shape + accessory
+  const bodyPaths = {
+    pm: <><rect className="torso" x="24" y="42" width="32" height="36" rx="6" fill={c} opacity="0.92"/>
+          <rect x="26" y="42" width="28" height="8" rx="3" fill="#fff" opacity="0.25"/>{/* collar */}
+          <rect x="16" y="60" width="16" height="20" rx="2" fill={c} opacity="0.5" stroke={c} strokeWidth="1"/>{/* clipboard */}
+          <line x1="20" y1="66" x2="28" y2="66" stroke="#fff" strokeWidth="1" opacity="0.6"/>
+          <line x1="20" y1="70" x2="26" y2="70" stroke="#fff" strokeWidth="1" opacity="0.4"/></>,
+    engineer: <><rect className="torso" x="22" y="42" width="36" height="36" rx="10" fill={c} opacity="0.92"/>
+                <rect x="25" y="44" width="30" height="6" rx="3" fill={c} filter="brightness(0.7)"/>{/* hood */}
+                <rect x="54" y="56" width="20" height="14" rx="2" fill="#0b0a3a" stroke={c} strokeWidth="1.5"/>{/* laptop */}
+                <line x1="57" y1="61" x2="69" y2="61" stroke={c} strokeWidth="1" opacity="0.7"/>
+                <line x1="57" y1="64" x2="65" y2="64" stroke="#FFC977" strokeWidth="1" opacity="0.5"/></>,
+    reviewer: <><rect className="torso" x="24" y="42" width="32" height="36" rx="6" fill={c} opacity="0.92"/>
+                <line x1="38" y1="42" x2="38" y2="60" stroke="#fff" strokeWidth="1" opacity="0.2"/>
+                <line x1="42" y1="42" x2="42" y2="60" stroke="#fff" strokeWidth="1" opacity="0.2"/>
+                <circle cx="18" cy="62" r="10" fill="none" stroke={c} strokeWidth="2.5" opacity="0.7"/>{/* magnifier */}
+                <line x1="25" y1="69" x2="30" y2="74" stroke={c} strokeWidth="2.5" strokeLinecap="round" opacity="0.7"/></>,
+    deployer: <><rect className="torso" x="24" y="42" width="32" height="36" rx="8" fill={c} opacity="0.92"/>
+                <line x1="24" y1="54" x2="56" y2="54" stroke="#fff" strokeWidth="1.5" opacity="0.3"/>
+                <line x1="24" y1="64" x2="56" y2="64" stroke="#fff" strokeWidth="1.5" opacity="0.3"/>
+                <circle cx="62" cy="72" r="8" fill="#FF2D7B" stroke="#fff" strokeWidth="1.5"/>{/* button */}
+                <text x="62" y="75" textAnchor="middle" fontSize="7" fill="#fff" fontWeight="800">GO</text></>,
+  };
+
+  return (
+    <svg viewBox="0 0 80 120" width="100%" height="100%" className={cls} data-role={role}
+         style={{'--c': c}}>
+      <defs>
+        <filter id={`glow-${role}`}>
+          <feGaussianBlur stdDeviation="4" result="b"/>
+          <feFlood floodColor={c} floodOpacity="0.5"/>
+          <feComposite in2="b" operator="in"/>
+          <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <g className="char-body" filter={state==='working'||state==='celebrate'?`url(#glow-${role})`:'none'}>
+        {/* Legs */}
+        <line className="leg-l" x1="33" y1="76" x2="28" y2="106" stroke={c} strokeWidth="6" strokeLinecap="round"/>
+        <line className="leg-r" x1="47" y1="76" x2="52" y2="106" stroke={c} strokeWidth="6" strokeLinecap="round"/>
+        {/* Shoes */}
+        <ellipse cx="26" cy="108" rx="6" ry="3" fill={c} opacity="0.7"/>
+        <ellipse cx="54" cy="108" rx="6" ry="3" fill={c} opacity="0.7"/>
+        {/* Body */}
+        {bodyPaths[role]}
+        {/* Arms */}
+        <line className="arm-l" x1="24" y1="48" x2="12" y2="66" stroke={c} strokeWidth="5" strokeLinecap="round"/>
+        <line className="arm-r" x1="56" y1="48" x2="68" y2="66" stroke={c} strokeWidth="5" strokeLinecap="round"/>
+        {/* Hands */}
+        <circle cx="12" cy="66" r="4" fill={c} opacity="0.8"/>
+        <circle cx="68" cy="66" r="4" fill={c} opacity="0.8"/>
+        {/* Head */}
+        <g className="head-group">
+          <circle className="head" cx="40" cy="24" r="18" fill={c}/>
+          {/* Face highlight */}
+          <circle cx="36" cy="20" r="6" fill="#fff" opacity="0.08"/>
+          {/* Eyes */}
+          <g className="eyes" style={{transformOrigin:'40px 23px'}}>
+            <ellipse cx="34" cy="23" rx="2.5" ry="3" fill="#0b0a3a"/>
+            <ellipse cx="46" cy="23" rx="2.5" ry="3" fill="#0b0a3a"/>
+            <circle cx="35" cy="22" r="1" fill="#fff" opacity="0.6"/>
+            <circle cx="47" cy="22" r="1" fill="#fff" opacity="0.6"/>
+          </g>
+          {/* Mouth - subtle smile */}
+          <path d="M36 30 Q40 34 44 30" fill="none" stroke="#0b0a3a" strokeWidth="1.5" strokeLinecap="round" opacity="0.6"/>
+          {/* PM has hair/part, Engineer has messy hair, etc */}
+          {role==='pm' && <path d="M22 18 Q24 6 40 6 Q56 6 58 18" fill="#1a1240" opacity="0.5"/>}
+          {role==='engineer' && <path d="M22 20 Q28 4 40 6 Q52 4 58 20 L54 16 L46 10 L34 10 L26 16Z" fill="#1a1240" opacity="0.5"/>}
+          {role==='reviewer' && <><path d="M22 20 Q28 4 40 6 Q52 4 58 20" fill="#2a1420" opacity="0.4"/><circle cx="40" cy="6" r="7" fill="#2a1420" opacity="0.4"/></>}
+          {role==='deployer' && <path d="M24 18 Q30 4 40 6 Q50 4 56 18 L52 14 L40 8 L28 14Z" fill="#0a0a0a" opacity="0.5"/>}
+        </g>
+      </g>
+    </svg>
+  );
+}
+
+// ─── AGENT COMPONENT ───
+function Agent({ role, state, style, label }) {
+  return (
+    <div style={{
+      display:'flex', flexDirection:'column', alignItems:'center', width: 120,
+      transition:'transform 1.2s cubic-bezier(0.4,0,0.2,1), opacity 0.4s',
+      ...style
+    }}>
+      <div style={{ width:100, height:140, position:'relative' }}>
+        <AgentCharacter role={role} state={state}/>
+        {state==='done' && <div style={{
+          position:'absolute',top:-4,right:4,width:26,height:26,borderRadius:'50%',
+          background:'var(--teal)',color:'var(--navy)',fontWeight:800,fontSize:14,
+          display:'flex',alignItems:'center',justifyContent:'center',
+          boxShadow:'0 0 12px var(--teal)',animation:'fadeSlideUp 0.3s ease-out'
+        }}>✓</div>}
+      </div>
+      <div style={{
+        marginTop:8, fontFamily:"'Big Shoulders Display',sans-serif", fontWeight:800,
+        fontSize:14, letterSpacing:'0.12em', color:COLORS[role],
+        textShadow:`0 0 16px ${COLORS[role]}60`, textTransform:'uppercase'
+      }}>{SHORT[role]}</div>
+      <div style={{
+        marginTop:2, fontFamily:"'JetBrains Mono',monospace", fontSize:10,
+        color: state==='working' ? COLORS[role] : state==='done' ? 'var(--teal)' : 'rgba(255,241,217,0.4)',
+        letterSpacing:'0.1em', textTransform:'uppercase', height:14, textAlign:'center'
+      }}>{label || (state==='working'?'Working…':state==='done'?'Done':'Idle')}</div>
+    </div>
+  );
+}
+
+// ─── COURIER ORB ───
+function Courier({ active, fromIdx, toIdx, color }) {
+  if (!active) return null;
+  // Positions: 4 agents evenly spaced. Courier flies from one to next.
+  const fromX = 25 + fromIdx * 16.67; // percentage
+  const toX = 25 + toIdx * 16.67;
+  return (
+    <div style={{
+      position:'absolute', top:'36%', left:`${fromX}%`, width:36, height:36,
+      borderRadius:'50%', background:color||'var(--gold)',
+      boxShadow:`0 0 24px ${color||'var(--gold)'}, 0 0 48px ${color||'var(--gold)'}60`,
+      transform:'translate(-50%,-50%) scale(0.5)',
+      animation:'courierFloat 0.6s ease-in-out infinite',
+      transition:'left 1s cubic-bezier(0.4,0,0.2,1), transform 0.3s',
+      zIndex:20, pointerEvents:'none',
+    }} ref={el => {
+      if(el) requestAnimationFrame(()=>{
+        el.style.left = `${toX}%`;
+        el.style.transform = 'translate(-50%,-50%) scale(1)';
+      });
+    }}>
+      <div style={{
+        position:'absolute',inset:4,borderRadius:'50%',
+        background:'rgba(255,255,255,0.3)',
+        border:'2px solid rgba(255,255,255,0.5)'
+      }}/>
+    </div>
+  );
+}
+
+// ─── PARTICLE SYSTEM ───
+function Particles({ active, color }) {
+  const [particles, setParticles] = useState([]);
+  const idRef = useRef(0);
+  useEffect(() => {
+    if (!active) { setParticles([]); return; }
+    const iv = setInterval(() => {
+      setParticles(prev => {
+        const next = prev.filter(p => Date.now() - p.born < 1800);
+        next.push({
+          id: idRef.current++, born: Date.now(),
+          x: 30 + Math.random()*40, y: 60 + Math.random()*20,
+          dx: (Math.random()-0.5)*40, char: ['<','>','{','}','/',';','()','[]','fn','→'][Math.floor(Math.random()*10)]
+        });
+        return next.slice(-12);
+      });
+    }, 300);
+    return () => clearInterval(iv);
+  }, [active]);
+  return (
+    <div style={{position:'absolute',inset:0,pointerEvents:'none',overflow:'hidden',zIndex:1}}>
+      {particles.map(p => (
+        <span key={p.id} style={{
+          position:'absolute', left:`${p.x}%`, top:`${p.y}%`,
+          fontFamily:"'JetBrains Mono',monospace", fontSize:12, fontWeight:700,
+          color: color || 'var(--teal)', opacity:0.5,
+          animation:'floatUp 1.8s ease-out forwards',
+          transform:`translateX(${p.dx}px)`,
+        }}>{p.char}</span>
+      ))}
+    </div>
+  );
+}
+
+// ─── BACKGROUND ───
+function MiamiBackground() {
+  return (
+    <div style={{position:'absolute',inset:0,overflow:'hidden',zIndex:0}}>
+      {/* Sky gradient */}
+      <div style={{
+        position:'absolute',inset:0,
+        background:'linear-gradient(180deg, #0b0a3a 0%, #1f1466 30%, #b1247a 65%, #ff8a5c 100%)'
+      }}/>
+      {/* Sun */}
+      <div style={{
+        position:'absolute',left:'50%',bottom:'18%',transform:'translateX(-50%)',
+        width:'28vmin',height:'28vmin',borderRadius:'50%',
+        background:'radial-gradient(circle at 50% 45%, #ffe6c2 0%, #ffb472 30%, #ff6f8b 60%, transparent 75%)',
+        filter:'blur(2px)',
+      }}/>
+      {/* Horizon */}
+      <div style={{
+        position:'absolute',left:0,right:0,bottom:'22%',height:1,
+        background:'linear-gradient(90deg,transparent,rgba(255,241,217,0.4),transparent)'
+      }}/>
+      {/* Grid floor */}
+      <div style={{
+        position:'absolute',left:0,right:0,bottom:0,height:'22%',
+        backgroundImage:'linear-gradient(rgba(255,45,123,0.2) 1px,transparent 1px),linear-gradient(90deg,rgba(255,45,123,0.2) 1px,transparent 1px)',
+        backgroundSize:'40px 20px',
+        transform:'perspective(300px) rotateX(58deg)',transformOrigin:'center top',
+        opacity:0.6, animation:'gridScroll 2s linear infinite',
+      }}/>
+      {/* Palm trees */}
+      {[-1,1].map(side => (
+        <svg key={side} viewBox="0 0 80 240" style={{
+          position:'absolute',bottom:'18%',[side<0?'left':'right']:'3%',
+          width:70,height:210,opacity:0.15,
+          animation:`breathe ${6+side}s ease-in-out infinite`,
+        }}>
+          <path d="M40 240 L40 80" stroke="#1a1240" strokeWidth="6" fill="none"/>
+          <path d="M40 80 Q15 70 4 50 Q22 60 38 78Z" fill="#1a1240"/>
+          <path d="M40 80 Q65 70 76 50 Q58 60 42 78Z" fill="#1a1240"/>
+          <path d="M40 80 Q30 50 14 30 Q34 45 40 78Z" fill="#1a1240"/>
+          <path d="M40 80 Q50 50 66 30 Q46 45 40 78Z" fill="#1a1240"/>
+        </svg>
+      ))}
+    </div>
+  );
+}
+
+// ─── BANNER ───
+function Banner({ text, eyebrow, mode }) {
+  const borderColor = mode==='voting'?'var(--pink)':mode==='building'?'var(--gold)':mode==='complete'?'var(--teal)':'rgba(255,241,217,0.2)';
+  const eyebrowColor = mode==='voting'?'var(--pink)':mode==='building'?'var(--gold)':mode==='complete'?'var(--teal)':'var(--gold)';
+  return (
+    <header style={{
+      background:'rgba(11,10,58,0.85)',backdropFilter:'blur(14px)',
+      borderBottom:`3px solid ${borderColor}`,padding:'14px 24px',
+      display:'flex',alignItems:'center',gap:16,zIndex:10,flexShrink:0,
+    }}>
+      <span style={{
+        fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,
+        letterSpacing:'0.18em',color:eyebrowColor,textTransform:'uppercase',
+        padding:'5px 10px',border:`1.5px solid ${eyebrowColor}`,borderRadius:4,
+        flexShrink:0,lineHeight:1,
+      }}>{eyebrow}</span>
+      <span style={{
+        flex:1,fontSize:'clamp(16px,2vw,28px)',fontWeight:700,color:'var(--cream)',
+        textShadow:'0 2px 8px rgba(0,0,0,0.4)',whiteSpace:'nowrap',
+        overflow:'hidden',textOverflow:'ellipsis',
+      }}>{text}</span>
+      {/* Live pill */}
+      <div style={{
+        fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,
+        letterSpacing:'0.16em',padding:'5px 10px',borderRadius:99,
+        background:'rgba(15,228,212,0.12)',border:'1px solid rgba(15,228,212,0.5)',
+        color:'var(--teal)',display:'flex',alignItems:'center',gap:6,flexShrink:0,
+      }}>
+        <span style={{
+          width:7,height:7,borderRadius:'50%',background:'var(--teal)',
+          boxShadow:'0 0 8px var(--teal)',animation:'pulseDot 1.5s ease-in-out infinite',
+          display:'inline-block',
+        }}/> LIVE
+      </div>
+    </header>
+  );
+}
+
+// ─── HUD ───
+function HUD({ timer, logs }) {
+  const m = Math.floor(timer/60);
+  const s = timer % 60;
+  const clock = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return (
+    <footer style={{
+      background:'rgba(11,10,58,0.75)',backdropFilter:'blur(12px)',
+      borderTop:'1px solid rgba(255,241,217,0.1)',padding:'14px 24px',
+      display:'grid',gridTemplateColumns:'auto 1fr',gap:24,alignItems:'center',
+      zIndex:10,flexShrink:0,
+    }}>
+      <div style={{textAlign:'center'}}>
+        <div style={{
+          fontFamily:"'JetBrains Mono',monospace",fontVariantNumeric:'tabular-nums',
+          fontSize:'clamp(28px,3.5vw,52px)',fontWeight:700,color:'var(--cream)',
+          lineHeight:1,letterSpacing:'0.04em',textShadow:'0 0 20px rgba(255,201,119,0.4)',
+        }}>{clock}</div>
+        <div style={{
+          fontFamily:"'JetBrains Mono',monospace",fontSize:10,letterSpacing:'0.18em',
+          color:'var(--gold)',marginTop:3,textTransform:'uppercase',
+        }}>Build time</div>
+      </div>
+      <div style={{overflow:'hidden',display:'flex',flexDirection:'column',gap:3,minWidth:0}}>
+        {logs.slice(-3).map((l,i) => (
+          <div key={l.id||i} style={{
+            fontSize:13,color:'rgba(255,241,217,0.85)',whiteSpace:'nowrap',
+            overflow:'hidden',textOverflow:'ellipsis',animation:'fadeSlideUp 0.3s ease-out',
+          }}>
+            <span style={{
+              fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,
+              color:COLORS[l.agent]||'var(--cream)',marginRight:8,
+              letterSpacing:'0.12em',textTransform:'uppercase',
+            }}>{SHORT[l.agent]||'SYS'}</span>
+            {l.msg}
+          </div>
+        ))}
+      </div>
+    </footer>
+  );
+}
+
+// ─── VOTE PANEL ───
+function VotePanel({ votes, voted, onVote, countdown, winner }) {
+  const total = votes.reduce((a,b)=>a+b, 0) || 1;
+  const vColors = ['var(--pink)','var(--teal)','var(--gold)'];
+  return (
+    <div style={{
+      display:'flex',flexDirection:'column',gap:12,width:'min(680px,92%)',zIndex:5,
+    }}>
+      {VOTE_OPTIONS.map((opt,i) => {
+        const pct = (votes[i]/total*100).toFixed(1);
+        const isWinner = winner === opt.id;
+        const isVoted = voted === opt.id;
+        return (
+          <button key={opt.id} onClick={()=>onVote(opt.id)} disabled={voted!==null||winner!==null} style={{
+            display:'flex',alignItems:'center',gap:16,padding:'16px 20px',
+            background: isWinner?`${vColors[i]}18`:isVoted?'rgba(15,228,212,0.12)':'rgba(11,10,58,0.55)',
+            border:`2px solid ${isWinner?'var(--gold)':isVoted?'var(--teal)':vColors[i]+'60'}`,
+            borderRadius:10,backdropFilter:'blur(12px)',cursor:voted?'default':'pointer',
+            color:'var(--cream)',fontFamily:'inherit',textAlign:'left',width:'100%',
+            transition:'all 0.2s',boxShadow:isWinner?`0 0 40px ${vColors[i]}40`:'none',
+            transform:'scale(1)',
+          }}>
+            <span style={{
+              fontFamily:"'Big Shoulders Display',sans-serif",fontWeight:900,fontSize:32,
+              color:vColors[i],minWidth:30,
+            }}>{opt.id}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:'clamp(14px,1.3vw,18px)',fontWeight:700,marginBottom:4}}>
+                {opt.label}
+                {isVoted && <span style={{
+                  marginLeft:8,padding:'3px 8px',borderRadius:99,background:'var(--teal)',
+                  color:'var(--navy)',fontFamily:"'JetBrains Mono',monospace",fontSize:9,
+                  fontWeight:700,letterSpacing:'0.14em',
+                }}>YOUR VOTE</span>}
+                {isWinner && <span style={{
+                  marginLeft:8,padding:'3px 8px',borderRadius:99,background:'var(--gold)',
+                  color:'var(--navy)',fontFamily:"'JetBrains Mono',monospace",fontSize:9,
+                  fontWeight:700,letterSpacing:'0.14em',
+                }}>WINNER</span>}
+              </div>
+              <div style={{
+                height:5,background:'rgba(255,241,217,0.08)',borderRadius:99,overflow:'hidden',
+              }}>
+                <div style={{
+                  height:'100%',width:`${pct}%`,background:vColors[i],borderRadius:99,
+                  transition:'width 0.6s cubic-bezier(0.22,1,0.36,1)',
+                }}/>
+              </div>
+            </div>
+            <span style={{
+              fontFamily:"'JetBrains Mono',monospace",fontSize:20,fontWeight:700,
+              color:vColors[i],minWidth:50,textAlign:'right',fontVariantNumeric:'tabular-nums',
+            }}>{votes[i]}</span>
+          </button>
+        );
+      })}
+      {countdown > 0 && !winner && (
+        <div style={{
+          display:'flex',justifyContent:'center',alignItems:'center',gap:10,marginTop:6,
+          fontFamily:"'JetBrains Mono',monospace",fontSize:16,color:'var(--cream)',
+          letterSpacing:'0.1em', animation: countdown<=5?'countdownPulse 0.5s ease-in-out infinite':'none',
+        }}>
+          Vote closes in <span style={{fontSize:26,fontWeight:700,color:countdown<=5?'var(--pink)':'var(--gold)'}}>{countdown}</span> sec
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── RESULT CARD ───
+function ResultCard({ url, elapsed, show }) {
+  if (!show) return null;
+  return (
+    <div style={{
+      display:'flex',flexDirection:'column',alignItems:'center',gap:18,
+      padding:'36px 48px',background:'linear-gradient(135deg,rgba(15,228,212,0.15),rgba(255,138,92,0.1))',
+      border:'2px solid var(--teal)',borderRadius:14,
+      boxShadow:'0 0 60px rgba(15,228,212,0.3)',zIndex:6,
+      animation:'fadeSlideUp 0.6s ease-out',maxWidth:'90vw',
+    }}>
+      <span style={{
+        fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:700,
+        letterSpacing:'0.2em',color:'var(--teal)',textTransform:'uppercase',
+      }}>BUILT IN {elapsed} — LIVE NOW</span>
+      <div style={{
+        fontFamily:"'Big Shoulders Display',sans-serif",fontWeight:900,
+        fontSize:'clamp(28px,3.2vw,48px)',color:'var(--cream)',textAlign:'center',lineHeight:1.1,
+      }}>AML Transaction Monitoring Console</div>
+      <a href="#" style={{
+        display:'inline-flex',alignItems:'center',gap:14,padding:'18px 32px',
+        background:'var(--cream)',color:'var(--navy)',borderRadius:8,textDecoration:'none',
+        fontFamily:"'JetBrains Mono',monospace",fontSize:'clamp(18px,2.2vw,28px)',fontWeight:700,
+        boxShadow:'0 8px 28px rgba(0,0,0,0.4),0 0 24px rgba(255,241,217,0.3)',
+        transition:'transform 0.2s',letterSpacing:'0.02em',
+      }}>{url} <span style={{fontWeight:800}}>↗</span></a>
+      <div style={{
+        display:'flex',gap:24,fontFamily:"'JetBrains Mono',monospace",fontSize:12,
+        color:'rgba(255,241,217,0.7)',letterSpacing:'0.08em',textTransform:'uppercase',
+      }}>
+        <span><strong style={{color:'var(--cream)',fontSize:15,marginRight:4}}>{elapsed}</strong>elapsed</span>
+        <span><strong style={{color:'var(--cream)',fontSize:15,marginRight:4}}>9.2</strong>quality</span>
+        <span><strong style={{color:'var(--cream)',fontSize:15,marginRight:4}}>$0.34</strong>est. cost</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── BUILD PROGRESS BAR ───
+function BuildProgress({ progress }) {
+  return (
+    <div style={{
+      width:'min(500px,80%)',height:6,background:'rgba(255,241,217,0.08)',
+      borderRadius:99,overflow:'hidden',zIndex:5,marginTop:-8,
+    }}>
+      <div style={{
+        height:'100%',width:`${progress}%`,borderRadius:99,
+        background:'linear-gradient(90deg,var(--teal),var(--gold))',
+        transition:'width 1.5s cubic-bezier(0.4,0,0.2,1)',
+        boxShadow:'0 0 12px rgba(15,228,212,0.4)',position:'relative',overflow:'hidden',
+      }}>
+        <div style={{
+          position:'absolute',top:0,bottom:0,width:'30%',
+          background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)',
+          animation:'shineSweep 1.5s linear infinite',
+        }}/>
+      </div>
+    </div>
+  );
+}
+
+// ─── AGENT FLOOR (BUILDING PHASE) ───
+function AgentFloor({ agents, activeAgent, handoff, courierActive }) {
+  // Station platforms
+  const positions = AGENT_ORDER.map((role,i) => ({
+    role, left: `${12.5 + i*25}%`,
+  }));
+
+  return (
+    <div style={{
+      position:'relative',width:'min(1100px,96%)',height:'100%',
+      display:'flex',alignItems:'center',justifyContent:'center',zIndex:4,
+    }}>
+      {/* Station platforms */}
+      {positions.map((p,i) => (
+        <div key={p.role} style={{
+          position:'absolute',bottom:'8%',left:p.left,transform:'translateX(-50%)',
+          width:140,height:6,borderRadius:99,
+          background: agents[p.role]==='working' ? COLORS[p.role] : 'rgba(255,241,217,0.08)',
+          boxShadow: agents[p.role]==='working' ? `0 0 20px ${COLORS[p.role]}60` : 'none',
+          transition:'all 0.5s',
+        }}/>
+      ))}
+      {/* Agents */}
+      {positions.map((p,i) => {
+        const isWalking = handoff && handoff.from === p.role;
+        const walkDir = isWalking ? (AGENT_ORDER.indexOf(handoff.to) - i) * 60 : 0;
+        return (
+          <div key={p.role} style={{
+            position:'absolute',bottom:'10%',left:p.left,
+            transform:`translateX(-50%) translateX(${walkDir}px)`,
+            transition:'transform 1s cubic-bezier(0.4,0,0.2,1)',
+            zIndex: agents[p.role]==='working' ? 5 : 2,
+          }}>
+            <Agent role={p.role}
+                   state={isWalking?'walking':agents[p.role]}
+                   label={agents[p.role]==='working'?'Working…':agents[p.role]==='done'?'Done':'Idle'}/>
+          </div>
+        );
+      })}
+      {/* Connection lines between agents */}
+      <svg style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:1}} viewBox="0 0 1100 400">
+        {[0,1,2].map(i => {
+          const x1 = 137.5 + i*275;
+          const x2 = 137.5 + (i+1)*275;
+          const activeI = AGENT_ORDER.indexOf(activeAgent);
+          const isActive = i === activeI || i === activeI - 1;
+          return (
+            <line key={i} x1={x1} y1="320" x2={x2} y2="320"
+              stroke={isActive ? 'rgba(255,241,217,0.15)' : 'rgba(255,241,217,0.05)'}
+              strokeWidth="1" strokeDasharray="4 8"/>
+          );
+        })}
+      </svg>
+      {/* Courier orb */}
+      {courierActive && handoff && (
+        <Courier active={true}
+                 fromIdx={AGENT_ORDER.indexOf(handoff.from)}
+                 toIdx={AGENT_ORDER.indexOf(handoff.to)}
+                 color={COLORS[handoff.to]}/>
+      )}
+    </div>
+  );
+}
+
+// ─── IDLE SCREEN ───
+function IdleScreen({ onStart }) {
+  return (
+    <div style={{
+      display:'flex',flexDirection:'column',alignItems:'center',gap:24,zIndex:5,
+      textAlign:'center',padding:'0 24px',
+    }}>
+      <div style={{
+        fontFamily:"'Big Shoulders Display',sans-serif",fontWeight:900,
+        fontSize:'clamp(32px,5vw,64px)',lineHeight:1,letterSpacing:'-0.01em',
+        color:'var(--cream)',textShadow:'0 2px 12px rgba(0,0,0,0.4)',
+      }}>
+        Vote to build a<br/>
+        <span style={{color:'var(--pink)',textShadow:'0 0 30px rgba(255,45,123,0.5)'}}>live app</span>{' '}
+        in under <span style={{color:'var(--teal)',textShadow:'0 0 30px rgba(15,228,212,0.5)'}}>3 min</span>
+      </div>
+      <div style={{
+        fontSize:'clamp(14px,1.4vw,18px)',color:'rgba(255,241,217,0.7)',maxWidth:'40ch',
+      }}>
+        Scan the QR code to vote from your phone. Our AI agents will spec, code, review, and ship the winner live.
+      </div>
+      {/* QR placeholder */}
+      <div style={{
+        width:140,height:140,background:'var(--cream)',borderRadius:8,
+        border:'4px solid var(--cream)',boxShadow:'0 8px 32px rgba(0,0,0,0.4)',
+        display:'flex',alignItems:'center',justifyContent:'center',
+        fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:'var(--navy)',fontWeight:700,
+      }}>QR CODE</div>
+      <div style={{
+        fontFamily:"'JetBrains Mono',monospace",fontSize:11,letterSpacing:'0.14em',
+        color:'rgba(255,241,217,0.5)',textTransform:'uppercase',
+      }}>Scan to vote</div>
+      {/* Auto-start hint */}
+      <button onClick={onStart} style={{
+        marginTop:8,padding:'10px 24px',borderRadius:99,background:'rgba(255,45,123,0.15)',
+        border:'1px solid var(--pink)',color:'var(--pink)',cursor:'pointer',
+        fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,
+        letterSpacing:'0.14em',textTransform:'uppercase',
+      }}>Start Demo →</button>
+    </div>
+  );
+}
+
+// ─── DEMO ENGINE ───
+function useDemoEngine() {
+  const [phase, setPhase] = useState('idle'); // idle, voting, building, complete
+  const [agents, setAgents] = useState({pm:'idle',engineer:'idle',reviewer:'idle',deployer:'idle'});
+  const [activeAgent, setActiveAgent] = useState(null);
+  const [handoff, setHandoff] = useState(null);
+  const [courierActive, setCourierActive] = useState(false);
+  const [votes, setVotes] = useState([0,0,0]);
+  const [voted, setVoted] = useState(null);
+  const [countdown, setCountdown] = useState(30);
+  const [winner, setWinner] = useState(null);
+  const [timer, setTimer] = useState(0);
+  const [logs, setLogs] = useState([]);
+  const [buildProgress, setBuildProgress] = useState(0);
+  const [resultUrl, setResultUrl] = useState('');
+  const [showResult, setShowResult] = useState(false);
+  const logId = useRef(0);
+  const timersRef = useRef([]);
+  const timerIv = useRef(null);
+
+  const addLog = useCallback((agent, msg) => {
+    setLogs(prev => [...prev.slice(-8), { id: logId.current++, agent, msg }]);
+  }, []);
+
+  const doHandoff = useCallback((from, to) => {
+    setHandoff({ from, to });
+    setCourierActive(true);
+    setAgents(a => ({...a, [from]: 'done'}));
+    const t1 = setTimeout(() => {
+      setCourierActive(false);
+      setHandoff(null);
+      setAgents(a => ({...a, [to]: 'working'}));
+      setActiveAgent(to);
+    }, 1300);
+    timersRef.current.push(t1);
+  }, []);
+
+  const startDemo = useCallback(() => {
+    // Clear any existing timers
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+    if(timerIv.current) clearInterval(timerIv.current);
+
+    // Reset state
+    setPhase('idle'); setAgents({pm:'idle',engineer:'idle',reviewer:'idle',deployer:'idle'});
+    setActiveAgent(null); setHandoff(null); setCourierActive(false);
+    setVotes([0,0,0]); setVoted(null); setCountdown(30); setWinner(null);
+    setTimer(0); setLogs([]); setBuildProgress(0); setShowResult(false);
+
+    const schedule = (ms, fn) => { const t = setTimeout(fn, ms); timersRef.current.push(t); };
+
+    // VOTING PHASE
+    schedule(500, () => { setPhase('voting'); setCountdown(30); });
+
+    // Simulate vote ticks
+    const voteTicks = [
+      [1500,[4,2,1]], [3000,[9,5,3]], [5000,[14,8,6]],
+      [7000,[19,12,9]], [9000,[24,15,12]], [11000,[28,18,14]],
+      [13000,[31,20,16]], [14500,[34,22,17]],
+    ];
+    voteTicks.forEach(([ms,v]) => schedule(ms, ()=>setVotes(v)));
+
+    // Countdown
+    let cd = 30;
+    const cdIv = setInterval(() => {
+      cd--; if(cd<0) cd=0;
+      setCountdown(cd);
+    }, 500);
+    timersRef.current.push(cdIv);
+    schedule(15500, () => { clearInterval(cdIv); setCountdown(0); });
+
+    // Close voting
+    schedule(16000, () => { setWinner(1); });
+
+    // START BUILD
+    schedule(18000, () => {
+      setPhase('building');
+      setTimer(0);
+      timerIv.current = setInterval(() => setTimer(t => t+1), 1000);
+      // PM starts
+      setAgents({pm:'working',engineer:'idle',reviewer:'idle',deployer:'idle'});
+      setActiveAgent('pm');
+      addLog('pm','Analyzing brief: AML Transaction Monitoring Console');
+    });
+
+    schedule(20000, () => { addLog('pm','Breaking down requirements…'); setBuildProgress(8); });
+    schedule(22000, () => { addLog('pm','Created project specification'); setBuildProgress(15); });
+    schedule(24000, () => { addLog('pm','Requirements finalized ✓'); setBuildProgress(20); });
+
+    // Handoff PM → ENG
+    schedule(26000, () => { doHandoff('pm','engineer'); addLog('system','Handoff: PM → Engineer'); setBuildProgress(25); });
+    schedule(28000, () => { addLog('engineer','Setting up project scaffold…'); setBuildProgress(30); });
+    schedule(30000, () => { addLog('engineer','Created auth.ts'); setBuildProgress(38); });
+    schedule(32000, () => { addLog('engineer','Created dashboard.tsx'); setBuildProgress(45); });
+    schedule(34000, () => { addLog('engineer','Wrote schema.sql'); setBuildProgress(52); });
+    schedule(36000, () => { addLog('engineer','Implemented API routes'); setBuildProgress(58); });
+    schedule(38000, () => { addLog('engineer','Frontend components complete'); setBuildProgress(62); });
+
+    // Handoff ENG → REV
+    schedule(40000, () => { doHandoff('engineer','reviewer'); addLog('system','Handoff: Engineer → Reviewer'); setBuildProgress(65); });
+    schedule(42000, () => { addLog('reviewer','Running security scan…'); setBuildProgress(68); });
+    schedule(44000, () => { addLog('reviewer','PII scan passed ✓'); setBuildProgress(72); });
+    // Stall at 72% for drama
+    schedule(46000, () => { addLog('reviewer','CVE check clean ✓'); setBuildProgress(75); });
+    schedule(48000, () => { addLog('reviewer','Code quality score: 9.2/10 ✓'); setBuildProgress(82); });
+
+    // Handoff REV → DEPLOY
+    schedule(50000, () => { doHandoff('reviewer','deployer'); addLog('system','Handoff: Reviewer → Deployer'); setBuildProgress(85); });
+    schedule(52000, () => { addLog('deployer','Building container…'); setBuildProgress(88); });
+    schedule(54000, () => { addLog('deployer','Configuring DNS…'); setBuildProgress(92); });
+    schedule(56000, () => { addLog('deployer','Running health checks…'); setBuildProgress(96); });
+
+    // COMPLETE
+    schedule(58000, () => {
+      clearInterval(timerIv.current);
+      setBuildProgress(100);
+      addLog('deployer','Deployment successful! 🚀');
+      setAgents({pm:'celebrate',engineer:'celebrate',reviewer:'celebrate',deployer:'celebrate'});
+      setActiveAgent(null);
+      setResultUrl('aml-console.demo.factory');
+    });
+    schedule(59500, () => {
+      setPhase('complete');
+      setShowResult(true);
+    });
+  }, [addLog, doHandoff]);
+
+  const handleVote = useCallback((id) => {
+    if (voted) return;
+    setVoted(id);
+    setVotes(prev => prev.map((v,i) => i===id-1 ? v+1 : v));
+  }, [voted]);
+
+  return {
+    phase, agents, activeAgent, handoff, courierActive,
+    votes, voted, countdown, winner, timer, logs, buildProgress,
+    resultUrl, showResult, startDemo, handleVote,
+  };
+}
+
+// ─── MAIN APP ───
+function MiamiNeonApp() {
+  const demo = useDemoEngine();
+
+  const bannerConfig = {
+    idle: { text:'Awaiting vote — scan QR to participate', eyebrow:'STAND BY', mode:'idle' },
+    voting: { text: demo.winner ? `Winner: ${VOTE_OPTIONS[0].label}` : 'Pick what we build live — scan the QR to vote', eyebrow: demo.winner ? 'WINNER' : 'VOTE NOW', mode: demo.winner ? 'complete' : 'voting' },
+    building: { text:`Building: ${VOTE_OPTIONS[0].label}`, eyebrow:'BUILDING', mode:'building' },
+    complete: { text:'Build complete — live now!', eyebrow:'SHIPPED', mode:'complete' },
+  }[demo.phase];
+
+  return (
+    <div style={{
+      display:'grid',gridTemplateRows:'auto 1fr auto',height:'100dvh',
+      position:'relative',overflow:'hidden',
+    }}>
+      <MiamiBackground/>
+      <Banner {...bannerConfig}/>
+
+      {/* Main stage */}
+      <main style={{
+        position:'relative',overflow:'hidden',display:'flex',flexDirection:'column',
+        alignItems:'center',justifyContent:'center',gap:16,zIndex:2,
+      }}>
+        <Particles active={demo.phase==='building'} color={demo.activeAgent?COLORS[demo.activeAgent]:null}/>
+
+        {demo.phase === 'idle' && (
+          <IdleScreen onStart={demo.startDemo}/>
+        )}
+
+        {demo.phase === 'voting' && (
+          <VotePanel votes={demo.votes} voted={demo.voted}
+                     onVote={demo.handleVote} countdown={demo.countdown}
+                     winner={demo.winner}/>
+        )}
+
+        {demo.phase === 'building' && (
+          <>
+            <AgentFloor agents={demo.agents} activeAgent={demo.activeAgent}
+                        handoff={demo.handoff} courierActive={demo.courierActive}/>
+            <BuildProgress progress={demo.buildProgress}/>
+          </>
+        )}
+
+        {demo.phase === 'complete' && (
+          <>
+            {/* Show celebrating agents behind the result card */}
+            <div style={{
+              position:'absolute',bottom:'5%',left:0,right:0,
+              display:'flex',justifyContent:'center',gap:40,opacity:0.5,
+            }}>
+              {AGENT_ORDER.map(role => (
+                <div key={role} style={{width:80}}>
+                  <AgentCharacter role={role} state="celebrate"/>
+                </div>
+              ))}
+            </div>
+            <ResultCard url={demo.resultUrl} elapsed="2:47" show={demo.showResult}/>
+          </>
+        )}
+      </main>
+
+      <HUD timer={demo.timer} logs={demo.logs}/>
+    </div>
+  );
+}
+
+window.MiamiNeonApp = MiamiNeonApp;
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(window.MiamiNeonApp));
+</script>
+</body>
+</html>

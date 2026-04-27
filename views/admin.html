@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a3a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Factory · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --navy: #0b0a3a;
+    --indigo: #1f1466;
+    --magenta: #b1247a;
+    --coral: #ff8a5c;
+    --pink: #FF2D7B;
+    --teal: #0FE4D4;
+    --gold: #FFC977;
+    --cream: #FFF1D9;
+    --error: #ff4d4d;
+  }
+
+  html, body {
+    min-height: 100dvh;
+    background: linear-gradient(180deg, var(--navy) 0%, var(--indigo) 35%, var(--magenta) 78%, var(--coral) 100%);
+    background-attachment: fixed;
+    color: var(--cream);
+    font-family: 'Outfit', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    padding: 24px max(20px, env(safe-area-inset-left)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-right));
+    padding-top: max(24px, env(safe-area-inset-top));
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 32px;
+  }
+  .brand {
+    font-weight: 800; font-size: 14px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--cream);
+  }
+  .brand .accent { color: var(--pink); }
+  .live-pill {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 5px 10px; border-radius: 99px;
+    background: rgba(15,228,212,0.12); border: 1px solid rgba(15,228,212,0.4);
+    color: var(--teal); letter-spacing: 0.16em;
+  }
+
+  h1 {
+    font-size: 30px; font-weight: 700; line-height: 1.1;
+    margin-bottom: 4px;
+    color: var(--cream);
+  }
+  .sub {
+    font-size: 14px; color: rgba(255,241,217,0.7);
+    margin-bottom: 28px;
+  }
+
+  .state-card {
+    background: rgba(0,0,0,0.35); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 18px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+  }
+  .state-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .state-row:last-child { margin-bottom: 0; }
+  .state-label { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,241,217,0.55); }
+  .state-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: var(--cream); }
+  .state-status[data-s="idle"] { color: rgba(255,241,217,0.55); }
+  .state-status[data-s="open"] { color: var(--teal); }
+  .state-status[data-s="closed"] { color: var(--gold); }
+
+  .tally { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .tally-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .tally-row:last-child { margin-bottom: 0; }
+  .tally-row .id { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; min-width: 22px; }
+  .tally-row .label { font-size: 13px; color: rgba(255,241,217,0.85); flex: 1; }
+  .tally-row .count { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--cream); }
+  .tally-row.winner .count { color: var(--gold); }
+  .tally-row.winner::after { content: 'WINNER'; font-size: 9px; padding: 3px 7px; border-radius: 99px; background: var(--gold); color: var(--navy); font-weight: 800; letter-spacing: 0.12em; }
+
+  .actions { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+
+  button {
+    appearance: none;
+    width: 100%; min-height: 64px;
+    border: none; border-radius: 14px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 18px; font-weight: 700; letter-spacing: 0.06em;
+    color: var(--cream);
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    text-transform: uppercase;
+  }
+  button:active { transform: scale(0.98); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button[data-action="open"] {
+    background: linear-gradient(135deg, var(--pink), var(--coral));
+    box-shadow: 0 8px 32px rgba(255,45,123,0.35);
+    color: #fff;
+  }
+  button[data-action="close"] {
+    background: rgba(255,201,119,0.12);
+    border: 1px solid rgba(255,201,119,0.5);
+    color: var(--gold);
+  }
+  button[data-action="reset"] {
+    background: rgba(255,77,77,0.08);
+    border: 1px solid rgba(255,77,77,0.4);
+    color: rgba(255,255,255,0.85);
+  }
+
+  .links {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .links a {
+    font-size: 12px; padding: 7px 12px;
+    border-radius: 99px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--cream); text-decoration: none;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 24px; right: 24px;
+    background: rgba(15,228,212,0.16); backdrop-filter: blur(14px);
+    border: 1px solid rgba(15,228,212,0.5); border-radius: 12px;
+    padding: 14px 18px;
+    color: var(--teal); font-weight: 600;
+    font-size: 14px;
+    transform: translateY(120%); opacity: 0;
+    transition: transform 0.3s, opacity 0.3s;
+    z-index: 100;
+    max-width: 432px; margin: 0 auto;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { background: rgba(255,77,77,0.16); border-color: rgba(255,77,77,0.5); color: var(--error); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">FACTORY · <span class="accent">ADMIN</span></div>
+  <div class="live-pill" id="live-pill">CONNECTING</div>
+</header>
+
+<h1>Demo control</h1>
+<p class="sub">Run the audience vote and the build from your phone.</p>
+
+<div class="state-card">
+  <div class="state-row">
+    <span class="state-label">Status</span>
+    <span class="state-value state-status" id="status" data-s="idle">IDLE</span>
+  </div>
+  <div class="state-row">
+    <span class="state-label">Time left</span>
+    <span class="state-value" id="time-left">—</span>
+  </div>
+  <div class="state-row">
+    <span class="state-label">Total votes</span>
+    <span class="state-value" id="total-votes">0</span>
+  </div>
+  <div class="tally" id="tally"></div>
+</div>
+
+<div class="actions">
+  <button data-action="open" id="btn-open">Open voting · 30 sec</button>
+  <button data-action="close" id="btn-close">Close voting now</button>
+  <button data-action="reset" id="btn-reset">Reset to idle</button>
+</div>
+
+<div class="links">
+  <a href="/v4-beach" target="_blank">Big screen</a>
+  <a href="/vote" target="_blank">Audience view</a>
+  <a href="/v1" target="_blank">The Floor</a>
+  <a href="/v2" target="_blank">Mission Control</a>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let state = null;
+  let timerInterval = null;
+
+  const $status = document.getElementById('status');
+  const $timeLeft = document.getElementById('time-left');
+  const $totalVotes = document.getElementById('total-votes');
+  const $tally = document.getElementById('tally');
+  const $btnOpen = document.getElementById('btn-open');
+  const $btnClose = document.getElementById('btn-close');
+  const $btnReset = document.getElementById('btn-reset');
+  const $livePill = document.getElementById('live-pill');
+  const $toast = document.getElementById('toast');
+
+  function showToast(msg, isError = false) {
+    $toast.textContent = msg;
+    $toast.classList.toggle('error', isError);
+    $toast.classList.add('show');
+    setTimeout(() => $toast.classList.remove('show'), 2400);
+  }
+
+  function render() {
+    if (!state) return;
+
+    $status.textContent = state.status.toUpperCase();
+    $status.dataset.s = state.status;
+
+    const total = (state.options || []).reduce((s, o) => s + (o.votes || 0), 0);
+    $totalVotes.textContent = total;
+
+    // Tally
+    $tally.innerHTML = (state.options || []).map(o => {
+      const isWinner = state.status === 'closed' && state.winner === o.id;
+      return `<div class="tally-row ${isWinner ? 'winner' : ''}">
+        <span class="id">${o.id}</span>
+        <span class="label">${o.label}</span>
+        <span class="count">${o.votes}</span>
+      </div>`;
+    }).join('');
+
+    // Buttons
+    $btnOpen.disabled = state.status === 'open';
+    $btnClose.disabled = state.status !== 'open';
+
+    // Timer
+    if (state.status === 'open' && state.endsAt) {
+      if (!timerInterval) {
+        timerInterval = setInterval(updateTimer, 250);
+      }
+      updateTimer();
+    } else {
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      $timeLeft.textContent = state.status === 'closed' ? 'CLOSED' : '—';
+    }
+  }
+
+  function updateTimer() {
+    if (!state || !state.endsAt) return;
+    const remaining = Math.max(0, Math.ceil((state.endsAt - Date.now()) / 1000));
+    $timeLeft.textContent = remaining + 's';
+  }
+
+  async function action(name) {
+    try {
+      const resp = await fetch('/factory/api/voting/' + name, { method: 'POST' });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        showToast(err.error || ('Failed: ' + resp.status), true);
+        return;
+      }
+      const newState = await resp.json();
+      state = newState;
+      render();
+      showToast(name === 'open' ? 'Voting opened' : name === 'close' ? 'Voting closed' : 'Reset to idle');
+    } catch (e) {
+      showToast('Network error', true);
+    }
+  }
+
+  $btnOpen.addEventListener('click', () => action('open'));
+  $btnClose.addEventListener('click', () => action('close'));
+  $btnReset.addEventListener('click', () => {
+    if (confirm('Reset voting + tallies to idle?')) action('reset');
+  });
+
+  // SSE
+  let es = null;
+  let reconnectDelay = 2000;
+  function connect() {
+    if (es) { es.close(); es = null; }
+    $livePill.textContent = 'CONNECTING';
+    es = new EventSource('/factory/api/live-stream');
+    es.onopen = () => {
+      reconnectDelay = 2000;
+      $livePill.textContent = 'LIVE';
+    };
+    es.onmessage = (e) => {
+      try {
+        const ev = JSON.parse(e.data);
+        if (ev.type === 'voting_state') {
+          state = ev.votingState;
+          render();
+        }
+      } catch (_) {}
+    };
+    es.onerror = () => {
+      $livePill.textContent = 'OFFLINE';
+      es.close(); es = null;
+      setTimeout(connect, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 1.5, 20000);
+    };
+  }
+
+  // Initial state via REST (in case SSE is slow)
+  fetch('/factory/api/voting-state').then(r => r.json()).then(s => {
+    state = s; render();
+  });
+
+  connect();
+</script>
+</body>
+</html>

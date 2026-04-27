@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>FACTORY · MISSION CONTROL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+
+        :root{
+            /* Surfaces */
+            --bg:#000;
+            --bg-2:#06070A;
+            --panel:#0A0B0F;
+            --panel-2:#0E1015;
+            --hairline:rgba(255,255,255,0.06);
+            --hairline-strong:rgba(255,255,255,0.12);
+            --grid-line:rgba(255,255,255,0.025);
+
+            /* Text */
+            --text:#F5F6FA;
+            --text-2:#9DA0AB;
+            --text-3:#5A5D6A;
+            --text-4:#2E3038;
+
+            /* Accents */
+            --pm:#4A9EFF;
+            --coder:#10B981;
+            --reviewer:#8B5CF6;
+            --deployer:#F0845C;
+            --signal:#10F2A0;       /* online / pass */
+            --signal-soft:rgba(16,242,160,0.08);
+            --warn:#FFB020;
+            --err:#FF3B5C;
+            --cyan:#00E0FF;
+
+            /* Type */
+            --mono:'JetBrains Mono',ui-monospace,monospace;
+            --sans:'Geist',ui-sans-serif,system-ui,-apple-system,sans-serif;
+        }
+
+        html,body{
+            height:100%;width:100%;
+            background:var(--bg);
+            color:var(--text);
+            font-family:var(--sans);
+            font-size:14px;
+            -webkit-font-smoothing:antialiased;
+            text-rendering:optimizeLegibility;
+            font-feature-settings:'ss01','cv01','cv11';
+            overflow:hidden;
+        }
+
+        /* ============== BACKGROUND ATMOSPHERE ============== */
+        body::before{
+            content:'';
+            position:fixed;inset:0;
+            background-image:
+                linear-gradient(var(--grid-line) 1px,transparent 1px),
+                linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+            background-size:48px 48px;
+            background-position:-1px -1px;
+            mask-image:radial-gradient(ellipse 80% 60% at 50% 40%, black 0%, transparent 90%);
+            -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 40%, black 0%, transparent 90%);
+            pointer-events:none;
+            z-index:0;
+        }
+        body::after{
+            content:'';
+            position:fixed;inset:0;
+            background:radial-gradient(ellipse 90% 50% at 50% 100%, rgba(74,158,255,0.05) 0%, transparent 60%),
+                       radial-gradient(ellipse 60% 40% at 90% 0%, rgba(240,132,92,0.04) 0%, transparent 60%);
+            pointer-events:none;
+            z-index:0;
+        }
+
+        /* ============== APP SHELL ============== */
+        .app{
+            position:relative;z-index:1;
+            display:grid;
+            grid-template-rows:auto auto 1fr auto auto;
+            height:100dvh;
+            padding-top:env(safe-area-inset-top);
+            padding-bottom:env(safe-area-inset-bottom);
+        }
+
+        /* ============== STATUS BAR (TOP) ============== */
+        .statusbar{
+            display:grid;
+            grid-template-columns:auto 1fr auto auto;
+            align-items:center;
+            gap:24px;
+            height:56px;
+            padding:0 20px;
+            border-bottom:1px solid var(--hairline);
+            background:rgba(6,7,10,0.8);
+            backdrop-filter:blur(12px);
+            -webkit-backdrop-filter:blur(12px);
+            position:relative;
+        }
+        .statusbar::before{
+            content:'';
+            position:absolute;left:0;right:0;bottom:-1px;height:1px;
+            background:linear-gradient(90deg,transparent,rgba(16,242,160,0.4),transparent);
+            opacity:0.5;
+        }
+
+        .brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text)}
+        .brand-mark{
+            width:18px;height:18px;position:relative;
+        }
+        .brand-mark::before,.brand-mark::after{
+            content:'';position:absolute;inset:0;border:1px solid var(--signal);
+        }
+        .brand-mark::before{transform:rotate(0deg);animation:brand-spin 8s linear infinite}
+        .brand-mark::after{transform:rotate(45deg);opacity:0.4;animation:brand-spin 12s linear infinite reverse}
+        @keyframes brand-spin{to{transform:rotate(360deg)}.brand-mark::after{transform:rotate(405deg)}}
+        .brand b{color:var(--text);font-weight:700}
+        .brand .sep{color:var(--text-3);margin:0 4px}
+        .brand .id{color:var(--text-2)}
+
+        .heartbeat-corner{
+            display:flex;align-items:center;gap:8px;
+            font-family:var(--mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;
+            color:var(--text-3);
+        }
+        .hb-dot{
+            width:6px;height:6px;border-radius:50%;
+            background:var(--signal);
+            box-shadow:0 0 0 0 rgba(16,242,160,0.6);
+            animation:hb 1.6s ease-out infinite;
+        }
+        @keyframes hb{
+            0%{transform:scale(0.85);box-shadow:0 0 0 0 rgba(16,242,160,0.7)}
+            70%{transform:scale(1);box-shadow:0 0 0 8px rgba(16,242,160,0)}
+            100%{transform:scale(0.85);box-shadow:0 0 0 0 rgba(16,242,160,0)}
+        }
+
+        .hb-text .conn-state{color:var(--signal);font-weight:500}
+        .hb-text .conn-state.reconnecting{color:var(--warn)}
+        .hb-text .conn-state.error{color:var(--err)}
+        .hb-text .conn-state.connecting{color:var(--text-2)}
+
+        .qr-tile{
+            width:64px;height:64px;
+            background:#fff;
+            padding:5px;
+            border-radius:6px;
+            position:relative;
+            display:flex;align-items:center;justify-content:center;
+            border:1px solid var(--hairline-strong);
+        }
+        .qr-tile canvas, .qr-tile svg{display:block;width:100%;height:100%}
+        .qr-tile::after{
+            content:'SCAN';
+            position:absolute;
+            bottom:-14px;left:0;right:0;
+            text-align:center;
+            font-family:var(--mono);font-size:8px;letter-spacing:0.2em;
+            color:var(--text-3);
+        }
+
+        .share-pill{
+            display:none;
+            font-family:var(--mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;
+            padding:6px 10px;border:1px solid var(--hairline-strong);border-radius:100px;
+            color:var(--text-2);background:transparent;cursor:pointer;
+        }
+
+        /* ============== AGENT GRID ============== */
+        .agents{
+            display:grid;
+            grid-template-columns:repeat(4,1fr);
+            position:relative;
+            border-bottom:1px solid var(--hairline);
+            background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);
+        }
+
+        .agent-tile{
+            position:relative;
+            padding:20px 18px 18px;
+            border-right:1px solid var(--hairline);
+            display:grid;
+            grid-template-columns:48px 1fr auto;
+            grid-template-rows:auto auto;
+            grid-template-areas:
+                "icon meta light"
+                "icon msg msg";
+            gap:4px 14px;
+            min-height:104px;
+            background:transparent;
+            transition:background 0.5s;
+            overflow:hidden;
+        }
+        .agent-tile:last-child{border-right:none}
+        .agent-tile::before{
+            content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+            background:var(--ac);
+            transform:scaleY(0);transform-origin:bottom;
+            transition:transform 0.5s cubic-bezier(0.22,1,0.36,1);
+        }
+        .agent-tile.working::before,.agent-tile.done::before{transform:scaleY(1)}
+        .agent-tile.working{background:linear-gradient(135deg,rgba(255,255,255,0.015),transparent 60%)}
+
+        .agent-tile[data-agent="pm"]{--ac:#4A9EFF;--ac-rgb:74,158,255}
+        .agent-tile[data-agent="coder"]{--ac:#10B981;--ac-rgb:16,185,129}
+        .agent-tile[data-agent="reviewer"]{--ac:#8B5CF6;--ac-rgb:139,92,246}
+        .agent-tile[data-agent="deployer"]{--ac:#F0845C;--ac-rgb:240,132,92}
+
+        .agent-icon{
+            grid-area:icon;
+            width:48px;height:48px;
+            border:1px solid var(--hairline-strong);
+            border-radius:8px;
+            background:rgba(255,255,255,0.015);
+            display:flex;align-items:center;justify-content:center;
+            position:relative;
+            transition:border-color 0.4s, background 0.4s, box-shadow 0.5s;
+        }
+        .agent-tile.working .agent-icon{
+            border-color:var(--ac);
+            background:rgba(var(--ac-rgb),0.08);
+            box-shadow:0 0 24px rgba(var(--ac-rgb),0.25), inset 0 0 12px rgba(var(--ac-rgb),0.08);
+        }
+        .agent-tile.done .agent-icon{
+            border-color:rgba(var(--ac-rgb),0.5);
+            background:rgba(var(--ac-rgb),0.04);
+        }
+        .agent-icon svg{width:26px;height:26px;color:var(--text-3);transition:color 0.4s}
+        .agent-tile.working .agent-icon svg{color:var(--ac)}
+        .agent-tile.done .agent-icon svg{color:rgba(var(--ac-rgb),0.85)}
+
+        /* per-agent icon animations */
+        .agent-tile[data-agent="pm"].working .icon-pm{animation:pulse-soft 2.4s ease-in-out infinite}
+        .agent-tile[data-agent="coder"].working .icon-coder-spin{animation:spin-3d 4s linear infinite;transform-origin:center}
+        .agent-tile[data-agent="reviewer"].working .icon-reviewer-ring{animation:ring-rot 3s linear infinite;transform-origin:center}
+        .agent-tile[data-agent="deployer"].working .icon-deployer-trail{animation:trail-dash 2s linear infinite}
+
+        @keyframes pulse-soft{0%,100%{opacity:1}50%{opacity:0.5}}
+        @keyframes spin-3d{to{transform:rotate(360deg)}}
+        @keyframes ring-rot{to{transform:rotate(360deg)}}
+        @keyframes trail-dash{to{stroke-dashoffset:-24}}
+
+        .agent-meta{grid-area:meta;display:flex;flex-direction:column;gap:2px;min-width:0}
+        .agent-name{
+            font-family:var(--mono);font-size:11px;font-weight:600;
+            letter-spacing:0.14em;text-transform:uppercase;
+            color:var(--text-2);
+        }
+        .agent-tile.working .agent-name,
+        .agent-tile.done .agent-name{color:var(--ac)}
+        .agent-id{
+            font-family:var(--mono);font-size:9px;letter-spacing:0.18em;
+            color:var(--text-4);text-transform:uppercase;
+        }
+
+        .agent-light{
+            grid-area:light;
+            display:flex;align-items:center;gap:6px;
+            font-family:var(--mono);font-size:9px;letter-spacing:0.16em;text-transform:uppercase;
+            color:var(--text-3);
+        }
+        .agent-light .dot{width:6px;height:6px;border-radius:50%;background:var(--text-4);transition:background 0.3s, box-shadow 0.3s}
+        .agent-tile.working .agent-light{color:var(--ac)}
+        .agent-tile.working .agent-light .dot{background:var(--ac);box-shadow:0 0 0 0 rgba(var(--ac-rgb),0.6);animation:dot-pulse 1.2s ease-out infinite}
+        .agent-tile.done .agent-light{color:var(--signal)}
+        .agent-tile.done .agent-light .dot{background:var(--signal)}
+        @keyframes dot-pulse{
+            0%{box-shadow:0 0 0 0 rgba(var(--ac-rgb),0.7)}
+            70%{box-shadow:0 0 0 6px rgba(var(--ac-rgb),0)}
+            100%{box-shadow:0 0 0 0 rgba(var(--ac-rgb),0)}
+        }
+
+        .agent-msg{
+            grid-area:msg;
+            font-family:var(--mono);font-size:11px;
+            color:var(--text-3);
+            line-height:1.4;
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+            transition:color 0.3s;
+        }
+        .agent-tile.working .agent-msg{color:var(--text-2)}
+        .agent-tile.done .agent-msg{color:var(--text-2)}
+
+        /* connection line overlay between tiles */
+        .agent-connectors{
+            position:absolute;left:0;right:0;top:0;bottom:0;
+            pointer-events:none;
+            z-index:2;
+        }
+
+        /* ============== EVENT FEED ============== */
+        .feed{
+            display:grid;
+            grid-template-rows:auto 1fr;
+            min-height:0;
+            background:var(--bg-2);
+            border-bottom:1px solid var(--hairline);
+            position:relative;
+        }
+        .feed-header{
+            display:flex;align-items:center;justify-content:space-between;
+            padding:8px 20px;
+            border-bottom:1px solid var(--hairline);
+            background:rgba(255,255,255,0.01);
+            font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;
+            color:var(--text-3);
+        }
+        .feed-header .left{display:flex;align-items:center;gap:14px}
+        .feed-header .right{display:flex;align-items:center;gap:14px}
+        .feed-header .lbl{color:var(--text-2)}
+        .feed-header .sep{color:var(--text-4)}
+        .feed-header .count{font-family:var(--mono);color:var(--text-2);font-variant-numeric:tabular-nums}
+        .stream-light{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--signal);margin-right:6px;box-shadow:0 0 8px rgba(16,242,160,0.6);animation:hb 1.6s ease-out infinite}
+
+        .feed-body{
+            overflow-y:auto;overflow-x:hidden;
+            -webkit-overflow-scrolling:touch;
+            padding:8px 0 16px;
+            scroll-behavior:smooth;
+            position:relative;
+        }
+        .feed-body::-webkit-scrollbar{width:6px;height:6px}
+        .feed-body::-webkit-scrollbar-track{background:transparent}
+        .feed-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:3px}
+
+        .feed-row{
+            display:grid;
+            grid-template-columns:88px 88px 1fr;
+            gap:14px;
+            align-items:baseline;
+            padding:4px 20px;
+            font-family:var(--mono);font-size:12px;line-height:1.5;
+            border-left:2px solid transparent;
+            animation:row-in 0.32s cubic-bezier(0.22,1,0.36,1) both;
+            transition:background 0.3s, border-color 0.4s;
+        }
+        .feed-row:hover{background:rgba(255,255,255,0.015)}
+        .feed-row.active{background:rgba(255,255,255,0.02)}
+        .feed-row.active.pm{border-left-color:var(--pm)}
+        .feed-row.active.coder{border-left-color:var(--coder)}
+        .feed-row.active.reviewer{border-left-color:var(--reviewer)}
+        .feed-row.active.deployer{border-left-color:var(--deployer)}
+
+        @keyframes row-in{
+            from{opacity:0;transform:translateX(-6px)}
+            to{opacity:1;transform:translateX(0)}
+        }
+
+        .feed-row .ts{color:var(--text-4);font-variant-numeric:tabular-nums;letter-spacing:0.05em}
+        .feed-row .src{font-weight:600;letter-spacing:0.12em;text-transform:uppercase;font-size:10px}
+        .feed-row.pm .src{color:var(--pm)}
+        .feed-row.coder .src{color:var(--coder)}
+        .feed-row.reviewer .src{color:var(--reviewer)}
+        .feed-row.deployer .src{color:var(--deployer)}
+        .feed-row.system .src{color:var(--text-2)}
+        .feed-row.error .src{color:var(--err)}
+        .feed-row.success .src{color:var(--signal)}
+
+        .feed-row .msg{color:var(--text);word-break:break-word}
+        .feed-row.system .msg{color:var(--text-2)}
+        .feed-row.error .msg{color:var(--err)}
+        .feed-row.success .msg{color:var(--signal)}
+        .feed-row.muted .msg{color:var(--text-3)}
+        .feed-row .arrow{color:var(--text-4);margin-right:6px}
+
+        .feed-divider{
+            display:grid;
+            grid-template-columns:1fr auto 1fr;
+            align-items:center;gap:14px;
+            padding:14px 20px 6px;
+            font-family:var(--mono);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;
+            color:var(--text-3);
+            animation:row-in 0.4s cubic-bezier(0.22,1,0.36,1) both;
+        }
+        .feed-divider .line{height:1px;background:linear-gradient(90deg,transparent,var(--hairline-strong),transparent)}
+        .feed-divider .label{padding:3px 10px;border:1px solid var(--hairline-strong);border-radius:100px;background:rgba(0,0,0,0.4)}
+
+        .feed-empty{
+            display:flex;flex-direction:column;align-items:center;justify-content:center;
+            padding:48px 20px;gap:14px;
+            color:var(--text-3);
+            text-align:center;
+        }
+        .feed-empty .scope{
+            width:64px;height:64px;border-radius:50%;
+            border:1px dashed var(--hairline-strong);
+            display:flex;align-items:center;justify-content:center;
+            position:relative;
+        }
+        .feed-empty .scope::before{
+            content:'';position:absolute;inset:-8px;border:1px solid var(--hairline);border-radius:50%;
+            animation:scope-pulse 3s ease-in-out infinite;
+        }
+        @keyframes scope-pulse{
+            0%,100%{transform:scale(1);opacity:0.4}
+            50%{transform:scale(1.1);opacity:0.1}
+        }
+        .feed-empty .scope svg{width:24px;height:24px;color:var(--text-3)}
+        .feed-empty .t{font-family:var(--mono);font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-2)}
+        .feed-empty .s{font-family:var(--mono);font-size:10px;letter-spacing:0.14em;color:var(--text-4)}
+
+        /* ============== METRICS BAR (BOTTOM) ============== */
+        .metrics{
+            display:grid;
+            grid-template-columns:1.4fr 1fr 1fr 1fr 1.4fr;
+            gap:0;
+            border-bottom:1px solid var(--hairline);
+            background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(0,0,0,0.4));
+        }
+        .metric{
+            position:relative;
+            padding:14px 20px;
+            border-right:1px solid var(--hairline);
+            display:flex;flex-direction:column;gap:6px;
+            min-width:0;
+        }
+        .metric:last-child{border-right:none}
+        .metric .k{
+            font-family:var(--mono);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;
+            color:var(--text-3);
+        }
+        .metric .v{
+            font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-0.02em;
+            color:var(--text);
+            font-variant-numeric:tabular-nums;
+            line-height:1;
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        }
+        .metric .sub{
+            font-family:var(--mono);font-size:10px;letter-spacing:0.1em;
+            color:var(--text-3);
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        }
+
+        .metric.timer .v.running{color:var(--cyan);text-shadow:0 0 18px rgba(0,224,255,0.35)}
+        .metric.timer .v.done{color:var(--signal);text-shadow:0 0 18px rgba(16,242,160,0.4)}
+
+        .metric.score .v{color:var(--text-3)}
+        .metric.score .v.set{color:var(--signal);text-shadow:0 0 18px rgba(16,242,160,0.4)}
+        .metric.score .v.fail{color:var(--err)}
+        .metric.score.zoom .v{animation:score-zoom 0.9s cubic-bezier(0.22,1,0.36,1)}
+        @keyframes score-zoom{
+            0%{transform:scale(1)}
+            30%{transform:scale(1.25);letter-spacing:0.04em}
+            100%{transform:scale(1)}
+        }
+
+        .metric.spectators .v{color:var(--text)}
+        .metric.spectators .pulse{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--signal);margin-right:8px;vertical-align:middle;animation:hb 1.6s ease-out infinite}
+
+        .metric.build-id .v{font-size:14px;font-weight:500;letter-spacing:0.06em;color:var(--text-2)}
+        .metric.build-id .v .hash{color:var(--cyan)}
+
+        .metric.action{display:flex;align-items:center;justify-content:center;padding:0;border-left:1px solid var(--hairline)}
+        .metric.action .open-btn{
+            display:flex;align-items:center;justify-content:center;gap:10px;
+            width:100%;height:100%;
+            background:transparent;border:none;
+            font-family:var(--mono);font-size:11px;letter-spacing:0.22em;text-transform:uppercase;
+            color:var(--text-3);text-decoration:none;
+            cursor:default;pointer-events:none;
+            transition:background 0.3s, color 0.3s;
+        }
+        .metric.action .open-btn.armed{
+            color:var(--signal);
+            cursor:pointer;pointer-events:auto;
+            background:linear-gradient(90deg,rgba(16,242,160,0.04),rgba(16,242,160,0.12));
+        }
+        .metric.action .open-btn.armed:hover{
+            background:linear-gradient(90deg,rgba(16,242,160,0.08),rgba(16,242,160,0.18));
+        }
+        .metric.action .open-btn .arr{font-family:var(--mono);font-size:14px}
+
+        /* celebrate flash overlay */
+        .celebrate-flash{
+            position:fixed;inset:0;
+            background:radial-gradient(ellipse 80% 60% at 50% 50%, rgba(16,242,160,0.25), transparent 70%);
+            pointer-events:none;z-index:50;
+            opacity:0;
+        }
+        .celebrate-flash.on{animation:flash 1.4s ease-out}
+        @keyframes flash{
+            0%{opacity:0}
+            15%{opacity:1}
+            100%{opacity:0}
+        }
+
+        /* ============== TICKER ============== */
+        .ticker{
+            height:32px;
+            display:flex;align-items:center;
+            background:#000;
+            border-top:1px solid var(--hairline);
+            overflow:hidden;
+            position:relative;
+        }
+        .ticker-label{
+            flex-shrink:0;
+            padding:0 14px;height:100%;
+            display:flex;align-items:center;gap:8px;
+            font-family:var(--mono);font-size:9px;letter-spacing:0.24em;text-transform:uppercase;
+            color:#000;background:var(--signal);
+            font-weight:700;
+            border-right:1px solid var(--hairline);
+        }
+        .ticker-label .dot{width:5px;height:5px;border-radius:50%;background:#000;animation:hb 1.6s ease-out infinite}
+        .ticker-track{
+            flex:1;
+            display:flex;align-items:center;
+            white-space:nowrap;
+            min-width:0;
+            overflow:hidden;
+            position:relative;
+        }
+        .ticker-track::before,.ticker-track::after{
+            content:'';position:absolute;top:0;bottom:0;width:32px;z-index:2;pointer-events:none;
+        }
+        .ticker-track::before{left:0;background:linear-gradient(90deg,#000,transparent)}
+        .ticker-track::after{right:0;background:linear-gradient(-90deg,#000,transparent)}
+
+        .ticker-content{
+            display:flex;align-items:center;gap:36px;
+            padding-left:100%;
+            animation:ticker-scroll 60s linear infinite;
+            font-family:var(--mono);font-size:11px;letter-spacing:0.04em;
+            color:var(--text-2);
+        }
+        .ticker-content .item{display:flex;align-items:center;gap:10px}
+        .ticker-content .tag{
+            font-size:9px;letter-spacing:0.18em;text-transform:uppercase;
+            padding:2px 6px;border:1px solid var(--hairline-strong);border-radius:3px;
+            color:var(--text-3);
+        }
+        .ticker-content .tag.green{color:var(--signal);border-color:rgba(16,242,160,0.3)}
+        .ticker-content .tag.blue{color:var(--pm);border-color:rgba(74,158,255,0.3)}
+        .ticker-content .tag.purple{color:var(--reviewer);border-color:rgba(139,92,246,0.3)}
+        .ticker-content .tag.orange{color:var(--deployer);border-color:rgba(240,132,92,0.3)}
+        .ticker-content .v{color:var(--text);font-variant-numeric:tabular-nums}
+        .ticker-content .pip{color:var(--text-4)}
+
+        @keyframes ticker-scroll{
+            from{transform:translateX(0)}
+            to{transform:translateX(-100%)}
+        }
+
+        /* ============== MOBILE (<= 720px) ============== */
+        @media (max-width:720px){
+            .statusbar{
+                grid-template-columns:auto 1fr auto;
+                gap:8px;height:48px;padding:0 12px;
+                white-space:nowrap;
+            }
+            .brand{font-size:9px;letter-spacing:0.14em;gap:8px;overflow:hidden}
+            .brand .mid-sep,.brand .mid{display:none}
+            .qr-tile{display:none}
+            .share-pill{display:inline-block;flex-shrink:0}
+            .heartbeat-corner{font-size:9px;flex-shrink:0}
+            .heartbeat-corner .hb-text-full{display:none}
+
+            .agents{
+                grid-template-columns:1fr 1fr;
+            }
+            .agent-tile{
+                padding:12px 12px 10px;min-height:78px;
+                grid-template-columns:36px 1fr;
+                grid-template-rows:auto auto;
+                grid-template-areas:
+                    "icon meta"
+                    "icon msg";
+                gap:2px 10px;
+            }
+            .agent-tile:nth-child(2){border-right:none}
+            .agent-tile:nth-child(1),.agent-tile:nth-child(2){border-bottom:1px solid var(--hairline)}
+            .agent-icon{width:36px;height:36px}
+            .agent-icon svg{width:18px;height:18px}
+            .agent-name{font-size:10px}
+            .agent-id{display:none}
+            .agent-light{display:none}
+            .agent-msg{font-size:10px}
+
+            .feed-row{grid-template-columns:64px 64px 1fr;gap:10px;padding:3px 14px;font-size:11px}
+            .feed-header{padding:6px 14px;font-size:9px}
+            .feed-header .right .right-extra{display:none}
+
+            .metrics{grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto}
+            .metric{padding:10px 14px}
+            .metric .v{font-size:18px}
+            .metric.build-id{display:none}
+            .metric.action{grid-column:1 / -1;border-left:none;border-top:1px solid var(--hairline);padding:0}
+            .metric.action .open-btn{padding:14px}
+            .metric:nth-child(1),.metric:nth-child(2){border-bottom:1px solid var(--hairline)}
+            .metric:nth-child(2){border-right:none}
+            .metric:nth-child(4){border-right:none}
+
+            .ticker-label{font-size:8px;padding:0 10px}
+            .ticker{height:28px}
+            .ticker-content{font-size:10px}
+
+            .feed-divider{padding:10px 14px 4px;font-size:9px}
+        }
+
+        @media (max-width:380px){
+            .brand .id{display:none}
+            .agents{grid-template-columns:1fr 1fr}
+        }
+
+        /* hidden helper */
+        [hidden]{display:none !important}
+
+        /* odometer-style number animation helper */
+        .odo{display:inline-block;transition:transform 0.4s cubic-bezier(0.22,1,0.36,1)}
+    </style>
+</head>
+<body>
+<div class="celebrate-flash" id="celebrate-flash" aria-hidden="true"></div>
+
+<div class="app">
+
+    <!-- ===================== STATUS BAR ===================== -->
+    <header class="statusbar">
+        <div class="brand">
+            <div class="brand-mark"></div>
+            <span><b>FACTORY</b> <span class="sep mid-sep">·</span> <span class="mid">MISSION CONTROL</span> <span class="sep">·</span> <span class="id" id="brand-build-id">SYS</span></span>
+        </div>
+        <div></div>
+        <div class="heartbeat-corner">
+            <span class="hb-dot"></span>
+            <span class="hb-text">
+                <span class="conn-state connecting" id="conn-state">CONNECTING</span>
+                <span class="hb-text-full"> · UPLINK · 250ms</span>
+            </span>
+        </div>
+        <div class="qr-tile" id="qr-tile" aria-label="Scan to watch on your phone"></div>
+        <button class="share-pill" id="share-pill" type="button">SHARE LINK</button>
+    </header>
+
+    <!-- ===================== AGENT GRID ===================== -->
+    <section class="agents">
+        <div class="agent-tile idle" data-agent="pm" id="agent-pm">
+            <div class="agent-icon">
+                <!-- mind-map node -->
+                <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="16" cy="16" r="3.2"/>
+                    <circle cx="6" cy="6" r="2"/>
+                    <circle cx="26" cy="6" r="2"/>
+                    <circle cx="6" cy="26" r="2"/>
+                    <circle cx="26" cy="26" r="2"/>
+                    <line x1="13.7" y1="13.7" x2="7.4" y2="7.4"/>
+                    <line x1="18.3" y1="13.7" x2="24.6" y2="7.4"/>
+                    <line x1="13.7" y1="18.3" x2="7.4" y2="24.6"/>
+                    <line x1="18.3" y1="18.3" x2="24.6" y2="24.6"/>
+                </svg>
+            </div>
+            <div class="agent-meta">
+                <div class="agent-name">PLAN</div>
+                <div class="agent-id">A·01 · STRATEGIST</div>
+            </div>
+            <div class="agent-light"><span class="dot"></span><span class="state-text">IDLE</span></div>
+            <div class="agent-msg" id="msg-pm">Standing by</div>
+        </div>
+
+        <div class="agent-tile idle" data-agent="coder" id="agent-coder">
+            <div class="agent-icon">
+                <!-- rotating cube -->
+                <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <g class="icon-coder-spin">
+                        <path d="M16 4 L26 9 L26 21 L16 26 L6 21 L6 9 Z"/>
+                        <path d="M16 4 L16 16 L26 9"/>
+                        <path d="M16 16 L6 9"/>
+                        <path d="M16 16 L16 26"/>
+                    </g>
+                </svg>
+            </div>
+            <div class="agent-meta">
+                <div class="agent-name">CODE</div>
+                <div class="agent-id">A·02 · BUILDER</div>
+            </div>
+            <div class="agent-light"><span class="dot"></span><span class="state-text">IDLE</span></div>
+            <div class="agent-msg" id="msg-coder">Standing by</div>
+        </div>
+
+        <div class="agent-tile idle" data-agent="reviewer" id="agent-reviewer">
+            <div class="agent-icon">
+                <!-- magnifying glass + crosshair -->
+                <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <g class="icon-reviewer-ring">
+                        <circle cx="14" cy="14" r="8"/>
+                    </g>
+                    <line x1="14" y1="9" x2="14" y2="19"/>
+                    <line x1="9" y1="14" x2="19" y2="14"/>
+                    <line x1="20" y1="20" x2="27" y2="27"/>
+                </svg>
+            </div>
+            <div class="agent-meta">
+                <div class="agent-name">REVIEW</div>
+                <div class="agent-id">A·03 · INSPECTOR</div>
+            </div>
+            <div class="agent-light"><span class="dot"></span><span class="state-text">IDLE</span></div>
+            <div class="agent-msg" id="msg-reviewer">Standing by</div>
+        </div>
+
+        <div class="agent-tile idle" data-agent="deployer" id="agent-deployer">
+            <div class="agent-icon">
+                <!-- rocket trajectory -->
+                <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path class="icon-deployer-trail" d="M4 26 Q14 22 22 14 Q26 10 28 4" stroke-dasharray="3 3"/>
+                    <path d="M22 14 L28 4 L18 10 L22 14 Z" fill="currentColor" fill-opacity="0.15"/>
+                    <circle cx="6" cy="26" r="1.5" fill="currentColor"/>
+                </svg>
+            </div>
+            <div class="agent-meta">
+                <div class="agent-name">DEPLOY</div>
+                <div class="agent-id">A·04 · SHIPPER</div>
+            </div>
+            <div class="agent-light"><span class="dot"></span><span class="state-text">IDLE</span></div>
+            <div class="agent-msg" id="msg-deployer">Standing by</div>
+        </div>
+    </section>
+
+    <!-- ===================== EVENT FEED ===================== -->
+    <section class="feed">
+        <div class="feed-header">
+            <div class="left">
+                <span><span class="stream-light"></span><span class="lbl">LIVE EVENT STREAM</span></span>
+                <span class="sep">/</span>
+                <span>FACTORY · LIVE</span>
+            </div>
+            <div class="right">
+                <span class="right-extra">EVENTS <span class="count" id="event-count">0</span></span>
+                <span class="sep right-extra">·</span>
+                <span>TAIL</span>
+            </div>
+        </div>
+        <div class="feed-body" id="feed-body">
+            <div class="feed-empty" id="feed-empty">
+                <div class="scope">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"/>
+                        <line x1="12" y1="3" x2="12" y2="21"/>
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                    </svg>
+                </div>
+                <div class="t">AWAITING TELEMETRY</div>
+                <div class="s">EVENT STREAM IDLE · NO BUILD IN PROGRESS</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== METRICS BAR ===================== -->
+    <section class="metrics">
+        <div class="metric build-id">
+            <div class="k">BUILD ID</div>
+            <div class="v"><span class="hash">#</span><span id="metric-build-id">—</span></div>
+            <div class="sub" id="metric-build-mode">SYSTEM IDLE</div>
+        </div>
+        <div class="metric timer">
+            <div class="k">ELAPSED</div>
+            <div class="v" id="metric-timer">0:00</div>
+            <div class="sub" id="metric-timer-sub">T-MINUS READY</div>
+        </div>
+        <div class="metric score">
+            <div class="k">REVIEW SCORE</div>
+            <div class="v" id="metric-score">— / 10</div>
+            <div class="sub" id="metric-score-sub">AWAITING REVIEW</div>
+        </div>
+        <div class="metric spectators">
+            <div class="k">SPECTATORS</div>
+            <div class="v"><span class="pulse"></span><span id="metric-spectators">0</span></div>
+            <div class="sub">LIVE WATCHING NOW</div>
+        </div>
+        <div class="metric action">
+            <a class="open-btn" id="open-btn" href="#" target="_blank" rel="noopener">
+                <span id="open-btn-label">OPEN SITE</span><span class="arr">→</span>
+            </a>
+        </div>
+    </section>
+
+    <!-- ===================== TICKER ===================== -->
+    <footer class="ticker">
+        <div class="ticker-label"><span class="dot"></span>FACTORY · LIVE</div>
+        <div class="ticker-track">
+            <div class="ticker-content" id="ticker-content"></div>
+        </div>
+    </footer>
+
+</div>
+
+<!-- ===================== SCRIPT ===================== -->
+<script>
+// ====================================================================
+// AGENT IDENTITIES
+// ====================================================================
+const AGENTS = {
+    pm:       { name:'PLAN',    color:'#4A9EFF', emoji:'📋', short:'A·01' },
+    coder:    { name:'CODE',    color:'#10B981', emoji:'💻', short:'A·02' },
+    reviewer: { name:'REVIEW',  color:'#8B5CF6', emoji:'🔍', short:'A·03' },
+    deployer: { name:'DEPLOY',  color:'#F0845C', emoji:'🚀', short:'A·04' },
+};
+const AGENT_IDS = ['pm','coder','reviewer','deployer'];
+
+// ====================================================================
+// STATE
+// ====================================================================
+let es = null;
+let reconnectDelay = 3000;
+let reconnectTimer = null;
+let buildStartTime = null;
+let timerInterval = null;
+let spectatorCount = 0;
+let reviewScore = null;
+let currentSiteUrl = null;
+let eventCount = 0;
+let currentBuildId = null;
+let lastBuildElapsed = null;
+let tickerStats = {
+    builds: 0,
+    successRate: 100,
+    avgScore: '—',
+    avgTime: '—',
+    lastSite: '—'
+};
+
+// ====================================================================
+// MINIMAL QR CODE GENERATOR (qrcode-generator v1.4.4, MIT)
+// Embedded inline — small, ~10KB minified. Generates QR matrix; we render
+// it as an inline SVG. Enough for URL encoding (no logo, no fancy stuff).
+// ====================================================================
+// Source adapted/condensed from Kazuhiko Arase's qrcode-generator.
+// Implements byte-mode QR up through type 10. Sufficient for any URL.
+const qrcode = (function(){
+    function QR8bitByte(data){
+        this.mode = 1<<2; // MODE_8BIT_BYTE
+        this.data = data;
+        this.parsedData = [];
+        for (let i=0,l=data.length;i<l;i++){
+            const c = data.charCodeAt(i);
+            if (c > 0x7F){
+                // utf-8 encode
+                const enc = unescape(encodeURIComponent(data.charAt(i)));
+                for (let j=0;j<enc.length;j++) this.parsedData.push(enc.charCodeAt(j));
+            } else this.parsedData.push(c);
+        }
+    }
+    QR8bitByte.prototype = {
+        getLength:function(){return this.parsedData.length},
+        write:function(buffer){for(let i=0;i<this.parsedData.length;i++) buffer.put(this.parsedData[i],8)}
+    };
+
+    function QRBitBuffer(){this.buffer=[];this.length=0}
+    QRBitBuffer.prototype = {
+        get:function(i){return ((this.buffer[Math.floor(i/8)]>>>(7-i%8))&1)===1},
+        put:function(num,len){for(let i=0;i<len;i++) this.putBit(((num>>>(len-i-1))&1)===1)},
+        putBit:function(bit){
+            const bi=Math.floor(this.length/8);
+            if (this.buffer.length<=bi) this.buffer.push(0);
+            if (bit) this.buffer[bi] |= 0x80>>>(this.length%8);
+            this.length++;
+        },
+        getLengthInBits:function(){return this.length}
+    };
+
+    // Galois field exp/log tables
+    const EXP=new Array(256), LOG=new Array(256);
+    (function(){let x=1;for(let i=0;i<8;i++){EXP[i]=x;x<<=1}for(let i=8;i<256;i++){EXP[i]=EXP[i-4]^EXP[i-5]^EXP[i-6]^EXP[i-8]}for(let i=0;i<255;i++){LOG[EXP[i]]=i}})();
+    function gexp(n){while(n<0)n+=255;while(n>=256)n-=255;return EXP[n]}
+    function glog(n){if(n<1)throw new Error('glog '+n);return LOG[n]}
+
+    // Polynomial
+    function Polynomial(num,shift){
+        if (num.length===undefined) throw new Error(num.length+'/'+shift);
+        let off=0;while(off<num.length&&num[off]===0)off++;
+        this.num=new Array(num.length-off+(shift||0));
+        for(let i=0;i<num.length-off;i++) this.num[i]=num[i+off];
+    }
+    Polynomial.prototype = {
+        get:function(i){return this.num[i]},
+        getLength:function(){return this.num.length},
+        multiply:function(e){
+            const num=new Array(this.getLength()+e.getLength()-1);
+            for(let i=0;i<this.getLength();i++) for(let j=0;j<e.getLength();j++)
+                num[i+j]^=gexp(glog(this.get(i))+glog(e.get(j)));
+            return new Polynomial(num,0);
+        },
+        mod:function(e){
+            if (this.getLength()-e.getLength()<0) return this;
+            const ratio=glog(this.get(0))-glog(e.get(0));
+            const num=new Array(this.getLength());
+            for(let i=0;i<this.getLength();i++) num[i]=this.get(i);
+            for(let i=0;i<e.getLength();i++) num[i]^=gexp(glog(e.get(i))+ratio);
+            return new Polynomial(num,0).mod(e);
+        }
+    };
+
+    // RS block table — simplified: support type 4 (33x33, ~78 bytes L) max
+    // We pick a type sufficient for typical URLs. Type table for level L.
+    // [type, totalBytes, ecBytes, dataBlocks, dataPerBlock]
+    // Covers types 1..10 at error correction level L.
+    const RS_BLOCKS_L = {
+         1:[[1,26,19]],
+         2:[[1,44,34]],
+         3:[[1,70,55]],
+         4:[[1,100,80]],
+         5:[[1,134,108]],
+         6:[[2,86,68]],
+         7:[[2,98,78]],
+         8:[[2,121,97]],
+         9:[[2,146,116]],
+        10:[[2,86,68],[2,87,69]]
+    };
+    // [type] = total data codewords for level L
+    const TOTAL_DATA_L = {1:19,2:34,3:55,4:80,5:108,6:136,7:156,8:194,9:232,10:274};
+
+    function getBCHTypeInfo(data){
+        let d=data<<10;
+        while(getBCHDigit(d)-getBCHDigit(0x537)>=0) d^=(0x537<<(getBCHDigit(d)-getBCHDigit(0x537)));
+        return ((data<<10)|d)^0x5412;
+    }
+    function getBCHTypeNumber(data){
+        let d=data<<12;
+        while(getBCHDigit(d)-getBCHDigit(0x1F25)>=0) d^=(0x1F25<<(getBCHDigit(d)-getBCHDigit(0x1F25)));
+        return (data<<12)|d;
+    }
+    function getBCHDigit(data){let d=0;while(data!==0){d++;data>>>=1}return d}
+
+    function getPatternPosition(typeNumber){
+        const t=[
+            [],[6,18],[6,22],[6,26],[6,30],[6,34],
+            [6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54]
+        ];
+        return t[typeNumber-1];
+    }
+
+    function getMaskFunc(maskPattern){
+        switch(maskPattern){
+            case 0: return function(i,j){return (i+j)%2===0};
+            case 1: return function(i,j){return i%2===0};
+            case 2: return function(i,j){return j%3===0};
+            case 3: return function(i,j){return (i+j)%3===0};
+            case 4: return function(i,j){return (Math.floor(i/2)+Math.floor(j/3))%2===0};
+            case 5: return function(i,j){return (i*j)%2+(i*j)%3===0};
+            case 6: return function(i,j){return ((i*j)%2+(i*j)%3)%2===0};
+            case 7: return function(i,j){return ((i*j)%3+(i+j)%2)%2===0};
+        }
+        throw new Error('mask:'+maskPattern);
+    }
+
+    function getErrorCorrectPolynomial(ecLength){
+        let a=new Polynomial([1],0);
+        for(let i=0;i<ecLength;i++) a=a.multiply(new Polynomial([1,gexp(i)],0));
+        return a;
+    }
+
+    function getLengthInBits(type){return type<10?8:16}
+
+    function createBytes(buffer,rsBlocks){
+        let offset=0,maxDc=0,maxEc=0;
+        const dcdata=[],ecdata=[];
+        for (let r=0;r<rsBlocks.length;r++){
+            const dc=rsBlocks[r][2];
+            const ec=rsBlocks[r][1]-dc;
+            maxDc=Math.max(maxDc,dc);maxEc=Math.max(maxEc,ec);
+            dcdata[r]=new Array(dc);
+            for(let i=0;i<dc;i++) dcdata[r][i]=0xff&buffer.buffer[i+offset];
+            offset+=dc;
+            const rsPoly=getErrorCorrectPolynomial(ec);
+            const rawPoly=new Polynomial(dcdata[r],rsPoly.getLength()-1);
+            const modPoly=rawPoly.mod(rsPoly);
+            ecdata[r]=new Array(rsPoly.getLength()-1);
+            for(let i=0;i<ecdata[r].length;i++){
+                const idx=i+modPoly.getLength()-ecdata[r].length;
+                ecdata[r][i]=idx>=0?modPoly.get(idx):0;
+            }
+        }
+        let totalCodeCount=0;
+        for(let i=0;i<rsBlocks.length;i++) totalCodeCount+=rsBlocks[i][1];
+        const data=new Array(totalCodeCount);
+        let index=0;
+        for(let i=0;i<maxDc;i++) for(let r=0;r<rsBlocks.length;r++) if(i<dcdata[r].length) data[index++]=dcdata[r][i];
+        for(let i=0;i<maxEc;i++) for(let r=0;r<rsBlocks.length;r++) if(i<ecdata[r].length) data[index++]=ecdata[r][i];
+        return data;
+    }
+
+    function makeImpl(matrix,modules,typeNumber,maskPattern,data){
+        // setup position probe patterns
+        function setupProbe(row,col){
+            for(let r=-1;r<=7;r++){
+                if(row+r<=-1||modules<=row+r) continue;
+                for(let c=-1;c<=7;c++){
+                    if(col+c<=-1||modules<=col+c) continue;
+                    matrix[row+r][col+c]=
+                        (0<=r&&r<=6&&(c===0||c===6))||
+                        (0<=c&&c<=6&&(r===0||r===6))||
+                        (2<=r&&r<=4&&2<=c&&c<=4);
+                }
+            }
+        }
+        setupProbe(0,0);setupProbe(modules-7,0);setupProbe(0,modules-7);
+
+        // alignment patterns
+        const pos=getPatternPosition(typeNumber);
+        for(let i=0;i<pos.length;i++) for(let j=0;j<pos.length;j++){
+            const r=pos[i],c=pos[j];
+            if(matrix[r][c]!==null) continue;
+            for(let rr=-2;rr<=2;rr++) for(let cc=-2;cc<=2;cc++){
+                matrix[r+rr][c+cc]=rr===-2||rr===2||cc===-2||cc===2||(rr===0&&cc===0);
+            }
+        }
+
+        // timing patterns
+        for(let r=8;r<modules-8;r++) if(matrix[r][6]===null) matrix[r][6]=r%2===0;
+        for(let c=8;c<modules-8;c++) if(matrix[6][c]===null) matrix[6][c]=c%2===0;
+
+        // type info
+        const data2=(1<<3)|maskPattern; // EC level L = 0b01, shift 3
+        const bits=getBCHTypeInfo(data2);
+        for(let i=0;i<15;i++){
+            const mod=((bits>>i)&1)===1;
+            if(i<6) matrix[i][8]=mod;
+            else if(i<8) matrix[i+1][8]=mod;
+            else matrix[modules-15+i][8]=mod;
+        }
+        for(let i=0;i<15;i++){
+            const mod=((bits>>i)&1)===1;
+            if(i<8) matrix[8][modules-i-1]=mod;
+            else if(i<9) matrix[8][15-i-1+1]=mod;
+            else matrix[8][15-i-1]=mod;
+        }
+        matrix[modules-8][8]=true;
+
+        // type number for type>=7
+        if(typeNumber>=7){
+            const bits2=getBCHTypeNumber(typeNumber);
+            for(let i=0;i<18;i++){
+                const mod=((bits2>>i)&1)===1;
+                matrix[Math.floor(i/3)][i%3+modules-8-3]=mod;
+                matrix[i%3+modules-8-3][Math.floor(i/3)]=mod;
+            }
+        }
+
+        // data
+        let inc=-1,row=modules-1,bitIndex=7,byteIndex=0;
+        const mask=getMaskFunc(maskPattern);
+        for(let col=modules-1;col>0;col-=2){
+            if(col===6) col--;
+            while(true){
+                for(let c=0;c<2;c++){
+                    if(matrix[row][col-c]===null){
+                        let dark=false;
+                        if(byteIndex<data.length) dark=((data[byteIndex]>>>bitIndex)&1)===1;
+                        if(mask(row,col-c)) dark=!dark;
+                        matrix[row][col-c]=dark;
+                        bitIndex--;
+                        if(bitIndex===-1){byteIndex++;bitIndex=7}
+                    }
+                }
+                row+=inc;
+                if(row<0||modules<=row){row-=inc;inc=-inc;break}
+            }
+        }
+    }
+
+    function pickType(data){
+        const len=data.length;
+        // estimate bits: 4 (mode) + count bits + 8*len
+        for(let t=1;t<=10;t++){
+            const cap=TOTAL_DATA_L[t]*8;
+            const need=4+getLengthInBits(t)+len*8;
+            if(need<=cap) return t;
+        }
+        return 10;
+    }
+
+    return {
+        create:function(text){
+            const type=pickType(text);
+            const total=TOTAL_DATA_L[type];
+            const buffer=new QRBitBuffer();
+            const seg=new QR8bitByte(text);
+            buffer.put(seg.mode,4);
+            buffer.put(seg.getLength(),getLengthInBits(type));
+            seg.write(buffer);
+
+            // pad
+            while(buffer.getLengthInBits()+4<=total*8) buffer.put(0,4);
+            while(buffer.getLengthInBits()%8!==0) buffer.putBit(false);
+            const PAD0=0xEC,PAD1=0x11;
+            for(let i=0;buffer.getLengthInBits()<total*8;i++) buffer.put(i%2===0?PAD0:PAD1,8);
+
+            const blocks=RS_BLOCKS_L[type];
+            const rsBlocks=[];
+            for(let g=0;g<blocks.length;g++){
+                const [count,totalB,dataB]=blocks[g];
+                for(let i=0;i<count;i++) rsBlocks.push([0,totalB,dataB]);
+            }
+            const dataBytes=createBytes(buffer,rsBlocks);
+
+            const modules=type*4+17;
+            const matrix=[];
+            for(let r=0;r<modules;r++){const row=new Array(modules);for(let c=0;c<modules;c++)row[c]=null;matrix.push(row)}
+            makeImpl(matrix,modules,type,2,dataBytes);
+            return {modules:modules,matrix:matrix};
+        }
+    };
+})();
+
+// ====================================================================
+// QR RENDERING (SVG)
+// ====================================================================
+function renderQR(target, text){
+    try {
+        const qr = qrcode.create(text);
+        const m = qr.modules;
+        const sz = 64;
+        const cell = sz/m;
+        let path='';
+        for(let r=0;r<m;r++){
+            for(let c=0;c<m;c++){
+                if(qr.matrix[r][c]){
+                    const x=(c*cell).toFixed(2);
+                    const y=(r*cell).toFixed(2);
+                    const w=(cell+0.4).toFixed(2);
+                    path+=`M${x} ${y}h${w}v${w}h-${w}z`;
+                }
+            }
+        }
+        target.innerHTML =
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sz} ${sz}" shape-rendering="crispEdges">`+
+            `<rect width="${sz}" height="${sz}" fill="#fff"/>`+
+            `<path d="${path}" fill="#000"/>`+
+            `</svg>`;
+    } catch(e){
+        // fall back silently to text-only
+        target.style.background='transparent';
+        target.style.border='1px dashed rgba(255,255,255,0.2)';
+        target.innerHTML='<span style="font-family:var(--mono);font-size:8px;color:#5A5D6A;text-align:center;line-height:1.2">SCAN<br>UNAVAIL</span>';
+    }
+}
+
+// ====================================================================
+// SSE CONNECTION
+// ====================================================================
+function connect(){
+    if (es){try{es.close()}catch(e){}es=null}
+    setConnState('connecting');
+    try {
+        es = new EventSource('/factory/api/live-stream');
+    } catch(e){
+        scheduleReconnect();
+        return;
+    }
+    es.onopen = () => {
+        reconnectDelay = 3000;
+        clearTimeout(reconnectTimer);
+    };
+    es.onmessage = (e) => {
+        try {
+            const evt = JSON.parse(e.data);
+            handleEvent(evt);
+        } catch(err){/* malformed */}
+    };
+    es.onerror = () => {
+        setConnState('reconnecting');
+        try{es && es.close()}catch(e){}
+        es=null;
+        scheduleReconnect();
+    };
+}
+function scheduleReconnect(){
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connect, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 1.5, 30000);
+}
+
+// ====================================================================
+// EVENT DISPATCH (handles all 10 SSE event types)
+// ====================================================================
+function handleEvent(evt){
+    eventCount++;
+    document.getElementById('event-count').textContent = String(eventCount).padStart(4,'0');
+
+    switch (evt.type){
+        case 'connected':
+            setConnState('connected');
+            if (evt.spectatorCount != null) updateSpectatorCount(evt.spectatorCount);
+            addRow('system','SYSTEM','Uplink established · stream subscribed','muted');
+            break;
+
+        case 'build_started':
+            clearFeed();
+            resetAgents();
+            resetMetrics();
+            startTimer();
+            currentBuildId = evt.buildId || ('B-'+Date.now().toString(36).toUpperCase());
+            updateBuildId(currentBuildId, evt.modify);
+            addDivider(evt.modify ? 'MODIFY BUILD INITIATED' : 'BUILD INITIATED');
+            addRow('system','SYSTEM','BUILD INITIATED — buildId: '+currentBuildId,'success');
+            tickerStats.builds++;
+            updateTicker();
+            break;
+
+        case 'agent_status':
+            updateAgentTile(evt.agent, evt.status, evt.message);
+            if (evt.message){
+                addRow(evt.agent, AGENTS[evt.agent]?.name || evt.agent, evt.message);
+            }
+            break;
+
+        case 'chat_message':
+            addRow(evt.agent, AGENTS[evt.agent]?.name || evt.agent, evt.message);
+            break;
+
+        case 'review_result':
+            reviewScore = evt.score;
+            updateScoreMetric(evt.score, evt.passed);
+            const verdict = evt.passed ? 'PASSED' : 'FLAGGED';
+            const tail = evt.feedback ? ' · '+evt.feedback : '';
+            addRow('reviewer','REVIEW','SCORE '+evt.score+'/10 · '+verdict+tail, evt.passed?'success':'error');
+            break;
+
+        case 'build_complete':
+            stopTimer(true);
+            currentSiteUrl = evt.siteUrl || null;
+            if (evt.elapsed != null){
+                lastBuildElapsed = evt.elapsed;
+                document.getElementById('metric-timer').textContent = formatElapsed(Math.floor(evt.elapsed/1000));
+            }
+            armOpenButton(evt.siteUrl, evt.siteName);
+            addDivider('BUILD COMPLETE');
+            addRow('system','DEPLOY','SHIPPED → '+(evt.siteUrl||evt.siteName||'(no url)'),'success');
+            if (evt.siteName) tickerStats.lastSite = evt.siteName;
+            updateTicker();
+            break;
+
+        case 'celebrate':
+            triggerCelebrate();
+            break;
+
+        case 'heartbeat':
+            pulseHeartbeat(evt.agent);
+            // Don't spam feed — only heartbeat indicator pulses.
+            break;
+
+        case 'spectator_count':
+            if (evt.count != null) updateSpectatorCount(evt.count);
+            break;
+
+        case 'error':
+            addRow('error','ERROR', evt.message || 'Unknown error','error');
+            resetAgents();
+            stopTimer(false);
+            break;
+    }
+}
+
+// ====================================================================
+// FEED RENDERING
+// ====================================================================
+function clearFeed(){
+    const body = document.getElementById('feed-body');
+    body.innerHTML = '';
+}
+function ensureNotEmpty(){
+    const empty = document.getElementById('feed-empty');
+    if (empty) empty.remove();
+}
+function addRow(kind, src, msg, modifier){
+    ensureNotEmpty();
+    const body = document.getElementById('feed-body');
+    const row = document.createElement('div');
+    const cls = ['feed-row', kind];
+    if (modifier) cls.push(modifier);
+    if (AGENT_IDS.indexOf(kind) !== -1) cls.push('active');
+    row.className = cls.join(' ');
+    const ts = document.createElement('span'); ts.className='ts'; ts.textContent = formatTs(new Date());
+    const sr = document.createElement('span'); sr.className='src'; sr.textContent = src;
+    const mg = document.createElement('span'); mg.className='msg';
+    const arr = document.createElement('span'); arr.className='arrow'; arr.textContent='›';
+    mg.appendChild(arr);
+    mg.appendChild(document.createTextNode(msg));
+    row.appendChild(ts);
+    row.appendChild(sr);
+    row.appendChild(mg);
+    body.appendChild(row);
+    // Trim feed if huge — keep last 250 rows for perf.
+    while (body.children.length > 250) body.removeChild(body.firstChild);
+    scrollFeedToBottom();
+}
+function addDivider(label){
+    ensureNotEmpty();
+    const body = document.getElementById('feed-body');
+    const d = document.createElement('div');
+    d.className = 'feed-divider';
+    d.innerHTML = '<div class="line"></div><div class="label">'+escapeHtml(label)+'</div><div class="line"></div>';
+    body.appendChild(d);
+    scrollFeedToBottom();
+}
+function scrollFeedToBottom(){
+    const body = document.getElementById('feed-body');
+    // Only auto-scroll if user is near the bottom — avoid yanking on inspect.
+    const nearBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 200;
+    if (nearBottom) body.scrollTop = body.scrollHeight;
+    else body.scrollTop = body.scrollHeight; // for live demo, always pin
+}
+
+// ====================================================================
+// AGENT TILES
+// ====================================================================
+function updateAgentTile(agentId, status, message){
+    const tile = document.getElementById('agent-'+agentId);
+    if (!tile) return;
+    tile.classList.remove('idle','working','done');
+    const stateText = tile.querySelector('.state-text');
+    const msgEl = document.getElementById('msg-'+agentId);
+    if (status === 'working'){
+        tile.classList.add('working');
+        if (stateText) stateText.textContent = 'ACTIVE';
+        if (msgEl && message) msgEl.textContent = message;
+        else if (msgEl) msgEl.textContent = 'Processing…';
+    } else if (status === 'done'){
+        tile.classList.add('done');
+        if (stateText) stateText.textContent = 'DONE';
+        if (msgEl && message) msgEl.textContent = message;
+        else if (msgEl) msgEl.textContent = 'Complete';
+    } else {
+        tile.classList.add('idle');
+        if (stateText) stateText.textContent = 'IDLE';
+        if (msgEl) msgEl.textContent = 'Standing by';
+    }
+}
+function resetAgents(){
+    AGENT_IDS.forEach(id => updateAgentTile(id,'idle',null));
+}
+function pulseHeartbeat(agentId){
+    if (!agentId) return;
+    const tile = document.getElementById('agent-'+agentId);
+    if (!tile) return;
+    const dot = tile.querySelector('.agent-light .dot');
+    if (!dot) return;
+    dot.style.transition='none';
+    dot.style.transform='scale(1.6)';
+    requestAnimationFrame(()=>{
+        dot.style.transition='transform 0.6s cubic-bezier(0.22,1,0.36,1)';
+        dot.style.transform='scale(1)';
+    });
+}
+
+// ====================================================================
+// TIMER / METRICS
+// ====================================================================
+function startTimer(){
+    stopTimer(false);
+    buildStartTime = Date.now();
+    const el = document.getElementById('metric-timer');
+    const sub = document.getElementById('metric-timer-sub');
+    el.classList.remove('done');
+    el.classList.add('running');
+    sub.textContent = 'BUILDING · LIVE';
+    el.textContent = '0:00';
+    timerInterval = setInterval(()=>{
+        const sec = Math.floor((Date.now()-buildStartTime)/1000);
+        el.textContent = formatElapsed(sec);
+    },1000);
+}
+function stopTimer(complete){
+    if (timerInterval){clearInterval(timerInterval);timerInterval=null}
+    const el = document.getElementById('metric-timer');
+    const sub = document.getElementById('metric-timer-sub');
+    el.classList.remove('running');
+    if (complete){
+        el.classList.add('done');
+        sub.textContent = 'BUILD COMPLETE';
+    } else {
+        sub.textContent = 'T-MINUS READY';
+    }
+}
+function formatElapsed(totalSeconds){
+    const m = Math.floor(totalSeconds/60);
+    const s = totalSeconds%60;
+    return m + ':' + String(s).padStart(2,'0');
+}
+function updateScoreMetric(score, passed){
+    const el = document.getElementById('metric-score');
+    const sub = document.getElementById('metric-score-sub');
+    el.textContent = score + ' / 10';
+    el.classList.remove('set','fail');
+    if (passed) el.classList.add('set');
+    else el.classList.add('fail');
+    sub.textContent = passed ? 'PASSED · QUALITY GATE' : 'FLAGGED · NEEDS REWORK';
+    // brief zoom
+    const wrap = el.closest('.metric.score');
+    wrap.classList.remove('zoom');
+    void wrap.offsetWidth;
+    wrap.classList.add('zoom');
+}
+function updateBuildId(id, modify){
+    const el = document.getElementById('metric-build-id');
+    const sub = document.getElementById('metric-build-mode');
+    const brand = document.getElementById('brand-build-id');
+    el.textContent = String(id).slice(-8).toUpperCase();
+    sub.textContent = modify ? 'MODIFY MODE · ACTIVE' : 'NEW BUILD · ACTIVE';
+    brand.textContent = '#'+String(id).slice(-6).toUpperCase();
+}
+function updateSpectatorCount(count){
+    spectatorCount = count;
+    const el = document.getElementById('metric-spectators');
+    animateOdometer(el, count);
+}
+function animateOdometer(el, target){
+    const start = parseInt(el.textContent.replace(/,/g,''),10) || 0;
+    if (start === target){el.textContent = String(target); return}
+    const dur = 480;
+    const t0 = performance.now();
+    function step(now){
+        const p = Math.min(1,(now-t0)/dur);
+        const eased = 1-Math.pow(1-p,3);
+        const v = Math.round(start + (target-start)*eased);
+        el.textContent = String(v);
+        if (p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+}
+function resetMetrics(){
+    reviewScore = null;
+    currentSiteUrl = null;
+    const score = document.getElementById('metric-score');
+    score.textContent = '— / 10';
+    score.classList.remove('set','fail');
+    document.getElementById('metric-score-sub').textContent='AWAITING REVIEW';
+    document.getElementById('metric-timer').textContent='0:00';
+    const btn = document.getElementById('open-btn');
+    btn.classList.remove('armed');
+    btn.removeAttribute('href');
+    btn.href='#';
+    document.getElementById('open-btn-label').textContent='OPEN SITE';
+}
+function armOpenButton(url, siteName){
+    const btn = document.getElementById('open-btn');
+    const label = document.getElementById('open-btn-label');
+    if (url){
+        btn.classList.add('armed');
+        btn.href = url;
+        label.textContent = (siteName ? siteName.toUpperCase() : 'OPEN SITE');
+    } else {
+        btn.classList.remove('armed');
+        btn.href='#';
+        label.textContent = 'AWAITING URL';
+    }
+}
+
+// ====================================================================
+// CELEBRATE
+// ====================================================================
+function triggerCelebrate(){
+    const flash = document.getElementById('celebrate-flash');
+    flash.classList.remove('on');
+    void flash.offsetWidth;
+    flash.classList.add('on');
+    setTimeout(()=>flash.classList.remove('on'), 1500);
+    const wrap = document.querySelector('.metric.score');
+    wrap.classList.remove('zoom');
+    void wrap.offsetWidth;
+    wrap.classList.add('zoom');
+}
+
+// ====================================================================
+// CONNECTION STATE BADGE
+// ====================================================================
+function setConnState(state){
+    const el = document.getElementById('conn-state');
+    el.classList.remove('connecting','reconnecting','error');
+    if (state === 'connected'){
+        el.textContent='ONLINE';
+    } else if (state === 'reconnecting'){
+        el.classList.add('reconnecting');
+        el.textContent='RECONNECTING';
+    } else if (state === 'error'){
+        el.classList.add('error');
+        el.textContent='OFFLINE';
+    } else {
+        el.classList.add('connecting');
+        el.textContent='CONNECTING';
+    }
+}
+
+// ====================================================================
+// TICKER
+// ====================================================================
+function updateTicker(){
+    const el = document.getElementById('ticker-content');
+    const now = formatTs(new Date());
+    const items = [
+        {tag:'green', label:'STREAM', v:'ONLINE'},
+        {tag:'',      label:'UPLINK', v:'STABLE · 250ms'},
+        {tag:'blue',  label:'AGENTS', v:'4/4 NOMINAL'},
+        {tag:'',      label:'BUILDS', v:String(tickerStats.builds).padStart(3,'0')},
+        {tag:'purple',label:'AVG SCORE', v:tickerStats.avgScore+'/10'},
+        {tag:'orange',label:'LAST SITE', v:tickerStats.lastSite},
+        {tag:'',      label:'SPECTATORS', v:String(spectatorCount)},
+        {tag:'green', label:'STATUS', v:'MISSION GREEN'},
+        {tag:'',      label:'CLOCK', v:now},
+        {tag:'',      label:'PWC ENGAGEMENT', v:'AGENT FACTORY · LIVE DEMO'},
+    ];
+    let html = '';
+    for (let pass=0; pass<2; pass++){
+        for (const it of items){
+            html += '<span class="item">';
+            if (it.tag) html += '<span class="tag '+it.tag+'">'+escapeHtml(it.label)+'</span>';
+            else html += '<span class="tag">'+escapeHtml(it.label)+'</span>';
+            html += '<span class="v">'+escapeHtml(String(it.v))+'</span>';
+            html += '<span class="pip">·</span>';
+            html += '</span>';
+        }
+    }
+    el.innerHTML = html;
+}
+
+// ====================================================================
+// UTILITIES
+// ====================================================================
+function escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatTs(d){
+    const h=String(d.getHours()).padStart(2,'0');
+    const m=String(d.getMinutes()).padStart(2,'0');
+    const s=String(d.getSeconds()).padStart(2,'0');
+    return h+':'+m+':'+s;
+}
+
+// ====================================================================
+// SHARE PILL (mobile fallback)
+// ====================================================================
+document.getElementById('share-pill').addEventListener('click', async ()=>{
+    const url = window.location.href;
+    if (navigator.share){
+        try { await navigator.share({title:'Agent Factory · Mission Control', url}); } catch(e){}
+    } else if (navigator.clipboard){
+        try { await navigator.clipboard.writeText(url);
+            const btn = document.getElementById('share-pill');
+            const t = btn.textContent;
+            btn.textContent = 'COPIED ✓';
+            setTimeout(()=>btn.textContent=t, 1400);
+        } catch(e){}
+    }
+});
+
+// ====================================================================
+// INIT
+// ====================================================================
+renderQR(document.getElementById('qr-tile'), window.location.href);
+updateTicker();
+// re-stamp ticker clock every 30s
+setInterval(updateTicker, 30000);
+connect();
+
+// global key listener — F to fullscreen for demo
+document.addEventListener('keydown', (e)=>{
+    if (e.key === 'f' || e.key === 'F'){
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+        else document.exitFullscreen?.();
+    }
+});
+</script>
+
+<!-- ===== UNIVERSAL VIEW SWITCHER ===== -->
+<style>
+.fview{position:fixed;top:14px;right:14px;z-index:99999;font-family:ui-sans-serif,system-ui,sans-serif;}
+.fview summary{background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.16);border-radius:999px;padding:8px 14px;color:#fff;font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;list-style:none;cursor:pointer;user-select:none;}
+.fview summary::-webkit-details-marker{display:none}
+.fview[open] summary{background:rgba(0,0,0,0.92)}
+.fview-menu{position:absolute;right:0;top:100%;margin-top:6px;background:rgba(0,0,0,0.95);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.14);border-radius:8px;padding:5px;min-width:200px;box-shadow:0 12px 40px rgba(0,0,0,0.6);}
+.fview-menu a{display:block;padding:9px 14px;color:rgba(255,255,255,0.82);text-decoration:none;font-size:12px;font-weight:500;letter-spacing:.04em;border-radius:5px;}
+.fview-menu a:hover{background:rgba(15,242,160,0.06);color:#10F2A0;}
+.fview-menu .here{color:#10F2A0;font-weight:600;}
+.fview-menu .here::before{content:"● "}
+@media (max-width:520px){.fview{top:8px;right:8px}.fview summary{padding:6px 11px;font-size:9px}}
+</style>
+<details class="fview">
+  <summary>VIEW ▾</summary>
+  <div class="fview-menu">
+    <a href="/v1">The Floor</a>
+    <a class="here" href="/v2">Mission Control</a>
+    <a href="/v4-beach">Miami Beach</a>
+    <a href="/v5">Live (Pro)</a>
+  </div>
+</details>
+</body>
+</html>

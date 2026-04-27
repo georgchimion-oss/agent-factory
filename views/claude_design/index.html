@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Agent Factory — Monument Valley</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&family=DM+Mono:wght@400;500&family=Cormorant+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#F4EDE4;--bg2:#EDE4D8;--ink:#2C2A35;--ink2:#5C5768;
+  --pm:#6B8EC7;--eng:#7DBBA0;--rev:#C49BD4;--ship:#D4976B;
+  --accent:#D4605E;--gold:#C9A84C;--teal:#5BA3A3;
+  --shadow:rgba(44,42,53,0.08);
+}
+html,body{width:100%;height:100dvh;overflow:hidden;background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased}
+#root{width:100%;height:100%}
+
+/* Isometric helpers */
+.iso{transform:rotateX(55deg) rotateZ(-45deg);transform-style:preserve-3d}
+
+/* Character animations */
+@keyframes isoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes isoWalk{0%,100%{transform:translateY(0)}25%{transform:translateY(-6px) translateX(-2px)}50%{transform:translateY(-3px)}75%{transform:translateY(-6px) translateX(2px)}}
+@keyframes isoWork{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-3px) scale(1.02)}}
+@keyframes isoCelebrate{0%{transform:translateY(0) scale(1)}40%{transform:translateY(-16px) scale(1.06)}100%{transform:translateY(0) scale(1)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes gentlePulse{0%,100%{opacity:0.6}50%{opacity:1}}
+@keyframes orbTravel{0%{offset-distance:0%}100%{offset-distance:100%}}
+@keyframes slideUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:0.5}}
+@keyframes progressShine{0%{left:-40%}100%{left:140%}}
+@keyframes typeChar{from{width:0}to{width:100%}}
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="monument-valley.jsx"></script>
+<script type="text/babel">
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(window.MonumentApp));
+</script>
+</body>
+</html>
