@@ -405,6 +405,7 @@ const server = http.createServer(async (req, res) => {
   if (urlPath === '/v9')           urlPath = '/live-v9.html';
   if (urlPath === '/v9b')          urlPath = '/live-v9b.html';
   if (urlPath === '/v9c')          urlPath = '/live-v9c.html';
+  if (urlPath === '/v10')          urlPath = '/live-v10.html';
   if (urlPath === '/vote')         urlPath = '/vote.html';
   if (urlPath === '/admin')        urlPath = '/admin.html';
   if (urlPath === '/demo-aml')     urlPath = '/demo-aml.html';

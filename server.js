@@ -23,6 +23,7 @@ const OPS_AUTH_TOKEN = process.env.OPS_AUTH_TOKEN || 'dev-ops-token';
 
 const app = express();
 app.use(express.json());
+app.use('/pixel-assets', express.static(path.join(__dirname, 'views', 'pixel-assets')));
 
 // ============================================
 // USAGE TRACKING (no database — log only)
@@ -164,6 +165,9 @@ app.get('/v9b', (req, res) => {
 });
 app.get('/v9c', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'live-v9c.html'));
+});
+app.get('/v10', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'live-v10.html'));
 });
 app.get('/vote', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'vote.html'));
