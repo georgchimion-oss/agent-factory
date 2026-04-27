@@ -751,28 +751,50 @@ function drawCharacter(agent, ch) {
   }
 }
 
+function wrapBubbleText(text, maxWidth, font) {
+  ctx.font = font;
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
 function drawBubble(agent) {
   const b = bubbles[agent];
   if (!b || Date.now() > b.expiresAt) return;
   const ch = characters[agent];
   const x = Math.round(ch.px), y = Math.round(ch.py);
-  const text = b.text.length > 56 ? b.text.slice(0, 54) + '…' : b.text;
-  ctx.font = 'bold 11px Inter, sans-serif';
-  const tw = ctx.measureText(text).width;
-  const w = Math.min(tw + 16, 280);
-  const h = 22;
+  const font = 'bold 11px Inter, sans-serif';
+  const maxW = 250;
+  const padX = 10, padY = 7, lineH = 14;
+  const lines = wrapBubbleText(b.text, maxW, font).slice(0, 4);
+  ctx.font = font;
+  let textW = 0;
+  for (const l of lines) textW = Math.max(textW, ctx.measureText(l).width);
+  const w = Math.min(maxW, Math.ceil(textW)) + padX*2;
+  const h = lines.length * lineH + padY*2;
   let bx = x + TILE/2 - w/2, by = y - h - 12;
   if (bx < 6) bx = 6;
   if (bx + w > COLS*TILE - 6) bx = COLS*TILE - w - 6;
   if (by < 6) by = y + TILE + 8;
 
-  // Bubble drop shadow
+  // Drop shadow
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.fillRect(bx+2, by+3, w, h);
-  // Bubble bg cream
+  // Bubble bg
   ctx.fillStyle = '#fdf6e3';
   ctx.fillRect(bx, by, w, h);
-  // Outline (dark wood)
+  // Outline
   ctx.fillStyle = '#3d2818';
   ctx.fillRect(bx, by, w, 2);
   ctx.fillRect(bx, by+h-2, w, 2);
@@ -784,10 +806,12 @@ function drawBubble(agent) {
   ctx.fillStyle = '#3d2818';
   ctx.fillRect(x+TILE/2 - 3, by+h+2, 1, 1);
   ctx.fillRect(x+TILE/2 + 2, by+h+2, 1, 1);
-  // Text
+  // Text — multi-line
   ctx.fillStyle = '#3d2818';
   ctx.textAlign = 'left';
-  ctx.fillText(text, bx+8, by+15);
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], bx + padX, by + padY + lineH * (i + 1) - 3);
+  }
 }
 
 function drawParticles() {
@@ -883,7 +907,7 @@ function updateMovement(dt) {
     }
     const dx = next.x - seg.x, dy = next.y - seg.y;
     const distTiles = Math.abs(dx) + Math.abs(dy);
-    const speed = 4; // tiles per second
+    const speed = 7; // tiles per second — fast walk so wait is minimal
     w.segT += (dt/1000) * speed;
     if (w.segT >= distTiles) {
       w.segIdx++;
@@ -959,27 +983,25 @@ function estimateWalkMs(from, to) {
   for (let i = 1; i < path.length; i++) {
     totalTiles += Math.abs(path[i].x - path[i-1].x) + Math.abs(path[i].y - path[i-1].y);
   }
-  const speed = 4; // tiles per sec — matches updateMovement
+  const speed = 7; // matches updateMovement
   return (totalTiles / speed) * 1000;
 }
 
 let pendingWorkTimer = null;
 function setAgentWorking(agent) {
   if (activeAgentRef && activeAgentRef !== agent) {
-    // Previous agent walks to new agent (delivering work)
+    // Previous agent walks to new agent's desk (delivering work)
     const previous = activeAgentRef;
     setAgent(previous, 'done');
     startWalk(previous, agent);
-    // Lock in the new active agent reference immediately so subsequent
-    // setAgentWorking calls during the walk see the right "previous"
     activeAgentRef = agent;
-    // Don't show new agent as working until messenger arrives at their desk
+    // New agent does NOT start typing until messenger fully arrives + a settle beat
     if (pendingWorkTimer) clearTimeout(pendingWorkTimer);
     const walkMs = estimateWalkMs(previous, agent);
     pendingWorkTimer = setTimeout(() => {
       setAgent(agent, 'working');
       pendingWorkTimer = null;
-    }, Math.max(800, walkMs - 200));
+    }, walkMs + 600);  // wait for full walk + 600ms settle
   } else {
     setAgent(agent, 'working');
     activeAgentRef = agent;

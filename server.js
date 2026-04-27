@@ -660,40 +660,41 @@ const DEMO_REVISION_CONTENT = {
   },
 };
 
-// Pacing: each agent_status 'working' triggers ~3s walk in spectator UI.
-// First chat_message must fire AFTER walk completes, so bubbles align with active agent.
-// Total demo target: ~62s — enough room to narrate each beat.
+// Pacing: each agent_status 'working' triggers a ~2s walk in spectator UI.
+// First chat_message fires ~3s after working (giving walk + 1s settle).
+// Subsequent chats spaced ~4s apart so bubbles are readable.
+// Total demo target: ~63s — enough room to narrate each beat.
 const DEMO_BUILD_SEQUENCE = [
   { delay: 800,  ev: { type: 'build_started', buildId: 'demo', startedAt: Date.now() } },
   { delay: 600,  ev: { type: 'agent_status', agent: 'pm', status: 'working', message: 'Reading the brief' } },
-  { delay: 2500, ev: { type: 'chat_message', agent: 'pm', message: 'Brief: __WINNER__. Plan for breadth, not depth.' } },
-  { delay: 3000, ev: { type: 'chat_message', agent: 'pm', message: 'Spec drafted — three sections, mobile-first, clean charts.' } },
-  { delay: 2500, ev: { type: 'agent_status', agent: 'pm', status: 'done', message: 'Spec ready' } },
+  { delay: 3000, ev: { type: 'chat_message', agent: 'pm', message: 'Brief: __WINNER__. Plan for breadth, not depth.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'pm', message: 'Spec drafted — three sections, mobile-first, clean charts.' } },
+  { delay: 3000, ev: { type: 'agent_status', agent: 'pm', status: 'done', message: 'Spec ready' } },
   { delay: 800,  ev: { type: 'agent_status', agent: 'coder', status: 'working', message: 'Writing the layout' } },
-  { delay: 3500, ev: { type: 'chat_message', agent: 'coder', message: 'Building the hero — gradient, stat readout, hover states.' } },
-  { delay: 3000, ev: { type: 'chat_message', agent: 'coder', message: 'Hero done. Moving to the data grid.' } },
-  { delay: 3000, ev: { type: 'chat_message', agent: 'coder', message: 'Charts in. Animations smooth. No third-party libraries.' } },
-  { delay: 3000, ev: { type: 'chat_message', agent: 'coder', message: 'Mobile breakpoints look great on a phone.' } },
-  { delay: 1900, ev: { type: 'agent_status', agent: 'coder', status: 'done', message: 'Ready for review' } },
+  { delay: 3000, ev: { type: 'chat_message', agent: 'coder', message: 'Building the hero — gradient, stat readout, hover states.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: 'Hero done. Moving to the data grid.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: 'Charts in. Animations smooth. No third-party libraries.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: 'Mobile breakpoints look great on a phone.' } },
+  { delay: 2000, ev: { type: 'agent_status', agent: 'coder', status: 'done', message: 'Ready for review' } },
   { delay: 800,  ev: { type: 'agent_status', agent: 'reviewer', status: 'working', message: 'Reviewing' } },
-  { delay: 3500, ev: { type: 'chat_message', agent: 'reviewer', message: '__REJECT_FINDINGS__' } },
-  { delay: 3000, ev: { type: 'chat_message', agent: 'reviewer', message: '__REJECT_ISSUE__' } },
+  { delay: 3000, ev: { type: 'chat_message', agent: 'reviewer', message: '__REJECT_FINDINGS__' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'reviewer', message: '__REJECT_ISSUE__' } },
   { delay: 1500, ev: { type: 'review_result', score: 6, passed: false, feedback: '__REJECT_FEEDBACK__' } },
   { delay: 1500, ev: { type: 'agent_status', agent: 'reviewer', status: 'done', message: 'Sent back for revision' } },
   { delay: 800,  ev: { type: 'agent_status', agent: 'coder', status: 'working', message: 'Revising' } },
-  { delay: 3500, ev: { type: 'chat_message', agent: 'coder', message: '__CODER_REVISE_1__' } },
-  { delay: 3000, ev: { type: 'chat_message', agent: 'coder', message: '__CODER_REVISE_2__' } },
-  { delay: 2000, ev: { type: 'agent_status', agent: 'coder', status: 'done', message: 'Revision complete' } },
+  { delay: 3000, ev: { type: 'chat_message', agent: 'coder', message: '__CODER_REVISE_1__' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: '__CODER_REVISE_2__' } },
+  { delay: 2500, ev: { type: 'agent_status', agent: 'coder', status: 'done', message: 'Revision complete' } },
   { delay: 800,  ev: { type: 'agent_status', agent: 'reviewer', status: 'working', message: 'Re-reviewing' } },
-  { delay: 3500, ev: { type: 'chat_message', agent: 'reviewer', message: '__REVIEWER_APPROVE__' } },
+  { delay: 3000, ev: { type: 'chat_message', agent: 'reviewer', message: '__REVIEWER_APPROVE__' } },
   { delay: 1500, ev: { type: 'review_result', score: 9, passed: true, feedback: '__APPROVE_FEEDBACK__' } },
   { delay: 1500, ev: { type: 'agent_status', agent: 'reviewer', status: 'done', message: 'Approved' } },
   { delay: 800,  ev: { type: 'agent_status', agent: 'deployer', status: 'working', message: 'Shipping to production' } },
-  { delay: 3500, ev: { type: 'chat_message', agent: 'deployer', message: 'Uploaded. Going live now.' } },
-  { delay: 3000, ev: { type: 'chat_message', agent: 'deployer', message: 'Live at demo-site.georg.miami' } },
-  { delay: 2000, ev: { type: 'agent_status', agent: 'deployer', status: 'done', message: 'Live' } },
-  { delay: 500,  ev: { type: 'build_complete', buildId: 'demo', plan: { projectName: 'Demo Site' }, review: { score: 9 }, siteName: 'demo-site', siteUrl: 'https://demo-site.georg.miami', elapsed: 62 } },
-  { delay: 300,  ev: { type: 'celebrate', elapsed: 62 } },
+  { delay: 3000, ev: { type: 'chat_message', agent: 'deployer', message: 'Uploaded. Going live now.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'deployer', message: 'Live at demo-site.georg.miami' } },
+  { delay: 2500, ev: { type: 'agent_status', agent: 'deployer', status: 'done', message: 'Live' } },
+  { delay: 500,  ev: { type: 'build_complete', buildId: 'demo', plan: { projectName: 'Demo Site' }, review: { score: 9 }, siteName: 'demo-site', siteUrl: 'https://demo-site.georg.miami', elapsed: 63 } },
+  { delay: 300,  ev: { type: 'celebrate', elapsed: 63 } },
 ];
 
 function demoApplyRevisionTokens(message, winnerId) {
