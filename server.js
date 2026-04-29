@@ -63,7 +63,7 @@ function broadcastSpectator(event) {
 
 function broadcastAll(event) {
     broadcastFactory(event);
-    const allowed = ['connected', 'agent_status', 'chat_message', 'build_started', 'build_complete', 'celebrate', 'review_result', 'task_created', 'error', 'heartbeat', 'voting_state', 'spectator_count'];
+    const allowed = ['connected', 'agent_status', 'chat_message', 'build_started', 'build_complete', 'celebrate', 'review_result', 'task_created', 'error', 'heartbeat', 'voting_state', 'spectator_count', 'slack_message', 'iteration_complete'];
     if (allowed.includes(event.type)) {
         broadcastSpectator(event);
     }
@@ -109,9 +109,10 @@ function opsAuthMiddleware(req, res, next) {
 // ROUTES — Dashboard & Spectator
 // ============================================
 
-// Public visitors see the spectator view (read-only)
+// Public visitors see the unified audience+spectator view
+// (Same URL serves phones + projector — mobile responsive)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'live.html'));
+    res.sendFile(path.join(__dirname, 'views', 'live-v10.html'));
 });
 
 // Georg's operator dashboard (needs auth token)
@@ -169,8 +170,9 @@ app.get('/v9c', (req, res) => {
 app.get('/v10', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'live-v10.html'));
 });
+// /vote is now the same unified URL — redirect to root for any old QR codes
 app.get('/vote', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'vote.html'));
+    res.redirect(301, '/');
 });
 
 // ============================================
@@ -556,7 +558,7 @@ async function runFactory(brief) {
 }
 
 // ============================================
-// DEMO VOTING + SIMULATED BUILD (PwC playhouse demo)
+// DEMO VOTING + SIMULATED BUILD (live audience demo)
 // Audience-vote workflow that drives a SIMULATED build sequence on the SSE
 // stream. Does NOT call real agents or claude -p — pure broadcast theater
 // timed to ~32 seconds. Used for the live demo where audience scans QR →
@@ -667,20 +669,27 @@ const DEMO_REVISION_CONTENT = {
 // Pacing: each agent_status 'working' triggers a ~2s walk in spectator UI.
 // First chat_message fires ~3s after working (giving walk + 1s settle).
 // Subsequent chats spaced ~4s apart so bubbles are readable.
-// Total demo target: ~63s — enough room to narrate each beat.
+// Total demo target: ~115s — enough room to narrate each beat with credible
+// technical chatter that lands with senior eng/risk/audit executives.
 const DEMO_BUILD_SEQUENCE = [
   { delay: 800,  ev: { type: 'build_started', buildId: 'demo', startedAt: Date.now() } },
   { delay: 600,  ev: { type: 'agent_status', agent: 'pm', status: 'working', message: 'Reading the brief' } },
-  { delay: 3000, ev: { type: 'chat_message', agent: 'pm', message: 'Brief: __WINNER__. Plan for breadth, not depth.' } },
-  { delay: 4000, ev: { type: 'chat_message', agent: 'pm', message: 'Spec drafted — three sections, mobile-first, clean charts.' } },
+  { delay: 3000, ev: { type: 'chat_message', agent: 'pm', message: 'Brief received: __WINNER__. Plan for breadth, not depth.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'pm', message: 'Pulling reference templates from the prior fintech build set.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'pm', message: 'Acceptance criteria locked: WCAG 2.2 AA · mobile-first · no client-side PII.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'pm', message: 'Spec drafted — three sections, server-rendered, charts as inline SVG.' } },
   { delay: 3000, ev: { type: 'agent_status', agent: 'pm', status: 'done', message: 'Spec ready' } },
   { delay: 800,  ev: { type: 'agent_status', agent: 'coder', status: 'working', message: 'Writing the layout' } },
   { delay: 3000, ev: { type: 'chat_message', agent: 'coder', message: 'Building the hero — gradient, stat readout, hover states.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: 'TypeScript scaffold up. Tailwind, lucide-react wired. No recharts — inline SVG only.' } },
   { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: 'Hero done. Moving to the data grid.' } },
-  { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: 'Charts in. Animations smooth. No third-party libraries.' } },
-  { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: 'Mobile breakpoints look great on a phone.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: 'Color tokens generated against WCAG 2.2 AA — 4.7:1 minimum on body text.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: 'Charts rendered as inline SVG — zero runtime dependencies.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: 'Bundle weighed: 138 KB gzipped. Inside the 200 KB budget.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: 'Viewport tested at 375 / 768 / 1280. No layout shift, CLS 0.04.' } },
   { delay: 2000, ev: { type: 'agent_status', agent: 'coder', status: 'done', message: 'Ready for review' } },
   { delay: 800,  ev: { type: 'agent_status', agent: 'reviewer', status: 'working', message: 'Reviewing' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'reviewer', message: 'Lint clean. Bundle within budget. Running rule-engine smoke test against the 90-day baseline.' } },
   { delay: 3000, ev: { type: 'chat_message', agent: 'reviewer', message: '__REJECT_FINDINGS__' } },
   { delay: 4000, ev: { type: 'chat_message', agent: 'reviewer', message: '__REJECT_ISSUE__' } },
   { delay: 1500, ev: { type: 'review_result', score: 6, passed: false, feedback: '__REJECT_FEEDBACK__' } },
@@ -690,15 +699,17 @@ const DEMO_BUILD_SEQUENCE = [
   { delay: 4000, ev: { type: 'chat_message', agent: 'coder', message: '__CODER_REVISE_2__' } },
   { delay: 2500, ev: { type: 'agent_status', agent: 'coder', status: 'done', message: 'Revision complete' } },
   { delay: 800,  ev: { type: 'agent_status', agent: 'reviewer', status: 'working', message: 'Re-reviewing' } },
-  { delay: 3000, ev: { type: 'chat_message', agent: 'reviewer', message: '__REVIEWER_APPROVE__' } },
+  { delay: 3000, ev: { type: 'chat_message', agent: 'reviewer', message: 'Re-running the false-positive set. Threshold change checks out against historical baseline.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'reviewer', message: '__REVIEWER_APPROVE__' } },
   { delay: 1500, ev: { type: 'review_result', score: 9, passed: true, feedback: '__APPROVE_FEEDBACK__' } },
   { delay: 1500, ev: { type: 'agent_status', agent: 'reviewer', status: 'done', message: 'Approved' } },
   { delay: 800,  ev: { type: 'agent_status', agent: 'deployer', status: 'working', message: 'Shipping to production' } },
-  { delay: 3000, ev: { type: 'chat_message', agent: 'deployer', message: 'Uploaded. Going live now.' } },
+  { delay: 3000, ev: { type: 'chat_message', agent: 'deployer', message: 'Production bundle built. Uploading to CDN edge.' } },
+  { delay: 4000, ev: { type: 'chat_message', agent: 'deployer', message: 'TLS cert valid. Health check 200. Cutting traffic over.' } },
   { delay: 4000, ev: { type: 'chat_message', agent: 'deployer', message: 'Live at demo-site.georg.miami' } },
   { delay: 2500, ev: { type: 'agent_status', agent: 'deployer', status: 'done', message: 'Live' } },
-  { delay: 500,  ev: { type: 'build_complete', buildId: 'demo', plan: { projectName: 'Demo Site' }, review: { score: 9 }, siteName: 'demo-site', siteUrl: 'https://demo-site.georg.miami', elapsed: 63 } },
-  { delay: 300,  ev: { type: 'celebrate', elapsed: 63 } },
+  { delay: 500,  ev: { type: 'build_complete', buildId: 'demo', plan: { projectName: 'Demo Site' }, review: { score: 9 }, siteName: 'demo-site', siteUrl: 'https://demo-site.georg.miami', elapsed: 115 } },
+  { delay: 300,  ev: { type: 'celebrate', elapsed: 115 } },
 ];
 
 function demoApplyRevisionTokens(message, winnerId) {
@@ -715,6 +726,7 @@ function demoApplyRevisionTokens(message, winnerId) {
 }
 
 let demoWatcherRunning = false;
+let demoBuilding = false;
 async function demoWatchForBuilds() {
   if (demoWatcherRunning) return;
   demoWatcherRunning = true;
@@ -729,6 +741,7 @@ async function demoWatchForBuilds() {
     const winnerId     = demoVotingState.winner || 1;
     const siteUrl      = `https://${deployHost}`;
     console.log(`[demo-build] starting: ${brief} → ${siteUrl}`);
+    demoBuilding = true;
 
     for (const step of DEMO_BUILD_SEQUENCE) {
       await new Promise(r => setTimeout(r, step.delay));
@@ -753,6 +766,7 @@ async function demoWatchForBuilds() {
       }
       broadcastAll(ev);
     }
+    demoBuilding = false;
     console.log('[demo-build] complete — staying idle until next vote');
     while (demoVotingState.status === 'closed') {
       await new Promise(r => setTimeout(r, 500));
@@ -772,6 +786,126 @@ app.get('/demo-kyc', (req, res) => {
 });
 app.get('/demo-tracker', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'demo-tracker.html'));
+});
+// v2 preview routes (before iteration goes live, useful for QA)
+app.get('/demo-aml-v2', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'demo-aml-v2.html'));
+});
+app.get('/demo-kyc-v2', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'demo-kyc-v2.html'));
+});
+app.get('/demo-tracker-v2', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'demo-tracker-v2.html'));
+});
+
+// ============================================
+// ITERATE — "text the PM" beat that swaps live file v1 → v2
+// ============================================
+const DEMO_ITERATE_SEQUENCE = [
+  { delay: 1000, ev: { type: 'build_started', buildId: 'iterate', startedAt: Date.now(), iteration: true } },
+  { delay: 800,  ev: { type: 'agent_status', agent: 'pm', status: 'working', message: 'On it' } },
+  { delay: 2500, ev: { type: 'chat_message', agent: 'pm', message: 'Got it — Miami palette, dropping the unnecessary panel.' } },
+  { delay: 2000, ev: { type: 'agent_status', agent: 'pm', status: 'done', message: 'Briefed' } },
+  { delay: 600,  ev: { type: 'agent_status', agent: 'coder', status: 'working', message: 'Editing' } },
+  { delay: 2500, ev: { type: 'chat_message', agent: 'coder', message: 'Adjusting palette. Removing the panel. Re-running checks.' } },
+  { delay: 3000, ev: { type: 'agent_status', agent: 'coder', status: 'done', message: 'Changes ready' } },
+  { delay: 600,  ev: { type: 'agent_status', agent: 'reviewer', status: 'working', message: 'Quick review' } },
+  { delay: 2500, ev: { type: 'chat_message', agent: 'reviewer', message: 'Cleared. Layout still meets WCAG AA contrast.' } },
+  { delay: 1000, ev: { type: 'review_result', score: 9, passed: true, feedback: 'Iteration approved.' } },
+  { delay: 1000, ev: { type: 'agent_status', agent: 'reviewer', status: 'done', message: 'Cleared' } },
+  { delay: 600,  ev: { type: 'agent_status', agent: 'deployer', status: 'working', message: 'Shipping v2' } },
+  { delay: 2000, ev: { type: 'chat_message', agent: 'deployer', message: 'v2 LIVE — same URL, refresh to see' } },
+  { delay: 1500, ev: { type: 'agent_status', agent: 'deployer', status: 'done', message: 'Live' } },
+  { delay: 500,  ev: { type: 'build_complete', buildId: 'iterate', iteration: true, plan: { projectName: 'v2' }, review: { score: 9 }, elapsed: 22 } },
+];
+
+let demoIterating = false;
+
+// v1 stays at e.g. aml.georg.miami untouched. v2 lives at aml-v2.georg.miami.
+// No file swap — both versions are served simultaneously so the audience can compare.
+function v2HostFor(siteName) {
+  return `${siteName}-v2.georg.miami`;
+}
+
+async function fireIterateSequence(message) {
+  if (demoIterating) return { ok: false, error: 'already_iterating' };
+  if (demoBuilding) return { ok: false, error: 'build_in_progress' };
+  if (demoVotingState.status !== 'closed' || !demoVotingState.winner) {
+    return { ok: false, error: 'no_winner' };
+  }
+  demoIterating = true;
+  try {
+    const winner = demoVotingState.options.find(o => o.id === demoVotingState.winner);
+    const deployHost = winner ? winner.deployHost : 'demo-site.georg.miami';
+    const siteName   = deployHost.split('.')[0];
+    const siteUrlV1  = `https://${deployHost}`;
+    const siteUrlV2  = `https://${v2HostFor(siteName)}`;
+
+    // 1. Broadcast the slack-style message immediately (audience sees it)
+    broadcastAll({
+      type: 'slack_message',
+      channel: 'agent-factory-demo',
+      sender: 'Georg',
+      recipient: 'PM',
+      message,
+      ts: Date.now(),
+    });
+
+    // 2. Run the compressed iterate sequence
+    for (const step of DEMO_ITERATE_SEQUENCE) {
+      await new Promise(r => setTimeout(r, step.delay));
+      let ev = step.ev;
+      if (ev.type === 'build_started') {
+        ev = { ...ev, startedAt: Date.now(), brief: `Iteration: ${message}`, iteration: true };
+      } else if (ev.type === 'build_complete') {
+        ev = {
+          ...ev,
+          plan: { projectName: winner ? winner.label : 'v2' },
+          siteName,
+          siteUrl:   siteUrlV2,    // primary URL exposed in result card
+          siteUrlV1,                // v1 stays untouched, still available
+          siteUrlV2,                // explicit v2 link for clarity
+          iteration: true,
+          iterationVersion: 2,
+        };
+      }
+      broadcastAll(ev);
+    }
+
+    // 3. Final hint event — both URLs exposed
+    broadcastAll({
+      type: 'iteration_complete',
+      siteName,
+      siteUrl:   siteUrlV2,
+      siteUrlV1,
+      siteUrlV2,
+      version: 2,
+    });
+
+    return { ok: true, siteName, siteUrlV1, siteUrlV2 };
+  } finally {
+    demoIterating = false;
+  }
+}
+
+app.post('/factory/api/iterate', express.json(), async (req, res) => {
+  const message = (req.body && typeof req.body.message === 'string') ? req.body.message.trim() : '';
+  if (!message) return res.status(400).json({ ok: false, error: 'message_required' });
+  if (message.length > 500) return res.status(400).json({ ok: false, error: 'message_too_long' });
+  // Pre-check the gates synchronously so the client gets a real error message.
+  if (demoIterating)     return res.status(409).json({ ok: false, error: 'already_iterating' });
+  if (demoBuilding)      return res.status(409).json({ ok: false, error: 'build_in_progress' });
+  if (demoVotingState.status !== 'closed' || !demoVotingState.winner) {
+    return res.status(409).json({ ok: false, error: 'no_winner' });
+  }
+  // Don't await — let SSE drive the visible flow, return immediately
+  fireIterateSequence(message).catch(err => console.error('[iterate] error:', err));
+  res.json({ ok: true, accepted: true });
+});
+
+// Kept for API compat — now a no-op since v1 is never touched.
+app.post('/factory/api/iterate/reset', (req, res) => {
+  res.json({ ok: true, mock: true, note: 'v1 stays untouched; reset is a no-op' });
 });
 
 // Voting endpoints

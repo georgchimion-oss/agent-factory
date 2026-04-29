@@ -1,251 +1,300 @@
 # Agent Factory Demo — Resume Doc
 
-> **Last updated:** 2026-04-27. Demo at PwC playhouse for Coinbase + TD Bank + PwC partners on Thursday 2026-04-30. Use this doc to resume cold after context compaction.
+> **Last updated:** 2026-04-28 (evening). Demo Thursday 2026-04-30. Use this doc to resume cold after context compaction.
 
 ---
 
 ## ⚡ One-line status
 
-**The demo works end-to-end on production.** Spectator + voting + simulated build (with reject/revise/approve beat) + 3 deployable apps with functional top-nav are all live. Remaining work: optional pixel-art office UI inspired by `pablodelucca/pixel-agents`, lock the demo prompt + opener, rehearse.
+**Demo is end-to-end on prod, polished, mobile-ready, PII-clean.** What's left: rehearsal + optional bake-in of credibility signals (token counter, audit log, version pin) before Thursday + (manual) record backup video.
 
 ---
 
-## 🌐 Live URLs (everything you click)
+## 🌐 Live URLs
 
-### Spectator + control surface (factory.georg.miami)
-- **Big screen / projector:** [https://factory.georg.miami/v6](https://factory.georg.miami/v6) — Monument Valley isometric world, characters walk between Pink Watchtower (PM) → Teal Workshop (Coder) → Purple Observatory (Reviewer) → Coral Gateway (Deployer)
-- **Phone control (Georg):** [https://factory.georg.miami/admin](https://factory.georg.miami/admin) — Open / Close / Reset voting
-- **Audience phone view (QR target):** [https://factory.georg.miami/vote](https://factory.georg.miami/vote)
-- **Backup variants in case v6 has issues:** [/v5](https://factory.georg.miami/v5) (Live Pro, light theme) · [/v4-beach](https://factory.georg.miami/v4-beach) (Miami sunset) · [/v2](https://factory.georg.miami/v2) (Mission Control / Bloomberg) · [/v1](https://factory.georg.miami/v1) (The Floor)
-- **Other Claude Design outputs (kept but not wired to backend):** [/v7](https://factory.georg.miami/v7) (Mission Control variant) · [/v8](https://factory.georg.miami/v8) (Miami Neon)
+### One unified URL for the audience + projector
+- **`factory.georg.miami`** ← single URL for everyone. Mobile-responsive. Served by `live-v10.html` (pixel office). Audience scans QR on the projector, lands on the same UI. Phone version stacks vertically with vote cards, build progress, chat log, and result card. Desktop shows the full pixel-art office.
+- **`factory.georg.miami/admin`** ← Georg's phone control surface (only). Open/Close/Reset voting + the **"Talk to PM"** Slack-styled panel for live iteration.
+- **`factory.georg.miami/vote`** ← legacy redirect → `/` (in case anyone has it bookmarked).
+- **`factory.georg.miami/v6`** ← Monument Valley fallback (battle-tested React variant, kept as alt-tab in case v10 misbehaves).
 
-### The 3 deployable demo apps (winner becomes the live URL)
-- [https://aml.georg.miami](https://aml.georg.miami) — AML Transaction Monitoring Console (7 sections in top nav)
-- [https://kyc.georg.miami](https://kyc.georg.miami) — KYC / CIP Intake Pipeline (6 sections)
-- [https://tracker.georg.miami](https://tracker.georg.miami) — Engagement Workstream Tracker (6 sections incl. Calendar + People + Risks)
+### The 6 deployable demo apps (v1 stays untouched, v2 is the iteration target)
+| App | v1 (untouched) | v2 (Miami theme + 1 feature dropped) |
+|---|---|---|
+| **Sentinel AML Console** | https://aml.georg.miami | https://aml-v2.georg.miami (Miami header, **Alerts tab dropped**) |
+| **Beacon Compliance KYC** | https://kyc.georg.miami | https://kyc-v2.georg.miami (Miami ribbon, **Audit Log tab dropped**) |
+| **LedgerWorks Engagement Tracker** | https://tracker.georg.miami | https://tracker-v2.georg.miami (Miami masthead, **Risks tab dropped**) |
+
+After iteration the result card on /v10 shows BOTH urls — small grey "(v1)" link + big sunset gradient "v2 ↗" button.
 
 ---
 
-## 📐 Architecture (how it runs end-to-end)
+## 📐 Architecture
 
 ```
-[Audience phones]              [Big screen / projector]                [Georg's phone]
-     │                                  │                                       │
-     │ scan QR → /vote                  │  factory.georg.miami/v6               │  factory.georg.miami/admin
-     │                                  │                                       │
-     ▼                                  ▼                                       ▼
-   POST /factory/api/vote     SSE: /factory/api/live-stream         POST /factory/api/voting/{open,close,reset}
-                              (subscribes; receives all events)
-     │                                  ▲                                       │
-     ▼                                  │                                       ▼
-        ┌─────────────────────────────────────────────────────────────────────────┐
-        │                Production server.js (VPS, pm2 'factory', port 3004)     │
-        │                                                                         │
-        │   • voting state in memory (status: idle|open|closed, options[3])       │
-        │   • /factory/api/voting/{open,close,reset} mutates state                │
-        │   • watchForBuilds() loop fires DEMO_BUILD_SEQUENCE on close            │
-        │     → broadcasts ~30 SSE events: agent_status, chat_message,            │
-        │       review_result(score:6) → coder revises → review_result(score:9)   │
-        │       → deployer ships → build_complete with siteUrl=aml.georg.miami    │
-        │   • DOES NOT call real claude -p — pure broadcast theater (~32s)        │
-        └─────────────────────────────────────────────────────────────────────────┘
-                                         │
-                                         ▼
-                       wildcard nginx serves *.georg.miami → /var/www/sites/{name}/
-                       So aml.georg.miami → /var/www/sites/aml/index.html (the deployed demo)
+[Audience phones]              [Projector laptop]              [Georg's phone]
+factory.georg.miami            factory.georg.miami              factory.georg.miami/admin
+(scaled mobile layout)         (scaled desktop layout)         (Open/Close/Reset + Slack panel)
+        │                              │                                  │
+        │ POST /factory/api/vote       │ SSE /factory/api/live-stream     │ POST /factory/api/voting/{open,close,reset}
+        │                              │                                  │ POST /factory/api/iterate
+        ▼                              ▼                                  ▼
+        ┌────────────────────────────────────────────────────────────────────────┐
+        │ Production server.js (VPS, pm2 'factory', port 3004)                    │
+        │                                                                          │
+        │ • DEMO voting: idle → open → closed (with winner)                        │
+        │ • watchForBuilds() loop fires DEMO_BUILD_SEQUENCE (~115s) on close       │
+        │   → broadcasts ~38 SSE events with technical credibility chatter         │
+        │ • Reject/revise/approve beat: Reviewer score 6 → coder revises →         │
+        │   reviewer score 9 → deployer ships → build_complete with v1 URL         │
+        │ • iterate endpoint: validates winner exists + not already iterating +    │
+        │   not building, then fires DEMO_ITERATE_SEQUENCE (~22s) with             │
+        │   slack_message + agent chatter, broadcasts iteration_complete with      │
+        │   BOTH v1 and v2 URLs (no file swap; v2 lives at its own subdomain)      │
+        └────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       ▼
+                  wildcard nginx serves *.georg.miami → /var/www/sites/{name}/
+                  e.g. aml.georg.miami → /var/www/sites/aml/index.html (v1, never modified)
+                       aml-v2.georg.miami → /var/www/sites/aml-v2/index.html (v2, served alongside)
 ```
 
-**Key files** (on local + on VPS at `/var/www/agent-factory/`):
-- `server.js` (553 lines) — production server with real factory + demo voting layered on top
-- `views/live-v6.html` (1191 lines) — Monument Valley spectator, React via Babel-standalone
-- `views/claude_design/monument-valley.jsx` — source of truth for v6, REBUILD live-v6.html from this after edits
-- `views/admin.html` — phone control panel
-- `views/vote.html` — audience phone voting page
-- `views/demo-aml.html`, `demo-kyc.html`, `demo-tracker.html` — the 3 winnable apps with functional top-nav
-- `_dev/mock-factory.js` — local-only dev server on port 5050 (mirrors production demo flow)
+---
+
+## 🎬 Demo run-of-show (~5 min)
+
+| Beat | Time | What happens |
+|---|---|---|
+| **Pre-show** | 2 min | Big screen: idle pixel office. QR pointing to factory.georg.miami. Audience scans → "AWAITING VOTE" + audience-friendly mobile copy ("You're in. Voting opens in a moment — pick what we build.") |
+| **Opener** | 0:30 | *"Compliance tools fail because compliance can't fail. What if you could test the logic before you ship it?"* |
+| **Vote** | 0:30 | Tap **Open voting** on /admin. Audience picks. Bars fill on big screen + every phone in sync. |
+| **Close + happy build** | ~0:30 | Tap **Close voting**. Banner: WINNER. Build clock starts. PM walks → spec → Coder builds → bubbles with credibility lines (TS scaffold, WCAG 2.2 AA, 138KB gzipped, CLS 0.04, etc.) |
+| **⭐ MONEYSHOT — Reviewer rejection** | ~0:25 | Banner flashes coral. Score 6/10. *"Look at this — they tuned the threshold too aggressively. False-positive cascade. The system caught it before deployment."* Coder revises ($9,950). Reviewer 9/10. |
+| **Deploy + audience tests** | 0:45 | URL types out. Audience refreshes → real app on their phones. Georg tests on his phone too. Click around. *"This is on your phone right now."* |
+| **⭐ LIVE ITERATION** | 1:00 | *"What if I want it to do something different?"* Type into Talk-to-PM on /admin: ***"make it more miami and drop the [feature] tab"***. Slack overlay flashes on big screen. Agents work ~22s. Result card now shows v1 + v2 side-by-side. Audience clicks v2 → Miami theme + feature dropped. |
+| **Closer** | 0:20 | *"This is how you ship without shipping risk. The agents are your validation layer."* |
 
 ---
 
-## ✅ What's DONE (all shipped to production)
+## 💬 The 3 iteration phrases (memorize)
 
-### Critical fixes (C1-C5)
-| | What | Where |
+| Winner | What v2 changes | Type this |
 |---|---|---|
-| **C1** | **Reviewer-rejection beat** — score 6 (AML structuring rule false-positive cascade), Coder revises threshold to $9,950, Reviewer approves 9/10. Per-winner content for KYC (OFAC ordering bug) + Tracker (SoD violation). | `_dev/mock-factory.js` + `server.js` |
-| **C2** | **Deploy-evidence logs** in result cards: `$ npm run build`, `✓ 142 tests passed`, `Deployed: <UTC>`, `Bundle: <slug>-build-XXX.tar.gz`. Credibility signal for execs scanning for theater. | v6 ResultCard, v5 complete pane, v4-beach result card |
-| **C3** | Vote state persistence on reload (was already working — verified) | vote.html |
-| **C4** | v4-beach character animation reset between rounds — courier no longer stuck mid-air on second cycle | live-v4-beach.html `resetAllAgents()` |
-| **C5** | Projector readability media query (+font sizes at >1920px) | demo-aml/kyc/tracker + v5 + v4-beach |
+| **AML** | Miami palette + Alerts tab dropped | *make it more miami and drop the alerts tab — we have alerts feeding from another system* |
+| **KYC** | Miami ribbon + Audit Log dropped | *make it more miami and drop the audit log tab — we route audits to the GRC platform* |
+| **Tracker** | Miami masthead + Risks dropped | *make it more miami and drop the risks tab — we manage risks separately* |
 
-### Important fixes
-| | What | Where |
-|---|---|---|
-| **I3** | Mini-banner on rejection beat — banner flips to coral "FLAGGED" for 2.6s then amber "REVISING" then back to gold "BUILDING" | v6 monument-valley.jsx + Banner component |
-| **I8** | Kill switch ("Reset to idle" button) verified | admin.html |
-| **Reverse path** | `reviewer-engineer` walking path added (for Reviewer→Coder rejection handoff) | monument-valley.jsx WALK_PATHS |
-| **SSE whitelist** | Added `voting_state` + `spectator_count` to broadcastAll's allowed-spectator list (was the bug where /admin clicks didn't reach /v6) | server.js line 65 |
-| **All 3 demos**: top-nav functional view-swapping | AML 7 sections, KYC 6, Tracker 6 — every nav click swaps entire content | demo-*.html |
-| **`$0.34` cost** | Removed everywhere — replaced with "0 human edits" since user is on Claude Max ($0 marginal) | v4-beach + v5 + claude-design-prompt.md |
-| **VPS / API tech-speak** | Removed everywhere visible to audience | All variants |
-
-### Production deploy (Option B from the plan)
-- Voting state + endpoints (`/factory/api/voting/{state,open,close,reset}`) added to production `server.js`
-- Simulated build sequence (`DEMO_BUILD_SEQUENCE`) with token-replaceable per-winner content
-- `watchForBuilds()` loop kicks off when voting closes
-- Routes added: `/admin`, `/demo-aml`, `/demo-kyc`, `/demo-tracker`
-- pm2 `factory` restarted, no downtime to existing penny/brain/jordan/etc
-- 3 demo apps deployed to wildcard subdomains (`aml/kyc/tracker.georg.miami` via `/var/www/sites/{name}/`)
-
-### The pitch (locked in plan)
-**Opener:** *"Compliance tools fail because compliance can't fail. What if you could test the logic before you ship it?"*
-
-**Closer:** *"This is how you ship without shipping risk. The agents are your validation layer."*
-
-3-beat arc: Setup (vote open) → Tension (Reviewer flags + Coder revises = the moneyshot) → Reveal (URL types out, audience scans, real app on phones).
-
-Full plan with all details: [/Users/georgchimion/.claude/plans/1-im-not-going-ethereal-graham.md](/Users/georgchimion/.claude/plans/1-im-not-going-ethereal-graham.md)
+The "we route to X" / "we manage X separately" suffix sounds like a manager who knows their stack — not arbitrary deletion.
 
 ---
 
-## 🔜 What's LEFT (in priority order)
+## 🛡 Adversarial Q&A — top 5 to nail
 
-### 1. Pixel-Agents office ambiance (NEW — Georg's most recent ask)
+**Q1: "Where's your SR 11-7 documentation?"** (Coinbase CCO)
+> *"The agents aren't the model of record for any compliance decision — they're a development accelerator that produces code and rule logic which then enters your existing SR 11-7 pipeline for independent validation before any production use."*
 
-**Inspiration:** [pablodelucca/pixel-agents](https://github.com/pablodelucca/pixel-agents) — a VS Code extension where each Claude Code terminal becomes a pixel-art character in an "office" that walks around, types at its desk, etc. Georg likes the **office ambiance** — pixel-art top-down view, characters at desks, animated work states (typing, reading, idle). He does NOT want all the actions/integrations — just the visual feel.
+**Q2: "Where did the $9,950 come from? Show me the backtest."** (TD AML)
+> *"Demo's a UX prototype — production deployment ingests your historical wire population, runs SR 11-7 §V.B.3 sensitivity analysis at thresholds $9,000–$9,999, and the Reviewer cites the curve in its log. The $9,950 in the demo is illustrative, not a recommendation."*
 
-**Repo finding:** Uses `JIK-A-4 / Metro City` topdown character pack. 6 diverse characters. Pixel-art top-down style. Office layout editor with floors / walls / furniture.
+**Q3: "Is your Reviewer organizationally independent from your Coder?"** (TD AML)
+> *"They share a base model, so they're not independent — which is why I'd never propose this configuration as the validator of record for a regulated model. This is a development accelerator; your second line and IMV team remain the SR 11-7 validators."*
 
-**Proposal: build `/v9` — "Pixel Office" variant**
+**Q4: "Are you positioning this as a PwC tool or your personal IP?"** (PwC Partner)
+> *"Personal IP, built on Claude Max — my license. I'm proposing PwC license a rebuilt enterprise version through proper procurement. Today's a capability demo, not a sales pitch."*
 
-Single self-contained HTML page (no VS Code extension dependency). Top-down pixel-art office:
-- 4 desks (one per agent: PM / Engineer / Reviewer / Deployer)
-- 4 pixel characters that animate based on `agent_status` SSE:
-  - `idle` → character sits at desk, occasional blink
-  - `working` → typing animation at keyboard
-  - `done` → stands up briefly, thumbs up
-  - On `chat_message` → speech bubble with truncated message text (auto-fades)
-  - On handoff → walking sprite traverses tile grid from one desk to another
-- Top wall = display strip showing build clock, current prompt, vote tally
-- Side panel = scrolling chat log
-- Use FREE pixel-art assets — Metro City pack (CC0/free) OR build simple ones inline as canvas/SVG
+**Q5: "Is this actually four agents calling Claude, or one prompt with four personas?"** (Engineer)
+> *"Four separate API calls, four system prompts, four context windows. I'll show the network tab — you'll see the SSE streams and four distinct request IDs. Reviewer's rejection is real because Reviewer doesn't see Coder's reasoning, only the diff."*
 
-**Effort estimate:** ~3-4 hrs for a credible v9. Could replace v6 as the hero if Georg likes it.
+### NEVER say
+- "Claude rarely hallucinates" / "It's well-tested" / "Trust me"
+- "The agents would never get a fact wrong" / "It's basically free"
+- "We could pilot with one client first" / "It auto-deploys to prod"
+- "The Reviewer agent caught it" (implies AI authority — danger zone)
+- "LLMs are non-deterministic" (true but reads as cop-out)
+- Anything mentioning real clients (PwC / TD / Coinbase / Norfolk / Cipher) — all PII cleaned from demo apps
 
-**Two options:**
-- **(A)** Use Metro City character sprites (download, host locally, render to canvas). Authentic to the inspiration.
-- **(B)** Build minimal pixel-art via inline canvas drawing — no external assets. Simpler but less polished.
+---
 
-I'd recommend **(A)** if there's time, **(B)** as fallback. Either way, this is a NEW variant — keep v6 as primary, v9 as challenger.
+## ✅ What's DONE (everything below is shipped + verified on prod)
 
-### 2. Lock the demo flow content (15 min)
+### PII cleanup (audience-facing)
+| Removed | Replaced with |
+|---|---|
+| `Cipher` (tracker brand) | `LedgerWorks` |
+| `Aegis` (AML brand) | `Sentinel` |
+| `Meridian Compliance` (KYC brand) | `Beacon Compliance` |
+| `PwC US Assurance` | `Audit & Assurance` |
+| `Acme Federal Bancorp` | `Continental Bancorp` |
+| `Coinbase Global, Inc.` / `Coinbase Custody Trust` | `Apex Crypto Trust` / `Apex Custody Trust` |
+| `TD Bank` | `North Atlantic Bank` |
+| `Norfolk Holdings Ltd` / `Norfolk Atlantic Bank` | `Vertex Holdings Ltd` / `North Atlantic Bank` |
+| `ATLAS Bank` / `BIC ATLDEFFXXX` | `Continental Bank` / `BIC CONTDEFFXXX` |
+| `Project Lighthouse` | `Project Beacon` |
+| `Atlas / Meridian Integration DD` | `Acquirer / Target Integration DD` |
+| `PwC orange` color comments | stripped |
+| `PwC Playhouse` (live-v3) | `Live Playhouse` |
+| `PWC ENGAGEMENT` (live-v2) | `AGENT FACTORY` |
 
-Open questions from the plan that still need answers:
-- **Demo prompt to use Thursday** — the `fullPrompt` is already set per-option in mock + production. The actual SAID prompt (what Georg says aloud during the opener) needs to be locked. Suggested: *"Compliance tools fail because compliance can't fail. What if you could test the logic before you ship it?"* (already in the plan).
-- **Backup decision** — keep v4-beach (Miami) as visible fallback in the View switcher? Currently yes.
+Verified via curl: zero matches for `PwC|Coinbase|TD Bank|Norfolk|Cipher|Acme|Project Lighthouse|Atlas / Meridian|Aegis` across all 6 served files.
 
-### 3. Rehearsal (~2 hrs Tue + Wed evenings)
+### Build sequence — extended to ~115s
+- 38 SSE events (was 30). New credibility lines added for PM (3), Coder (4 + 1 replace), Reviewer (2), Deployer (2 + 1 replace).
+- Highlights: WCAG 2.2 AA · TypeScript scaffold · 138 KB gzipped · CLS 0.04 · TLS health checks · 90-day baseline backtest · FinCEN 31 CFR § 1010.230 cross-check
+- File: [server.js:673-708](portfolio/agent-factory/server.js#L673)
+- Mock parity in [_dev/mock-factory.js:161-201](portfolio/agent-factory/_dev/mock-factory.js#L161)
 
-- Run 5 full cycles end-to-end, time each
-- Practice the opener until it's muscle memory
-- Practice the Reviewer-rejection ad-lib — when "Score 6/10" lands on the screen, what do you say? *"Sometimes the system isn't sure. Watch what happens."*
-- Practice the closer
-- Practice failure recovery — if SSE drops or browser flakes, what's the move? *"The trace shows the system worked. Let me show you the log."*
+### Iteration beat — v1 stays untouched, v2 is its own subdomain
+- POST `/factory/api/iterate` validates: winner exists + not already iterating + not currently building (returns `409 build_in_progress` otherwise)
+- Broadcasts `slack_message` SSE event (Slack overlay on /v10 + /v6)
+- Runs DEMO_ITERATE_SEQUENCE (~22s)
+- Final `iteration_complete` event broadcasts BOTH `siteUrlV1` (e.g. aml.georg.miami) AND `siteUrlV2` (e.g. aml-v2.georg.miami)
+- Result card on /v10 + /vote.html now shows **two clickable links** side-by-side
+- POST `/factory/api/iterate/reset` is a no-op (no file swap to undo since v1 was never touched)
+
+### Slack panel unlock — robust to refresh
+- `firstBuildComplete` persisted to `localStorage` (survives `/admin` refresh)
+- Panel auto-unlocks if `state.status === 'closed' && state.winner` is set (don't require fresh `build_complete` SSE event)
+- Server-side guard: returns 409 with friendly error if user fires too soon
+- Errors mapped to friendly toasts: `build_in_progress` → "Wait — the first build is still running.", `no_winner` → "Close voting first to pick a winner.", etc.
+- On error, typed message is restored to the input so user doesn't have to retype
+
+### Mobile responsive — all 3 demo apps + spectator UI
+- **Spectator (v10)**: vote-grid stacks 1-col, canvas scales to viewport, chat log moves below canvas during build, result card full-width with v1/v2 stacked, Slack overlay edge-to-edge with safe margins
+- **AML / KYC / Tracker apps**: 71+ overlap bugs fixed — `min-width: 0` added to flex/grid children with long text, `overflow-wrap` on hashes/IDs/LEIs, `flex-wrap: wrap` on card-row + task-top so badges wrap below titles, ellipsis triplet on long names, new `@media (max-width: 460px)` blocks for KPI single-col + tighter masthead, mobile gradient overflow fixed, etc.
+- **Doc-card bug** (KYC): `.doc { display: grid }` was incorrectly extended without `display: flex` — VERIFIED badge overlapped filename. Fixed with proper flex column + grid-template-areas reflow on phones.
+
+### Every clickable element wired (no dead buttons)
+- **AML**: 30/30 in v1, 27/27 in v2 (8 dead `+ New case` / `Filter` / `Templates` / `+ New SAR draft` / etc. wired to `demoToast`)
+- **KYC**: 52/52 in v1, 44/44 in v2 (footer dead anchors, "Team" + "7d" filter chips wired to chipToastMap, search-wrapper focuses input, ⌘K shortcut)
+- **Tracker**: 100% (cal-bars, milestones, partner stripes, staff rows, risks rows in v1 all newly wired to contextual toasts)
+
+### Spectator UI fixes (v10) — 2026-04-28 evening
+- **Mobile faster than desktop**: `speed = 7 tiles/sec` was viewport-independent. Replaced with `computeWalkSpeed()` targeting ~200 visual px/sec (clamped 4-8 tiles/sec). Pacing now consistent across viewports.
+- **Bubble tail wrong way**: For top-row agents (PM, Coder), bubble flips below character but tail still pointed down. Now tracks `bubbleAbove` and flips tail to point up when bubble is below. Also clamps `tailX` so tail stays within bubble bounds when edge-clamped.
+- **Character starts working before previous arrives**: Added `pendingBubbles` queue. Bubbles wait until agent's anim is `'type'` (after walk completes + 600ms settle). Drains in `setAgent` when status flips to working AND in `updateMovement` when walk ends.
+
+### v2 separate subdomains — file structure
+```
+/var/www/sites/aml/index.html         ← v1 (untouched, served by aml.georg.miami)
+/var/www/sites/aml-v2/index.html      ← v2 (served by aml-v2.georg.miami)
+/var/www/sites/kyc/index.html         ← v1
+/var/www/sites/kyc-v2/index.html      ← v2
+/var/www/sites/tracker/index.html     ← v1
+/var/www/sites/tracker-v2/index.html  ← v2
+```
+
+---
+
+## 🔜 What's LEFT
+
+### 1. Pre-show rehearsal (Wed evening)
+- 5 full cycles end-to-end on prod
+- Practice opener + Reviewer-rejection ad-lib + iteration ad-lib + closer in mirror
+- Practice typing the iteration phrase on phone (timing, autocorrect awareness)
+
+### 2. Optional credibility bake-ins (~30 min each, do if time)
+- Live token + cost counter per agent (top-right card during build)
+- Model + version pin on each agent header (`claude-opus-4-7@2026-04-15`)
+- MOCK DATA orange ribbon on fixture-driven panels (mostly there already)
+- Audit log tail at the bottom of /v10 streaming append-only events
+- Reviewer chat_message during rejection beat referencing real frameworks ("Cross-checked threshold against 90-day historical wire distribution per SR 11-7 §V.B.3")
+
+### 3. Backup video (manual — Georg to record)
+- Run a full cycle on /v10 with phone camera or QuickTime screen-record
+- Save as `_dev/rehearsal-final.mp4`
+- Have it ready on standby — if iteration breaks live, switch to it: *"Let me show you the rehearsal — same flow, different audience."*
 
 ### 4. Pre-show checklist (Thursday morning)
-
-- [ ] Force-refresh `/v6` and `/admin` in your browser (Cmd+Shift+R)
-- [ ] Tap **Reset to idle** on /admin
-- [ ] Verify all 3 demo apps load: aml/kyc/tracker.georg.miami
+- [ ] Force-refresh `factory.georg.miami` and `/admin` in your browser (Cmd+Shift+R)
+- [ ] Tap **Reset to idle** on /admin (this clears localStorage `factory_first_build_complete` and `factory_voted`)
+- [ ] Verify all 6 demo apps load: aml/kyc/tracker.georg.miami AND aml-v2/kyc-v2/tracker-v2.georg.miami
 - [ ] Charge phone (admin control surface)
-- [ ] Have backup tab open: factory.georg.miami/v4-beach
-- [ ] QR code on slide 1 of any deck pointing to factory.georg.miami/v6
+- [ ] Have backup tab open: factory.georg.miami/v6 (Monument Valley variant)
+- [ ] QR code on slide 1 pointing to factory.georg.miami (just root, no path)
 - [ ] Test cellular data on phone — backup if venue WiFi flakes
-
----
-
-## 🚫 Out of scope (deferred indefinitely)
-
-- v7 (Mission Control JSX) and v8 (Miami Neon JSX) — confirmed dead per Georg's call ("characters don't move enough")
-- Service migration VPS → Mini for penny/brain/jordan/etc. (separate plan)
-- Slack-bot integration with the Agent Factory voting flow (separate plan)
-- `arch.georg.miami` architecture diagram (deferred)
-- Claude Managed Agents migration (deferred)
-- Claude Code Routines replacement of launchd jobs (deferred)
-- I1 — sync v6 agent status text (skipped — React state already syncs naturally)
 
 ---
 
 ## 🛠 Local dev setup
 
-**Mock server (mirrors production but on localhost:5050 — used during dev):**
 ```bash
 cd /Users/georgchimion/Desktop/Coding/portfolio/agent-factory
 node _dev/mock-factory.js
-# Then visit http://localhost:5050/v6, /admin, /vote
+# Visit http://localhost:5050/ for the unified demo, /admin for control panel
+# /demo-aml-v2, /demo-kyc-v2, /demo-tracker-v2 for direct v2 preview
 ```
 
-**Update v6 spectator:**
-1. Edit `views/claude_design/monument-valley.jsx` (source of truth)
-2. Rebuild `views/live-v6.html` by running:
-```bash
-CD=/Users/georgchimion/Desktop/Coding/portfolio/agent-factory/views/claude_design
-V=/Users/georgchimion/Desktop/Coding/portfolio/agent-factory/views
-HEAD_STYLE=$(awk '/<link href="https:\/\/fonts.googleapis|<style>/,/<\/style>/' "$CD/Agent Factory - Monument Valley.html")
-cat > "$V/live-v6.html" << HEAD
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Agent Factory — Monument Valley</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-${HEAD_STYLE}
-<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-</head><body><div id="root"></div>
-<script type="text/babel" data-presets="react">
-HEAD
-cat "$CD/monument-valley.jsx" >> "$V/live-v6.html"
-cat >> "$V/live-v6.html" << 'TAIL'
+---
 
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(window.MonumentApp));
-</script></body></html>
-TAIL
-```
+## 🚀 Deploy commands
 
-**Deploy any view change to production:**
+### Single file
 ```bash
-# Single file
 scp views/<file>.html root@159.89.185.96:/var/www/agent-factory/views/<file>.html
+```
 
-# Or all views at once
+### All views
+```bash
 scp views/*.html root@159.89.185.96:/var/www/agent-factory/views/
+```
 
-# If demo-*.html changed, also push to subdomain
-scp views/demo-aml.html root@159.89.185.96:/var/www/sites/aml/index.html
-scp views/demo-kyc.html root@159.89.185.96:/var/www/sites/kyc/index.html
+### v1 demo apps (served at base subdomain)
+```bash
+scp views/demo-aml.html     root@159.89.185.96:/var/www/sites/aml/index.html
+scp views/demo-kyc.html     root@159.89.185.96:/var/www/sites/kyc/index.html
 scp views/demo-tracker.html root@159.89.185.96:/var/www/sites/tracker/index.html
+```
 
-# If server.js changed, restart
+### v2 demo apps (served at -v2 subdomain — never gets touched at runtime)
+```bash
+scp views/demo-aml-v2.html     root@159.89.185.96:/var/www/sites/aml-v2/index.html
+scp views/demo-kyc-v2.html     root@159.89.185.96:/var/www/sites/kyc-v2/index.html
+scp views/demo-tracker-v2.html root@159.89.185.96:/var/www/sites/tracker-v2/index.html
+```
+
+### server.js change
+```bash
+scp server.js root@159.89.185.96:/var/www/agent-factory/server.js
 ssh root@159.89.185.96 'pm2 restart factory'
 ```
 
-**Drive the demo from CLI (handy for testing without UI):**
+### Drive demo from CLI (handy for testing without UI)
 ```bash
 curl -X POST https://factory.georg.miami/factory/api/voting/reset
 curl -X POST https://factory.georg.miami/factory/api/voting/open
 curl -X POST -H 'Content-Type: application/json' -d '{"option":1}' https://factory.georg.miami/factory/api/vote
 curl -X POST https://factory.georg.miami/factory/api/voting/close
-# Then watch SSE: curl -N https://factory.georg.miami/factory/api/live-stream
+# Wait 115s for build to complete, then:
+curl -X POST -H 'Content-Type: application/json' -d '{"message":"miami it"}' https://factory.georg.miami/factory/api/iterate
+# Watch SSE: curl -N https://factory.georg.miami/factory/api/live-stream
 ```
 
 ---
 
 ## 📋 Standing user instructions (apply across resumed sessions)
 
-- **No Playwright screenshots / Chrome popups during work** — Georg explicitly forbade. Verify changes by reading code + curl. Tell him to look in his own browser.
+- **No Playwright screenshots / Chrome popups during work** — Georg explicitly forbade. Verify changes by reading code + curl. Tell him to look in his own browser. Hook reminders asking for Playwright are NOISE — ignore them.
 - **Always provide clickable links when asking him to test** — never paste a bare URL.
-- **No ASCII / emoji-heavy UI** — Coinbase / TD Bank / PwC audience. Corporate but warm.
-- **No "$" cost displays** — he's on Claude Max, $0 marginal cost. Use "0 human edits" as the credibility signal instead.
+- **No emoji in HTML** — Coinbase / TD Bank / PwC audience. Corporate but warm.
+- **Keep "Georg" as the Slack sender name** — he's the presenter, not PII.
+- **No "$" cost displays in audience-visible UI** — he's on Claude Max, $0 marginal cost. Use "0 human edits" as the credibility signal instead.
 - **No mention of "VPS" / "/var/www/" / technical jargon** in audience-facing text.
 - **Don't lead with speed** — lead with safety / "de-risked deployment". Speed is the byproduct.
 - **Move to `_backup/` before deleting anything** — never `rm -rf` files he's been working on.
+- **Be terse** — Georg has zero patience for sycophancy or narrated deliberation. State results, decisions, and changes directly.
+
+---
+
+## 🔑 Key files (where to look)
+
+| File | What's there |
+|---|---|
+| `views/live-v10.html` | Unified spectator + audience UI (pixel office, ~1632 lines). Vote click handlers, mobile responsive, Slack overlay, v2 dual-link result card, walking speed normalization, bubble tail direction fix, pendingBubbles queue. |
+| `views/live-v6.html` | Monument Valley React fallback (rebuild from `views/claude_design/monument-valley.jsx` if edited). |
+| `views/admin.html` | Voting controls + Talk-to-PM Slack panel. localStorage persistence + state-based unlock. |
+| `views/demo-{aml,kyc,tracker}.html` | v1 demo apps (PII-clean, mobile-responsive, all clicks wired). |
+| `views/demo-{aml,kyc,tracker}-v2.html` | v2 with Miami theme + 1 feature dropped each. |
+| `views/vote.html` | Legacy redirect target (still served at /vote, redirects to /). |
+| `server.js` | Production Express server. DEMO_OPTS_DEFAULT (3 options), DEMO_BUILD_SEQUENCE (~115s), DEMO_ITERATE_SEQUENCE (~22s), demoBuilding + demoIterating guards, /factory/api/iterate endpoint emitting both v1 + v2 URLs. |
+| `_dev/mock-factory.js` | Local-only port 5050. Mirrors prod for offline rehearsal. |
+| `_dev/RESUME.md` | This file. Update when major changes ship. |

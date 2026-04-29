@@ -150,9 +150,30 @@
     text-shadow: 0 0 12px rgba(15,228,212,.5);
   }
 
-  /* View switcher */
+  /* Status pill replaces the old view switcher */
+  .status-side { display: flex; align-items: center; }
+  .live-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 700;
+    padding: 6px 10px; border-radius: 999px;
+    background: rgba(15,228,212,0.12);
+    border: 1px solid rgba(15,228,212,0.4);
+    color: var(--teal);
+    letter-spacing: 0.16em;
+  }
+  .live-pill::before {
+    content: ""; display: inline-block;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--teal); margin-right: 6px;
+    box-shadow: 0 0 8px rgba(15,228,212,.7);
+    vertical-align: middle;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+
+  /* View switcher (legacy — kept for backward compat, hidden via display:none) */
   .view-switch {
     position: relative;
+    display: none;
   }
   .view-pill {
     appearance: none; border: 0; cursor: pointer;
@@ -495,6 +516,46 @@
     display: none;
   }
   body[data-status="closed"] .closed-card { display: block; }
+
+  /* v2 reveal — appears AFTER iteration completes (independent of vote status) */
+  .v2-card {
+    margin-top: 14px;
+    padding: 18px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(31,20,102,.85), rgba(177,36,122,.65), rgba(255,138,92,.55));
+    border: 2px solid var(--pink);
+    box-shadow: var(--shadow-neon-pink);
+    display: none;
+  }
+  body[data-iterated="1"] .v2-card { display: block; }
+  .v2-card h3 {
+    margin: 0;
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: .22em;
+    color: var(--cream);
+    text-transform: uppercase;
+  }
+  .v2-card .winner-line {
+    margin-top: 6px;
+    font-size: 14px;
+    color: rgba(255,241,217,.92);
+    line-height: 1.45;
+  }
+  .v2-card .v2-cta {
+    background: var(--cream);
+    color: var(--navy);
+    margin-top: 14px;
+  }
+  .v2-card .v2-hint {
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    color: rgba(255,241,217,.65);
+    text-transform: uppercase;
+  }
   .closed-card h3 {
     margin: 0;
     font-family: 'Big Shoulders Display', sans-serif;
@@ -676,17 +737,8 @@
         <span class="vote-label">VOTE</span>
       </div>
 
-      <div class="view-switch">
-        <button class="view-pill" id="viewPill" aria-haspopup="menu" aria-expanded="false">
-          <span>VIEW</span>
-          <span class="caret">▾</span>
-        </button>
-        <nav class="view-menu" id="viewMenu" role="menu">
-          <a href="/v1"        role="menuitem"><span>The Floor</span><span class="tag">V1</span></a>
-          <a href="/v2"        role="menuitem"><span>Mission Control</span><span class="tag">V2</span></a>
-          <a href="/v4-beach"  role="menuitem"><span>Miami Beach</span><span class="tag">V4</span></a>
-          <a href="/vote"      role="menuitem" class="active"><span>Vote</span><span class="tag">NOW</span></a>
-        </nav>
+      <div class="status-side" aria-label="Status">
+        <span class="live-pill" id="connPill">LIVE</span>
       </div>
     </header>
 
@@ -725,9 +777,18 @@
     <section class="closed-card" aria-live="polite">
       <h3>Voting closed</h3>
       <div class="winner-line">Building <span class="acc" id="winnerName">—</span> next.</div>
-      <a class="cta" href="/v4-beach" id="watchCta">
-        Watch the build live <span class="arrow">→</span>
+      <a class="cta" href="#" id="watchCta">
+        Open the live site <span class="arrow">→</span>
       </a>
+    </section>
+
+    <section class="v2-card" id="v2Card" aria-live="polite">
+      <h3>v2 just shipped</h3>
+      <div class="winner-line">The agents revised based on the live request. v1 is still up.</div>
+      <a class="cta v2-cta" id="v2Cta" href="#">
+        Open v2 <span class="arrow">→</span>
+      </a>
+      <div class="v2-hint">Open both side-by-side to compare.</div>
     </section>
 
     <div class="meta">
@@ -735,11 +796,11 @@
       <span id="totalLine">0 votes</span>
     </div>
 
-    <aside class="factory-strip" aria-label="What we'll build">
+    <aside class="factory-strip" aria-label="How it works">
       <div class="glyph">AF</div>
       <div class="copy">
         <strong>One brief in. One real site out.</strong>
-        <span class="small">factory.georg.miami</span>
+        <span class="small">PM · Coder · Reviewer · Deployer</span>
       </div>
     </aside>
   </main>
@@ -750,14 +811,14 @@
 (() => {
   'use strict';
 
-  // ---------- Static option content (matches server) ----------
+  // ---------- Static option content (matches production server.js DEMO_OPTS_DEFAULT) ----------
   const FALLBACK_OPTIONS = [
-    { id: 1, label: 'Real-time fraud detection dashboard',
-      description: 'Watch transactions flow in. AI flags suspicious patterns. Score, drill-down, alert.', votes: 0 },
-    { id: 2, label: 'Client onboarding portal',
-      description: 'KYC flow with document upload, identity check, and status tracking.', votes: 0 },
-    { id: 3, label: 'Team task tracker',
-      description: 'Kanban board with assignments, due dates, and progress.', votes: 0 },
+    { id: 1, label: 'AML Transaction Monitoring Console',
+      description: 'SAR-ready alerts. FinCEN-aligned scoring. Live drill-down.', votes: 0 },
+    { id: 2, label: 'KYC / CIP Intake Pipeline',
+      description: 'OFAC screening. Document verification. Audit trail.', votes: 0 },
+    { id: 3, label: 'Engagement Workstream Tracker',
+      description: 'SOX-auditable assignments. Segregation of duties. Live status.', votes: 0 },
   ];
 
   // ---------- DOM ----------
@@ -775,6 +836,7 @@
   const $toast      = document.getElementById('toast');
   const $viewPill   = document.getElementById('viewPill');
   const $viewMenu   = document.getElementById('viewMenu');
+  const $v2Cta      = document.getElementById('v2Cta');
 
   // ---------- State ----------
   let state = {
@@ -824,6 +886,10 @@
     // body status drives disabled visuals
     $body.dataset.status = state.status;
     $clock.dataset.status = state.status;
+    // Clear v2 reveal whenever a new round opens or resets
+    if (state.status === 'open' || state.status === 'idle') {
+      $body.dataset.iterated = '0';
+    }
 
     // status chip text
     $statusChip.textContent = ({
@@ -1012,9 +1078,21 @@
       }
       if (data.type === 'build_complete') {
         lastBuildId = data.buildId;
-        if (data.siteUrl) {
-          $watchCta.href = data.siteUrl;
+        if (data.iteration) {
+          // Iteration build_complete — v2 link is the new one; keep v1 untouched
+          if (data.siteUrlV1) $watchCta.href = data.siteUrlV1;
+          if (data.siteUrlV2 || data.siteUrl) $v2Cta.href = data.siteUrlV2 || data.siteUrl;
+          $body.dataset.iterated = '1';
+          showToast('v2 SHIPPED — v1 still live');
+        } else {
+          // First build_complete — siteUrl is v1
+          if (data.siteUrl) $watchCta.href = data.siteUrl;
         }
+      }
+      if (data.type === 'iteration_complete') {
+        if (data.siteUrlV1) $watchCta.href = data.siteUrlV1;
+        if (data.siteUrlV2 || data.siteUrl) $v2Cta.href = data.siteUrlV2 || data.siteUrl;
+        $body.dataset.iterated = '1';
       }
     };
     es.onerror = () => {
@@ -1036,18 +1114,20 @@
     }
   }
 
-  // View switcher
-  $viewPill.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const open = $viewMenu.classList.toggle('open');
-    $viewPill.setAttribute('aria-expanded', String(open));
-  });
-  document.addEventListener('click', (e) => {
-    if (!$viewMenu.contains(e.target) && e.target !== $viewPill) {
-      $viewMenu.classList.remove('open');
-      $viewPill.setAttribute('aria-expanded', 'false');
-    }
-  });
+  // View switcher — removed for audience view (was internal nav). Stub out safely.
+  if ($viewPill && $viewMenu) {
+    $viewPill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = $viewMenu.classList.toggle('open');
+      $viewPill.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', (e) => {
+      if (!$viewMenu.contains(e.target) && e.target !== $viewPill) {
+        $viewMenu.classList.remove('open');
+        $viewPill.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
 
   // First paint
   renderOptions();

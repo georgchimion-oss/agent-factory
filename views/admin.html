@@ -149,6 +149,126 @@
   }
   .toast.show { transform: translateY(0); opacity: 1; }
   .toast.error { background: rgba(255,77,77,0.16); border-color: rgba(255,77,77,0.5); color: var(--error); }
+
+  /* ---------- Slack-styled "Talk to PM" panel ---------- */
+  .slack-card {
+    background: rgba(0,0,0,0.35); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 18px;
+    padding: 0; margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .slack-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(74,21,75,0.8), rgba(177,36,122,0.4));
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .slack-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, #ECB22E 0%, #36C5F0 33%, #2EB67D 66%, #E01E5A 100%);
+    color: #fff; font-weight: 800; font-size: 13px;
+    flex: none;
+  }
+  .slack-channel {
+    font-weight: 700; font-size: 14px; color: var(--cream);
+  }
+  .slack-channel small {
+    display: block; font-size: 10px; font-weight: 500;
+    color: rgba(255,241,217,0.55); letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .slack-body { padding: 14px 18px 18px; }
+  .slack-feed {
+    min-height: 30px;
+    margin-bottom: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .slack-bubble {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 12px; border-radius: 12px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    font-size: 13.5px; line-height: 1.4;
+    color: rgba(255,241,217,0.92);
+  }
+  .slack-bubble .av {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: linear-gradient(135deg, var(--pink), var(--coral));
+    color: #fff; display: grid; place-items: center;
+    font-size: 11px; font-weight: 800; flex: none;
+  }
+  .slack-bubble.bot .av {
+    background: linear-gradient(135deg, var(--teal), #1f1466);
+  }
+  .slack-bubble .who {
+    font-weight: 700; font-size: 12px; color: var(--cream);
+    margin-bottom: 2px;
+  }
+  .slack-bubble .ts {
+    font-size: 10px; color: rgba(255,241,217,0.45);
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: 6px;
+  }
+  textarea.slack-input {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 12px;
+    color: var(--cream);
+    font-family: 'Outfit', sans-serif;
+    font-size: 14.5px; line-height: 1.45;
+    padding: 12px 14px;
+    resize: vertical;
+    min-height: 64px;
+    outline: none;
+    transition: border 0.2s, background 0.2s;
+  }
+  textarea.slack-input:focus {
+    border-color: rgba(15,228,212,0.5);
+    background: rgba(255,255,255,0.07);
+  }
+  textarea.slack-input::placeholder {
+    color: rgba(255,241,217,0.42);
+  }
+  .slack-actions {
+    display: flex; gap: 10px; margin-top: 10px;
+  }
+  .slack-actions button {
+    width: auto; flex: 1; min-height: 48px;
+    font-size: 14px; font-weight: 700;
+    border-radius: 12px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .slack-actions button.send {
+    background: linear-gradient(135deg, var(--teal), #16b9b1);
+    color: var(--navy);
+    box-shadow: 0 6px 18px rgba(15,228,212,0.3);
+  }
+  .slack-actions button.send:disabled {
+    background: rgba(15,228,212,0.18);
+    color: rgba(255,241,217,0.5);
+    box-shadow: none;
+  }
+  .slack-actions button.reset-v {
+    background: rgba(255,201,119,0.10);
+    border: 1px solid rgba(255,201,119,0.4);
+    color: var(--gold);
+    flex: 0 0 auto;
+    padding: 0 16px;
+    font-size: 12px;
+  }
+  .slack-hint {
+    font-size: 11.5px; color: rgba(255,241,217,0.5);
+    margin-top: 8px; line-height: 1.45;
+  }
+  .slack-disabled {
+    opacity: 0.55; pointer-events: none;
+  }
+  .slack-disabled-msg {
+    font-size: 12px; color: rgba(255,201,119,0.85);
+    background: rgba(255,201,119,0.08); border: 1px dashed rgba(255,201,119,0.35);
+    border-radius: 10px; padding: 10px 12px;
+    margin-bottom: 12px;
+  }
 </style>
 </head>
 <body>
@@ -181,6 +301,33 @@
   <button data-action="open" id="btn-open">Open voting · 30 sec</button>
   <button data-action="close" id="btn-close">Close voting now</button>
   <button data-action="reset" id="btn-reset">Reset to idle</button>
+</div>
+
+<!-- Talk-to-PM panel: appears after build_complete, used to drive the iteration beat -->
+<div class="slack-card" id="slack-card">
+  <div class="slack-head">
+    <div class="slack-icon">#</div>
+    <div class="slack-channel">
+      agent-factory-demo
+      <small>Talk to PM &nbsp;·&nbsp; iteration channel</small>
+    </div>
+  </div>
+  <div class="slack-body" id="slack-body">
+    <div class="slack-disabled-msg" id="slack-locked-msg">Available after the first build completes.</div>
+    <div class="slack-feed" id="slack-feed"></div>
+    <textarea
+      class="slack-input"
+      id="slack-input"
+      placeholder="e.g., make it look more Miami and drop the alerts panel"
+      maxlength="500"
+      rows="2"
+    ></textarea>
+    <div class="slack-actions">
+      <button class="send" id="slack-send" disabled>Send to PM</button>
+      <button class="reset-v" id="slack-reset" title="Revert deployed file to v1">Reset v1</button>
+    </div>
+    <div class="slack-hint">Audience sees the message on the big screen as if it came from Slack. The agents work for ~22 seconds, then the deployed page swaps to v2.</div>
+  </div>
 </div>
 
 <div class="links">
@@ -277,6 +424,134 @@
     if (confirm('Reset voting + tallies to idle?')) action('reset');
   });
 
+  // ---------- Slack-styled "Talk to PM" panel ----------
+  const $slackCard      = document.getElementById('slack-card');
+  const $slackBody      = document.getElementById('slack-body');
+  const $slackInput     = document.getElementById('slack-input');
+  const $slackSend      = document.getElementById('slack-send');
+  const $slackReset     = document.getElementById('slack-reset');
+  const $slackFeed      = document.getElementById('slack-feed');
+  const $slackLockedMsg = document.getElementById('slack-locked-msg');
+
+  // Survives page refresh — set the moment the user closes voting (or sees a build_complete)
+  let firstBuildComplete = (() => {
+    try { return localStorage.getItem('factory_first_build_complete') === '1'; }
+    catch (_) { return false; }
+  })();
+  let iterating = false;
+  function setFirstBuildComplete(v) {
+    firstBuildComplete = v;
+    try {
+      if (v) localStorage.setItem('factory_first_build_complete', '1');
+      else localStorage.removeItem('factory_first_build_complete');
+    } catch (_) {}
+  }
+
+  function fmtTs(ts) {
+    const d = new Date(ts || Date.now());
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+
+  function appendBubble(who, text, role /* 'user' | 'bot' */) {
+    const el = document.createElement('div');
+    el.className = 'slack-bubble' + (role === 'bot' ? ' bot' : '');
+    el.innerHTML = `
+      <div class="av">${who === 'PM' ? 'PM' : (who[0] || 'G')}</div>
+      <div>
+        <div class="who">${who} <span class="ts">${fmtTs()}</span></div>
+        <div>${text.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</div>
+      </div>`;
+    $slackFeed.appendChild(el);
+    $slackFeed.scrollTop = $slackFeed.scrollHeight;
+  }
+
+  function refreshSlackLocked() {
+    // Unlock once voting is closed + winner exists. The server still rejects
+    // iterate calls during the initial build (returns build_in_progress), so
+    // unlocking early just gives the operator a usable input field — they'll
+    // get a toast if they fire too soon.
+    const hasWinner = !!(state && state.status === 'closed' && state.winner);
+    if (hasWinner && !firstBuildComplete) setFirstBuildComplete(true);
+    const ready = (hasWinner || firstBuildComplete) && !iterating;
+    $slackInput.disabled = !ready;
+    $slackSend.disabled  = !ready || !$slackInput.value.trim();
+    $slackReset.disabled = (!firstBuildComplete && !hasWinner) || iterating;
+    if (iterating) {
+      $slackLockedMsg.style.display = 'block';
+      $slackLockedMsg.textContent = 'Iteration in progress — wait for v2 to deploy.';
+    } else if (ready) {
+      $slackLockedMsg.style.display = 'block';
+      $slackLockedMsg.textContent = 'Connected. Type a request below.';
+    } else {
+      $slackLockedMsg.style.display = 'block';
+      $slackLockedMsg.textContent = 'Available after voting closes and the first build deploys.';
+    }
+  }
+
+  $slackInput.addEventListener('input', refreshSlackLocked);
+  $slackInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      if (!$slackSend.disabled) $slackSend.click();
+    }
+  });
+
+  $slackSend.addEventListener('click', async () => {
+    const message = $slackInput.value.trim();
+    if (!message || iterating) return;
+    iterating = true;
+    refreshSlackLocked();
+    appendBubble('Georg', message, 'user');
+    $slackInput.value = '';
+    try {
+      const r = await fetch('/factory/api/iterate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        const friendly = ({
+          build_in_progress: 'Wait — the first build is still running.',
+          already_iterating: 'Already iterating — wait for v2 to deploy.',
+          no_winner:         'Close voting first to pick a winner.',
+          message_required:  'Type a message before sending.',
+          message_too_long:  'Message too long — keep it under 500 characters.',
+        })[err.error] || (err.error || 'Iterate failed');
+        showToast(friendly, true);
+        // Roll back the optimistic chat bubble so the user can retry
+        const last = $slackFeed.lastChild; if (last) last.remove();
+        $slackInput.value = message; // restore so they don't have to retype
+        iterating = false;
+        refreshSlackLocked();
+        return;
+      }
+      // Iteration ~22s; lock until iteration_complete arrives via SSE
+      showToast('Sent to PM');
+    } catch (e) {
+      showToast('Network error', true);
+      iterating = false;
+      refreshSlackLocked();
+    }
+  });
+
+  $slackReset.addEventListener('click', async () => {
+    if (!confirm('Revert deployed page back to v1? (For rehearsal — audience would notice)')) return;
+    try {
+      const r = await fetch('/factory/api/iterate/reset', { method: 'POST' });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        showToast(err.error || 'Reset failed', true);
+        return;
+      }
+      showToast('Reverted to v1');
+      // Clear the iteration log
+      $slackFeed.innerHTML = '';
+    } catch (e) {
+      showToast('Network error', true);
+    }
+  });
+
   // SSE
   let es = null;
   let reconnectDelay = 2000;
@@ -294,6 +569,21 @@
         if (ev.type === 'voting_state') {
           state = ev.votingState;
           render();
+          refreshSlackLocked();
+        }
+        if (ev.type === 'build_complete' && !ev.iteration) {
+          setFirstBuildComplete(true);
+          refreshSlackLocked();
+        }
+        if (ev.type === 'iteration_complete') {
+          iterating = false;
+          appendBubble('PM', '✓ Deployed v2 — refresh ' + (ev.siteUrl || 'the page') + ' to see changes.', 'bot');
+          refreshSlackLocked();
+        }
+        if (ev.type === 'chat_message' && iterating && ev.agent && ev.agent !== 'user') {
+          // Echo the agent chatter into the slack feed as bot replies
+          const who = (ev.agent || 'PM').toUpperCase();
+          appendBubble(who === 'PM' ? 'PM' : who.charAt(0) + who.slice(1).toLowerCase(), ev.message, 'bot');
         }
       } catch (_) {}
     };
@@ -307,9 +597,18 @@
 
   // Initial state via REST (in case SSE is slow)
   fetch('/factory/api/voting-state').then(r => r.json()).then(s => {
-    state = s; render();
+    state = s; render(); refreshSlackLocked();
   });
 
+  // Resetting to idle should re-lock the slack panel for next round
+  $btnReset.addEventListener('click', () => {
+    setFirstBuildComplete(false);
+    iterating = false;
+    $slackFeed.innerHTML = '';
+    refreshSlackLocked();
+  });
+
+  refreshSlackLocked();
   connect();
 </script>
 </body>

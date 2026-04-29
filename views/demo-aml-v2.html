@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#1E3A8A" />
+<meta name="theme-color" content="#ff2d7b" />
 <title>Sentinel AML Console — Transaction Monitoring</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -19,9 +19,12 @@
     --paper:      #FBFBF8;
     --paper-2:    #FFFFFF;
     --tint:       #F4F6FA;
-    --accent:     #1E3A8A;
-    --accent-2:   #2952C8;
-    --accent-3:   #DDE4F3;
+    --accent:     #ff2d7b;
+    --accent-2:   #d6175f;
+    --accent-3:   #FFE0EC;
+    --miami-1:    #1f1466;
+    --miami-2:    #b1247a;
+    --miami-3:    #ff8a5c;
     --green:      #047857;
     --green-tint: #E6F4EE;
     --amber:      #B25E09;
@@ -71,11 +74,24 @@
   /* ============================ HEADER ============================ */
   .topbar {
     position: sticky; top: 0; z-index: 40;
-    background: rgba(251,251,248,.92);
+    background:
+      linear-gradient(135deg, rgba(31,20,102,.97) 0%, rgba(177,36,122,.94) 55%, rgba(255,138,92,.94) 100%);
     backdrop-filter: saturate(160%) blur(8px);
     -webkit-backdrop-filter: saturate(160%) blur(8px);
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid rgba(255,255,255,.18);
+    color: #fff;
   }
+  .topbar .brand-name { color: #fff; }
+  .topbar .brand-name b { color: #fff; }
+  .topbar .brand-tag { color: rgba(255,255,255,.78); }
+  .topbar .crest {
+    background: linear-gradient(135deg, #fff, #ffe0ec);
+    color: var(--miami-2);
+  }
+  .topbar a, .topbar .topbar-link, .topbar button { color: #fff; }
+  .topbar .ghost-btn { color: #fff; border-color: rgba(255,255,255,.35); background: rgba(255,255,255,.10); }
+  .topbar .ctx-meta, .topbar .ctx span:first-child { color: rgba(255,255,255,.78) !important; }
+  .topbar .ctx span:last-child { color: #fff !important; font-weight: 600; }
   .topbar-inner {
     max-width: 1480px; margin: 0 auto;
     padding: 14px 28px;
@@ -168,7 +184,7 @@
   }
   .user-chip .avatar {
     width: 22px; height: 22px; border-radius: 50%;
-    background: linear-gradient(135deg, #1E3A8A, #5B7BD8);
+    background: linear-gradient(135deg, #ff2d7b, #ff8a5c);
     color: #fff; font-size: 10px; font-weight: 700;
     display: grid; place-items: center;
     letter-spacing: 0;
@@ -272,7 +288,7 @@
     display: inline-flex; align-items: center; gap: 6px;
     padding: 4px 10px 4px 8px;
     border: 1px solid var(--accent-3);
-    background: #F4F7FD;
+    background: #FFE0EC;
     border-radius: 999px;
     font-size: 11.5px;
     color: var(--accent);
@@ -594,8 +610,8 @@
     transition: background .12s ease;
     cursor: pointer;
   }
-  .feed-table tbody tr:hover { background: #F8FAFE; }
-  .feed-table tbody tr.is-active { background: #EEF3FC; }
+  .feed-table tbody tr:hover { background: #FFE9F0; }
+  .feed-table tbody tr.is-active { background: #FFE9F0; }
 
   .feed-table td {
     padding: 11px 14px;
@@ -995,7 +1011,7 @@
 
   .reco {
     padding: 14px;
-    background: linear-gradient(180deg, #F4F7FD, #FBFCFE);
+    background: linear-gradient(180deg, #FFE0EC, #FFF6F9);
     border: 1px solid var(--accent-3);
     border-radius: 8px;
     font-size: 12.5px;
@@ -1166,7 +1182,7 @@
 /* Status badges shared */
 .badge.b-drafting   { color: #5C6577; background: #EEF1F5; border-color: #DEE3EC; }
 .badge.b-review     { color: var(--amber); background: var(--amber-tint); border-color: #F2DCAA; }
-.badge.b-filed      { color: var(--accent); background: var(--accent-3); border-color: #C8D3EE; }
+.badge.b-filed      { color: var(--accent); background: var(--accent-3); border-color: #FFC8DA; }
 .badge.b-approved   { color: var(--green); background: var(--green-tint); border-color: #BFE0CE; }
 .badge.b-active     { color: var(--green); background: var(--green-tint); border-color: #BFE0CE; }
 .badge.b-tuning     { color: var(--amber); background: var(--amber-tint); border-color: #F2DCAA; }
@@ -1178,7 +1194,7 @@
 
 /* Cases — inline expand */
 .cases-table tbody tr.case-row { cursor: pointer; }
-.cases-table tbody tr.case-row.is-open { background: #EEF3FC; }
+.cases-table tbody tr.case-row.is-open { background: #FFF6F9; }
 .case-detail-row td {
   background: #FBFCFE;
   padding: 0;
@@ -1190,7 +1206,7 @@
   padding: 16px 18px;
   border-top: 1px solid var(--line-2);
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, #F4F7FD, #FBFCFE);
+  background: linear-gradient(180deg, #FFE0EC, #FFF6F9);
 }
 .case-detail .dl-item .k {
   font-size: 10.5px;
@@ -1335,7 +1351,7 @@
   text-align: center;
   white-space: nowrap;
 }
-.audit-row .a-actor.system { color: var(--accent); background: var(--accent-3); border-color: #C8D3EE; }
+.audit-row .a-actor.system { color: var(--accent); background: var(--accent-3); border-color: #FFC8DA; }
 .audit-row .a-actor.agent  { color: var(--crimson); background: var(--crimson-tint); border-color: #E0B0AD; }
 .audit-row .a-evt {
   font-family: 'JetBrains Mono', monospace;
@@ -1505,7 +1521,6 @@
     <div class="subnav-inner">
       <a href="#" class="active" data-view="surveillance">Surveillance</a>
       <a href="#" data-view="cases">Cases</a>
-      <a href="#" data-view="alerts">Alerts</a>
       <a href="#" data-view="counterparties">Counterparties</a>
       <a href="#" data-view="sar">SAR Workbench</a>
       <a href="#" data-view="rules">Rules &amp; Models</a>
@@ -1552,7 +1567,7 @@
       <div class="kpi-foot">
         <span>vs yesterday</span>
         <svg class="spark" viewBox="0 0 84 22" preserveAspectRatio="none" aria-hidden="true">
-          <polyline fill="none" stroke="#1E3A8A" stroke-width="1.5"
+          <polyline fill="none" stroke="#ff2d7b" stroke-width="1.5"
             points="0,16 8,14 16,15 24,11 32,12 40,8 48,9 56,5 64,7 72,4 84,2" />
         </svg>
       </div>
@@ -1801,49 +1816,6 @@
   </section>
 
   <!-- ============================ ALERTS VIEW ============================ -->
-  <section class="view" data-view="alerts">
-    <div class="view-head">
-      <h1><span class="view-eyebrow">Rules engine v4.2</span>Active Alerts</h1>
-      <div class="view-actions">
-        <button class="ghost-btn" onclick="demoToast('Filter by rule — coming soon')">Filter by rule</button>
-        <button class="ghost-btn" id="ack-all-btn">Acknowledge all</button>
-      </div>
-    </div>
-
-    <section class="kpi-row compact" aria-label="Alert indicators">
-      <div class="kpi">
-        <div class="kpi-head"><div class="kpi-label">Firing now</div><div class="kpi-delta up" style="background:var(--red-tint);color:var(--red);">+4</div></div>
-        <div class="kpi-value"><span class="num-lg" id="alerts-firing-kpi">12</span></div>
-        <div class="kpi-foot"><span>across 11 rules</span></div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-head"><div class="kpi-label">Critical sev</div><div class="kpi-delta flat">&plusmn;0</div></div>
-        <div class="kpi-value"><span class="num-lg">3</span></div>
-        <div class="kpi-foot"><span>OFAC + sanctions</span></div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-head"><div class="kpi-label">Acked (24h)</div><div class="kpi-delta up">+18</div></div>
-        <div class="kpi-value"><span class="num-lg" id="alerts-acked-kpi">47</span></div>
-        <div class="kpi-foot"><span>operator-014 leading</span></div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-head"><div class="kpi-label">FP rate</div><div class="kpi-delta down" style="background:var(--green-tint);color:var(--green);">-2.1%</div></div>
-        <div class="kpi-value"><span class="num-lg">14.7</span><span class="unit">%</span></div>
-        <div class="kpi-foot"><span>vs 30d baseline</span></div>
-      </div>
-    </section>
-
-    <div class="panel" style="margin-top:18px;">
-      <div class="panel-head">
-        <div>
-          <div class="panel-title">All firing alerts</div>
-          <div class="panel-sub">12 open &middot; window 14:00 &mdash; now</div>
-        </div>
-      </div>
-      <div class="alerts-view-list" id="alerts-view-list"><!-- alerts injected --></div>
-    </div>
-  </section>
-
   <!-- ============================ COUNTERPARTIES VIEW ============================ -->
   <section class="view" data-view="counterparties">
     <div class="view-head">
@@ -2148,7 +2120,7 @@
 </aside>
 
 <!-- ============================ TOAST ============================ -->
-<div id="demoToast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(140%);transition:transform .3s cubic-bezier(.2,.8,.2,1);background:#1E3A8A;color:#fff;padding:12px 20px;border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:9999;pointer-events:none;max-width:520px;text-align:center;"></div>
+<div id="demoToast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(140%);transition:transform .3s cubic-bezier(.2,.8,.2,1);background: linear-gradient(135deg, #1f1466, #b1247a);color:#fff;padding:12px 20px;border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:9999;pointer-events:none;max-width:520px;text-align:center;"></div>
 
 <script>
 /* ====================================================================
@@ -2583,7 +2555,7 @@ document.getElementById('btn-escalate-sar').addEventListener('click', ()=>{
   closeDrill();
 });
 
-/* ============== Export button (header) — context-aware ============== */
+/* ============== Export button (header) ============== */
 document.querySelectorAll('.panel-actions .ghost-btn').forEach(b=>{
   const t = (b.textContent || '').trim();
   if (t === 'Export') {

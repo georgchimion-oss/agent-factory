@@ -838,9 +838,10 @@ function IdleScreen() {
   );
 }
 
-function ResultCard({ url, elapsed, name, show }) {
+function ResultCard({ urlV1, urlV2, elapsed, name, show, version }) {
   if(!show) return null;
-  const cleanUrl = url ? url.replace(/^https?:\/\//,'') : '';
+  const v1Clean = urlV1 ? urlV1.replace(/^https?:\/\//,'') : '';
+  const v2Clean = urlV2 ? urlV2.replace(/^https?:\/\//,'') : '';
   // Build a deterministic-looking short artifact slug from the project name
   const slug = (name || 'project').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24).replace(/^-|-$/g,'') || 'project';
   const ts = (() => {
@@ -848,20 +849,57 @@ function ResultCard({ url, elapsed, name, show }) {
     const pad = (n) => String(n).padStart(2,'0');
     return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
   })();
+  const isV2 = (version||1) >= 2 && !!urlV2;
   return (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:14,padding:'28px 40px',background:'rgba(255,255,255,0.92)',backdropFilter:'blur(20px)',border:'1px solid rgba(91,163,163,0.25)',borderRadius:16,boxShadow:'0 8px 40px rgba(44,42,53,0.1)',zIndex:25,animation:'fadeUp 0.6s ease-out',maxWidth:'86vw'}}>
-      <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:600,letterSpacing:'0.2em',color:'#5BA3A3',textTransform:'uppercase'}}>Built in {elapsed} — Live now</span>
-      <div style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:700,fontSize:'clamp(22px,2.6vw,34px)',color:'#2C2A35',textAlign:'center',lineHeight:1.15,fontStyle:'italic'}}>{name || 'Project'}</div>
-      <a href={url || '#'} target="_blank" rel="noopener" style={{display:'inline-flex',alignItems:'center',gap:10,padding:'12px 24px',background:'#2C2A35',color:'#FFF5E9',borderRadius:8,textDecoration:'none',fontFamily:"'DM Mono',monospace",fontSize:'clamp(14px,1.6vw,20px)',fontWeight:500}}>{cleanUrl || 'open'} ↗</a>
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:14,padding:'28px 40px',background:'rgba(255,255,255,0.92)',backdropFilter:'blur(20px)',border:isV2?'2px solid #ff2d7b':'1px solid rgba(91,163,163,0.25)',borderRadius:16,boxShadow:isV2?'0 8px 40px rgba(255,45,123,0.25)':'0 8px 40px rgba(44,42,53,0.1)',zIndex:25,animation:'fadeUp 0.6s ease-out',maxWidth:'86vw'}}>
+      <span style={{fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:600,letterSpacing:'0.2em',color:isV2?'#ff2d7b':'#5BA3A3',textTransform:'uppercase'}}>{isV2?'v2 SHIPPED — v1 STILL LIVE':`Built in ${elapsed} — Live now`}</span>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:700,fontSize:'clamp(22px,2.6vw,34px)',color:'#2C2A35',textAlign:'center',lineHeight:1.15,fontStyle:'italic'}}>{name || 'Project'}{isV2 && <span style={{fontStyle:'normal',fontFamily:"'DM Mono',monospace",fontSize:14,marginLeft:10,padding:'3px 10px',borderRadius:99,background:'#ff2d7b',color:'#fff',letterSpacing:'0.12em',verticalAlign:'middle'}}>v2</span>}</div>
+      <div style={{display:'flex',flexWrap:'wrap',justifyContent:'center',alignItems:'center',gap:10}}>
+        <a href={urlV1 || '#'} target="_blank" rel="noopener" style={{display:'inline-flex',alignItems:'center',gap:8,padding:isV2?'8px 16px':'12px 24px',background:isV2?'rgba(44,42,53,0.08)':'#2C2A35',color:isV2?'#5C5768':'#FFF5E9',borderRadius:8,textDecoration:'none',fontFamily:"'DM Mono',monospace",fontSize:isV2?14:'clamp(14px,1.6vw,20px)',fontWeight:500,border:isV2?'1px solid rgba(44,42,53,0.18)':'none'}}>{v1Clean || 'open'}{isV2?'  (v1)':' ↗'}</a>
+        {isV2 && (
+          <a href={urlV2} target="_blank" rel="noopener" style={{display:'inline-flex',alignItems:'center',gap:10,padding:'12px 24px',background:'linear-gradient(135deg,#1f1466,#b1247a,#ff8a5c)',color:'#FFF5E9',borderRadius:8,textDecoration:'none',fontFamily:"'DM Mono',monospace",fontSize:'clamp(14px,1.6vw,20px)',fontWeight:600,boxShadow:'0 6px 24px rgba(255,45,123,0.45)'}}>{v2Clean}  ↗</a>
+        )}
+      </div>
       <div style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:3,padding:'10px 14px',background:'rgba(44,42,53,0.04)',borderRadius:6,border:'1px solid rgba(44,42,53,0.06)',fontFamily:"'DM Mono',monospace",fontSize:11,color:'#5C5768',width:'100%',maxWidth:480}}>
-        <span><span style={{color:'#5BA3A3'}}>$</span> npm run build --prod</span>
-        <span style={{color:'#3E8E80'}}>✓ 142 tests passed · 0 failures</span>
-        <span>Deployed: {ts}</span>
-        <span>Bundle: <span style={{color:'#2C2A35'}}>{slug}-build-{Math.floor(Date.now()/1000).toString(36).slice(-6).toUpperCase()}.tar.gz</span></span>
+        <span><span style={{color:'#5BA3A3'}}>$</span> npm run build --prod{isV2?' --apply-iteration':''}</span>
+        <span style={{color:'#3E8E80'}}>✓ {isV2?'148':'142'} tests passed · 0 failures</span>
+        <span>Deployed: {ts}{isV2?' · v2 published to '+v2Clean:''}</span>
+        <span>Bundle: <span style={{color:'#2C2A35'}}>{slug}-build-{Math.floor(Date.now()/1000).toString(36).slice(-6).toUpperCase()}{isV2?'-v2':''}.tar.gz</span></span>
       </div>
       <div style={{display:'flex',gap:18,fontFamily:"'DM Mono',monospace",fontSize:10,color:'#5C5768',letterSpacing:'0.06em',textTransform:'uppercase'}}>
         <span><strong style={{color:'#2C2A35',marginRight:3}}>{elapsed}</strong>elapsed</span>
         <span><strong style={{color:'#2C2A35',marginRight:3}}>0</strong>human edits</span>
+        {isV2 && <span><strong style={{color:'#ff2d7b',marginRight:3}}>1</strong>iteration</span>}
+      </div>
+    </div>
+  );
+}
+
+// Slack-styled overlay shown in top-right when an iteration message is sent
+function SlackOverlay({ slackMsg }) {
+  if(!slackMsg) return null;
+  const time = (() => {
+    const d = new Date(slackMsg.ts || Date.now());
+    const pad = n => String(n).padStart(2,'0');
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());
+  })();
+  return (
+    <div style={{position:'fixed',top:90,right:24,zIndex:50,maxWidth:'min(420px,75vw)',background:'rgba(248,248,248,0.97)',backdropFilter:'blur(18px)',border:'1px solid rgba(0,0,0,0.08)',borderLeft:'4px solid #ECB22E',borderRadius:10,boxShadow:'0 18px 50px -12px rgba(0,0,0,0.45),0 0 0 1px rgba(255,255,255,0.4) inset',padding:'14px 16px',animation:'fadeUp 0.4s ease-out'}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",fontSize:12,fontWeight:600,color:'#1d1c1d'}}>
+        <span style={{display:'inline-grid',placeItems:'center',width:18,height:18,borderRadius:4,background:'linear-gradient(135deg,#ECB22E 0%,#36C5F0 33%,#2EB67D 66%,#E01E5A 100%)',color:'#fff',fontWeight:800,fontSize:10}}>S</span>
+        <span style={{color:'#616061'}}>#</span>
+        <span>{slackMsg.channel || 'agent-factory-demo'}</span>
+        <span style={{marginLeft:'auto',fontSize:11,fontWeight:400,color:'#616061'}}>{time}</span>
+      </div>
+      <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+        <div style={{width:36,height:36,borderRadius:8,flex:'none',background:'linear-gradient(135deg,#ff2d7b,#ff8a5c)',color:'#fff',display:'grid',placeItems:'center',fontWeight:800,fontSize:14,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"}}>{(slackMsg.sender||'G').charAt(0).toUpperCase()}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",fontSize:13.5,color:'#1d1c1d'}}>
+            <span style={{fontWeight:700,marginRight:6}}>{slackMsg.sender||'Georg'}</span>
+            <span style={{fontSize:11,color:'#616061'}}>→ @{slackMsg.recipient||'PM'}</span>
+          </div>
+          <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",fontSize:14.5,color:'#1d1c1d',marginTop:4,lineHeight:1.4,wordBreak:'break-word'}}>{slackMsg.message||''}</div>
+        </div>
       </div>
     </div>
   );
@@ -912,9 +950,17 @@ function useDemoEngine() {
   const [winnerLabel,setWinnerLabel]=useState(null);
   // rejection: null | 'flagged' | 'revising' — drives the moneyshot banner
   const [rejection,setRejection]=useState(null);
+  // Iteration ("Talk to PM" beat) state
+  const [slackMsg,setSlackMsg]=useState(null);          // {sender, message, ts} | null
+  const [iterating,setIterating]=useState(false);       // true during an iteration mini-build
+  const [iterationVersion,setIterationVersion]=useState(1);
+  const [v2Toast,setV2Toast]=useState(false);           // shows "v2 LIVE — refresh" badge
+  const [siteUrlV1,setSiteUrlV1]=useState('');
+  const [siteUrlV2,setSiteUrlV2]=useState('');
   const cdIv=useRef(null);
   const activeAgentRef=useRef(null);
   const rejectTimerRef=useRef(null);
+  const slackTimerRef=useRef(null);
   const MAP_AGENT={pm:'pm',coder:'engineer',engineer:'engineer',reviewer:'reviewer',deployer:'deployer'};
 
   const setAgentWorking=useCallback((agent)=>{
@@ -941,6 +987,12 @@ function useDemoEngine() {
           setWinner(null);
           setWinnerLabel(null);
           setShowResult(false);
+          // Clear any stale iteration / v2 state for the new round
+          setSiteUrlV2('');
+          setIterationVersion(1);
+          setIterating(false);
+          setSlackMsg(null);
+          setV2Toast(false);
           if(cdIv.current)clearInterval(cdIv.current);
           const tickCd=()=>{
             const remaining=Math.max(0,Math.ceil(((vs.endsAt||0)-Date.now())/1000));
@@ -968,18 +1020,35 @@ function useDemoEngine() {
           setPrompt(null);
           setSiteUrl('');
           setSiteName('');
+          // Fresh round — clear any leftover v2 + iteration state
+          setSiteUrlV1('');
+          setSiteUrlV2('');
+          setIterationVersion(1);
+          setIterating(false);
+          setSlackMsg(null);
+          setV2Toast(false);
           if(cdIv.current){clearInterval(cdIv.current);cdIv.current=null;}
         }
         break;
       }
       case 'build_started':{
+        const isIteration=!!evt.iteration;
         setPhase('building');
-        setTimer(0);
-        setPrompt(evt.fullPrompt||evt.brief||'Building');
-        setLogs([]);
-        setShowResult(false);
-        setSiteUrl('');
-        setSiteName(evt.brief||'');
+        if(!isIteration){
+          // Full reset for first build
+          setTimer(0);
+          setPrompt(evt.fullPrompt||evt.brief||'Building');
+          setLogs([]);
+          setShowResult(false);
+          setSiteUrl('');
+          setSiteName(evt.brief||'');
+        } else {
+          // Iteration build: keep prompt + siteUrl, just reset agent states
+          setIterating(true);
+          setV2Toast(false);
+          setLogs([]);
+          addLog('system','Iteration: '+(evt.brief||'v2 changes'));
+        }
         setRejection(null);
         if(rejectTimerRef.current){clearTimeout(rejectTimerRef.current);rejectTimerRef.current=null;}
         setAgents({pm:'idle',engineer:'idle',reviewer:'idle',deployer:'idle'});
@@ -990,7 +1059,23 @@ function useDemoEngine() {
         activeAgentRef.current=null;
         if(timerIv.current)clearInterval(timerIv.current);
         timerIv.current=setInterval(()=>setTimer(t=>t+1),1000);
-        addLog('system','Build started');
+        if(!isIteration)addLog('system','Build started');
+        break;
+      }
+      case 'slack_message':{
+        // Show Slack-styled overlay in top-right; auto-hide after 7s
+        setSlackMsg({sender:evt.sender||'Georg',message:evt.message||'',ts:evt.ts||Date.now(),channel:evt.channel||'agent-factory-demo'});
+        if(slackTimerRef.current)clearTimeout(slackTimerRef.current);
+        slackTimerRef.current=setTimeout(()=>setSlackMsg(null),7000);
+        break;
+      }
+      case 'iteration_complete':{
+        setIterating(false);
+        setIterationVersion(evt.version||2);
+        setV2Toast(true);
+        if(evt.siteUrlV1)setSiteUrlV1(evt.siteUrlV1);
+        if(evt.siteUrlV2||evt.siteUrl)setSiteUrlV2(evt.siteUrlV2||evt.siteUrl);
+        addLog('system','v2 deployed — '+(evt.siteUrlV2||evt.siteUrl||'live'));
         break;
       }
       case 'agent_status':{
@@ -1028,10 +1113,19 @@ function useDemoEngine() {
       case 'build_complete':{
         if(timerIv.current){clearInterval(timerIv.current);timerIv.current=null;}
         const elapsed=evt.elapsed!=null?evt.elapsed:timer;
+        const isIteration=!!evt.iteration;
         setTimer(elapsed);
-        setSiteUrl(evt.siteUrl||'');
-        const name=(evt.plan&&evt.plan.projectName)||evt.brief||siteName||'Project';
-        setSiteName(name);
+        if(evt.siteUrl)setSiteUrl(evt.siteUrl);
+        if(isIteration){
+          if(evt.siteUrlV1)setSiteUrlV1(evt.siteUrlV1);
+          if(evt.siteUrlV2)setSiteUrlV2(evt.siteUrlV2);
+        } else {
+          // First build: this URL IS v1; clear any stale v2
+          if(evt.siteUrl)setSiteUrlV1(evt.siteUrl);
+          setSiteUrlV2('');
+          const name=(evt.plan&&evt.plan.projectName)||evt.brief||siteName||'Project';
+          setSiteName(name);
+        }
         setAgents({pm:'celebrate',engineer:'celebrate',reviewer:'celebrate',deployer:'celebrate'});
         setActiveAgent(null);
         setFocusedAgent(null);
@@ -1039,6 +1133,7 @@ function useDemoEngine() {
         setTimeout(()=>{
           setPhase('complete');
           setShowResult(true);
+          if(isIteration)setIterationVersion(evt.iterationVersion||2);
         },1200);
         break;
       }
@@ -1098,7 +1193,7 @@ function useDemoEngine() {
     });
   },[voted]);
 
-  return {phase,agents,activeAgent,focusedAgent,handoff,courierActive,votes,voted,countdown,winner,winnerLabel,timer,logs,showResult,prompt,siteUrl,siteName,rejection,handleVote};
+  return {phase,agents,activeAgent,focusedAgent,handoff,courierActive,votes,voted,countdown,winner,winnerLabel,timer,logs,showResult,prompt,siteUrl,siteName,rejection,slackMsg,iterating,iterationVersion,v2Toast,siteUrlV1,siteUrlV2,handleVote};
 }
 
 // ─── MAIN APP ───
@@ -1112,6 +1207,8 @@ function MonumentApp() {
     ? {text:'Reviewer flagged: confidence below threshold — sending back to Coder',eyebrow:'FLAGGED',mode:'flagged'}
     : d.rejection==='revising'
     ? {text:'Revising — re-running checks',eyebrow:'REVISING',mode:'revising'}
+    : d.iterating
+    ? {text:`Iterating: applying changes to ${titleForBuild}`,eyebrow:'ITERATION',mode:'building'}
     : {text:`Constructing: ${titleForBuild}`,eyebrow:'BUILDING',mode:'building'};
   const bannerCfg={
     idle:{text:'Awaiting voting — admin opens the round',eyebrow:'STAND BY',mode:'idle'},
@@ -1131,11 +1228,12 @@ function MonumentApp() {
           <div style={{pointerEvents:'auto'}}>
             {d.phase==='idle'&&<IdleScreen/>}
             {d.phase==='voting'&&<VotePanel votes={d.votes} voted={d.voted} onVote={d.handleVote} countdown={d.countdown} winner={d.winner}/>}
-            {d.phase==='complete'&&<ResultCard url={d.siteUrl} name={d.siteName||d.winnerLabel} elapsed={elapsedStr} show={d.showResult}/>}
+            {d.phase==='complete'&&<ResultCard urlV1={d.siteUrlV1||d.siteUrl} urlV2={d.siteUrlV2} name={d.siteName||d.winnerLabel} elapsed={elapsedStr} show={d.showResult} version={d.iterationVersion}/>}
           </div>
         </div>
       </main>
       <HUD timer={d.timer} logs={d.logs} focusedAgent={d.focusedAgent}/>
+      <SlackOverlay slackMsg={d.slackMsg}/>
     </div>
   );
 }

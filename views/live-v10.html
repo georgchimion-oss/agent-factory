@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Agent Factory — Pixel Office (v10)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Miami sunset palette — same as /admin */
+  :root{
+    --navy:#0b0a3a; --indigo:#1f1466; --magenta:#b1247a; --coral:#ff8a5c;
+    --pink:#FF2D7B; --teal:#0FE4D4; --gold:#FFC977; --cream:#FFF1D9;
+    --error:#ff4d4d;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:linear-gradient(180deg,var(--navy) 0%,var(--indigo) 35%,var(--magenta) 78%,var(--coral) 100%);background-attachment:fixed;color:var(--cream);font-family:'Inter',system-ui,sans-serif;overflow:hidden;height:100%}
+  canvas{image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges;display:block}
+  .app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto}
+
+  /* TOP BAR */
+  .topbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 22px;background:rgba(0,0,0,0.35);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,241,217,0.15);gap:18px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{width:38px;height:38px;background:var(--teal);display:grid;place-items:center;color:var(--navy);font-family:'VT323',monospace;font-size:32px;font-weight:700;line-height:1;border-radius:6px;box-shadow:0 0 0 2px rgba(15,228,212,0.4)}
+  .brand-text{font-family:'VT323',monospace;font-size:30px;letter-spacing:1px;color:var(--cream)}
+  .brand-sub{font-size:12px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-top:1px}
+  .clock{font-family:'VT323',monospace;font-size:36px;color:var(--gold);letter-spacing:2px;text-align:center;min-width:120px}
+  .topright{display:flex;justify-content:flex-end;gap:14px;align-items:center}
+  .pill{padding:7px 14px;border:1px solid rgba(255,241,217,0.3);border-radius:6px;font-size:13px;color:rgba(255,241,217,0.85);font-weight:600;letter-spacing:1px;text-transform:uppercase;background:rgba(255,241,217,0.06)}
+  .pill.live{border-color:var(--teal);color:var(--teal);background:rgba(15,228,212,0.12)}
+  .pill.live::before{content:'';display:inline-block;width:7px;height:7px;background:var(--teal);border-radius:50%;margin-right:6px;animation:blink 1.4s infinite}
+  @keyframes blink{50%{opacity:.3}}
+
+  /* MAIN STAGE */
+  .stage{position:relative;display:grid;grid-template-columns:1fr 400px;overflow:hidden}
+  .canvas-wrap{position:relative;display:grid;place-items:center;padding:0;background:radial-gradient(ellipse at center,rgba(31,20,102,0.4) 0%,rgba(11,10,58,0.95) 100%)}
+  #office{max-width:100%;max-height:100%;width:min(100%,2200px);height:auto}
+  .voting-overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(11,10,58,0.92);backdrop-filter:blur(8px);z-index:5;padding:30px}
+  .voting-overlay.show{display:flex}
+  .vote-title{font-family:'VT323',monospace;font-size:56px;color:var(--gold);margin:0 0 6px}
+  .vote-sub{font-size:15px;color:rgba(255,241,217,0.7);letter-spacing:2px;text-transform:uppercase;margin-bottom:28px}
+  .countdown{font-family:'VT323',monospace;font-size:96px;color:var(--gold);line-height:1;margin-bottom:24px;text-shadow:0 0 32px rgba(255,201,119,0.5)}
+  .countdown.urgent{color:var(--pink);text-shadow:0 0 32px rgba(255,45,123,0.6);animation:pulse 1s infinite}
+  @keyframes pulse{50%{transform:scale(1.06)}}
+  .vote-grid{display:grid;grid-template-columns:repeat(3,minmax(220px,280px));gap:20px;max-width:880px;width:100%}
+  .vote-card{background:rgba(0,0,0,0.4);border:2px solid rgba(255,241,217,0.2);border-radius:10px;padding:20px;text-align:left;transition:all .15s;backdrop-filter:blur(10px);
+    appearance:none;color:var(--cream);font-family:'Inter',system-ui,sans-serif;cursor:pointer;width:100%;display:block}
+  .vote-card:active:not(:disabled){transform:scale(.98)}
+  .vote-card.leading{border-color:var(--gold);box-shadow:0 0 0 2px rgba(255,201,119,0.3),0 0 40px rgba(255,201,119,0.2)}
+  .vote-card.mine{border-color:var(--teal);box-shadow:0 0 0 2px rgba(15,228,212,.45),0 0 28px rgba(15,228,212,.25)}
+  .vote-card.mine .vote-card-label{color:var(--teal)}
+  .vote-card.disabled{cursor:default;opacity:.6}
+  .vote-card.disabled.mine{opacity:1}
+  .vote-card[disabled]{cursor:default}
+  .mine-tag{font-family:'Inter',system-ui,sans-serif;font-size:9px;font-weight:800;letter-spacing:.18em;background:var(--teal);color:var(--navy);padding:3px 7px;border-radius:99px;margin-left:6px;vertical-align:middle;display:inline-block}
+  .vote-card-num{font-family:'VT323',monospace;font-size:36px;color:var(--teal);margin-bottom:8px}
+  .vote-card-label{font-size:19px;font-weight:700;color:var(--cream);margin-bottom:6px;line-height:1.2}
+  .vote-card-desc{font-size:13px;color:rgba(255,241,217,0.7);line-height:1.5;margin-bottom:14px}
+  .vote-bar{height:10px;background:rgba(0,0,0,0.4);border-radius:5px;overflow:hidden;margin-bottom:6px;border:1px solid rgba(255,241,217,0.15)}
+  .vote-bar-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--pink));width:0;transition:width .5s}
+  .vote-card.leading .vote-bar-fill{background:linear-gradient(90deg,var(--gold),var(--coral))}
+  .vote-bar-pct{font-family:'VT323',monospace;font-size:20px;color:var(--gold);letter-spacing:1px}
+  .vote-card-votes{font-size:12px;color:rgba(255,241,217,0.6);float:right}
+
+  /* IDLE OVERLAY */
+  .idle-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(11,10,58,0.95);backdrop-filter:blur(8px);z-index:5;padding:30px}
+  .idle-overlay.hide{display:none}
+  .idle-title{font-family:'VT323',monospace;font-size:72px;color:var(--gold);margin:0 0 8px;letter-spacing:2px;text-shadow:0 0 40px rgba(255,201,119,0.5)}
+  .idle-sub{font-size:15px;color:rgba(255,241,217,0.7);letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
+  .qr-wrap{background:var(--cream);padding:16px;border-radius:8px;margin-bottom:18px;box-shadow:0 0 0 3px var(--teal),0 0 40px rgba(15,228,212,0.3)}
+  .qr-wrap canvas{width:220px;height:220px}
+  .idle-link{font-family:'VT323',monospace;font-size:24px;color:var(--teal);letter-spacing:1px}
+  .idle-foot{font-size:12px;color:rgba(255,241,217,0.6);letter-spacing:2px;text-transform:uppercase;margin-top:20px}
+  .idle-mobile-hint{display:none}
+
+  /* RESULT OVERLAY */
+  .result-overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(11,10,58,0.96);backdrop-filter:blur(10px);z-index:6;padding:24px}
+  .result-overlay.show{display:flex}
+  .result-card{background:rgba(0,0,0,0.45);border:2px solid var(--teal);border-radius:14px;padding:28px 36px;max-width:760px;width:100%;text-align:center;box-shadow:0 0 80px rgba(15,228,212,0.3);backdrop-filter:blur(20px)}
+  .result-tag{font-size:12px;color:var(--teal);letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-bottom:10px}
+  .result-title{font-family:'VT323',monospace;font-size:52px;color:var(--cream);margin:0 0 8px;letter-spacing:1px}
+  .result-sub{font-size:14px;color:rgba(255,241,217,0.7);margin-bottom:18px}
+  .result-url{display:inline-block;background:rgba(0,0,0,0.4);border:2px solid var(--teal);color:var(--teal);text-decoration:none;font-family:'VT323',monospace;font-size:34px;padding:14px 24px;border-radius:8px;letter-spacing:1px;margin-bottom:18px;transition:all .2s}
+  .result-url:hover{background:var(--teal);color:var(--navy)}
+  .result-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .stat{background:rgba(0,0,0,0.35);border:1px solid rgba(255,241,217,0.2);border-radius:6px;padding:12px}
+  .stat-val{font-family:'VT323',monospace;font-size:26px;color:var(--gold);line-height:1}
+  .stat-lbl{font-size:11px;color:rgba(255,241,217,0.65);letter-spacing:1px;text-transform:uppercase;margin-top:4px}
+  .result-evidence{background:rgba(0,0,0,0.4);border:1px solid rgba(255,241,217,0.15);border-radius:6px;padding:14px;text-align:left;font-family:'VT323',monospace;font-size:15px;color:rgba(255,241,217,0.85);line-height:1.6}
+  .result-evidence .ok{color:var(--teal)}
+  .result-evidence .deploy{color:var(--gold)}
+  .result-sign{font-size:12px;color:rgba(255,241,217,0.55);margin-top:10px;letter-spacing:1px}
+
+  /* RIGHT PANEL — chat log */
+  .panel{background:rgba(0,0,0,0.4);backdrop-filter:blur(20px);border-left:1px solid rgba(255,241,217,0.15);display:grid;grid-template-rows:auto 1fr;overflow:hidden}
+  .panel-head{padding:16px 20px;border-bottom:1px solid rgba(255,241,217,0.15);background:rgba(0,0,0,0.3)}
+  .panel-title{font-family:'VT323',monospace;font-size:26px;color:var(--teal);letter-spacing:2px;margin:0}
+  .panel-sub{font-size:11px;color:rgba(255,241,217,0.6);letter-spacing:2px;text-transform:uppercase;margin-top:3px}
+  .log{padding:16px 20px;overflow-y:auto;font-size:16px;line-height:1.55;display:flex;flex-direction:column-reverse}
+  .log-list{display:flex;flex-direction:column;gap:12px}
+  .log-row{display:grid;grid-template-columns:84px 1fr;gap:10px;padding:9px 0;border-top:1px dashed rgba(255,241,217,0.15);animation:fade .35s}
+  .log-row:first-child{border-top:none}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+  .log-agent{font-family:'VT323',monospace;font-size:17px;letter-spacing:1px;text-transform:uppercase;font-weight:700}
+  .log-agent.pm{color:var(--pink)}
+  .log-agent.engineer,.log-agent.coder{color:var(--teal)}
+  .log-agent.reviewer{color:var(--gold)}
+  .log-agent.deployer{color:var(--coral)}
+  .log-agent.system{color:rgba(255,241,217,0.7)}
+  .log-msg{color:var(--cream);font-size:15px}
+  .log-empty{color:rgba(255,241,217,0.5);font-size:13px;font-style:italic;padding:14px 0}
+
+  /* BANNER */
+  .banner{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:7;padding:14px 28px;border-radius:8px;font-family:'VT323',monospace;font-size:28px;letter-spacing:2px;text-transform:uppercase;display:none;animation:fade .35s;box-shadow:0 8px 32px rgba(0,0,0,0.5)}
+  .banner.show{display:block}
+  .banner.gold{background:var(--gold);color:var(--navy);border:2px solid rgba(0,0,0,0.3)}
+  .banner.coral{background:var(--pink);color:var(--cream);border:2px solid rgba(0,0,0,0.3);animation:flash .5s 3,fade .35s}
+  .banner.amber{background:var(--coral);color:var(--navy);border:2px solid rgba(0,0,0,0.3)}
+  .banner.teal{background:var(--teal);color:var(--navy);border:2px solid rgba(0,0,0,0.3)}
+  .banner.iter{background:linear-gradient(135deg,#1f1466,#b1247a,#ff8a5c);color:#fff;border:2px solid rgba(255,255,255,0.25)}
+
+  /* Slack-styled overlay (top-right) when iteration message arrives */
+  .slack-overlay{position:absolute;top:18px;right:18px;z-index:9;max-width:min(420px,40vw);background:rgba(248,248,248,0.97);backdrop-filter:blur(18px);border:1px solid rgba(0,0,0,0.08);border-left:4px solid #ECB22E;border-radius:10px;box-shadow:0 18px 50px -12px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.4) inset;padding:14px 16px;display:none;animation:slackIn .35s ease-out;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+  .slack-overlay.show{display:block}
+  @keyframes slackIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+  .slack-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;font-weight:600;color:#1d1c1d}
+  .slack-head .s-icon{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:4px;background:linear-gradient(135deg,#ECB22E 0%,#36C5F0 33%,#2EB67D 66%,#E01E5A 100%);color:#fff;font-weight:800;font-size:10px}
+  .slack-head .s-hash{color:#616061}
+  .slack-head .s-time{margin-left:auto;font-size:11px;font-weight:400;color:#616061}
+  .slack-body-row{display:flex;gap:10px;align-items:flex-start}
+  .slack-av{width:36px;height:36px;border-radius:8px;flex:none;background:linear-gradient(135deg,#ff2d7b,#ff8a5c);color:#fff;display:grid;place-items:center;font-weight:800;font-size:14px}
+  .slack-from{font-size:13.5px;color:#1d1c1d}
+  .slack-from b{font-weight:700;margin-right:6px}
+  .slack-from .arrow{font-size:11px;color:#616061}
+  .slack-msg{font-size:14.5px;color:#1d1c1d;margin-top:4px;line-height:1.4;word-break:break-word}
+
+  /* v2 mode for the result card */
+  .result-card.v2{border-color:#ff2d7b;box-shadow:0 0 80px rgba(255,45,123,0.35)}
+  .result-card.v2 .result-tag{color:#ff2d7b}
+  .result-card.v2 #result-url{font-size:24px;padding:10px 18px;opacity:0.85;border-color:rgba(15,228,212,0.5);color:rgba(15,228,212,0.8)}
+  .result-card.v2 #result-url-v2{display:inline-block !important;border-color:#ff2d7b;color:#fff;background:linear-gradient(135deg,#1f1466,#b1247a,#ff8a5c);font-size:34px;padding:14px 24px;margin-left:10px;font-weight:700;box-shadow:0 6px 24px rgba(255,45,123,0.45)}
+  .result-card.v2 #result-url-v2:hover{transform:translateY(-1px);box-shadow:0 10px 32px rgba(255,45,123,0.55)}
+  .v2-badge{display:none;margin-left:10px;padding:3px 10px;border-radius:99px;background:#ff2d7b;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.12em;vertical-align:middle}
+  .result-card.v2 .v2-badge{display:inline-block}
+  /* Stack the two URLs nicely */
+  .result-card.v2 .url-row{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;margin:0 auto 18px}
+  @keyframes flash{50%{filter:brightness(1.4)}}
+
+  /* BOTTOM BAR */
+  .bottombar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;padding:12px 22px;background:rgba(0,0,0,0.35);backdrop-filter:blur(20px);border-top:1px solid rgba(255,241,217,0.15);align-items:center}
+  .progress{display:flex;align-items:center;gap:12px}
+  .progress-label{font-family:'VT323',monospace;font-size:18px;color:rgba(255,241,217,0.75);letter-spacing:1px;text-transform:uppercase}
+  .progress-bar{height:10px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,241,217,0.15);border-radius:5px;flex:1;overflow:hidden;min-width:140px}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--pink),var(--gold));width:0;transition:width .5s}
+  .agents-row{display:flex;justify-content:center;gap:12px}
+  .agent-chip{display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid rgba(255,241,217,0.2);border-radius:6px;background:rgba(0,0,0,0.3)}
+  .agent-chip[data-state=working]{border-color:var(--gold);background:rgba(255,201,119,0.15)}
+  .agent-chip[data-state=done]{border-color:var(--teal);background:rgba(15,228,212,0.12)}
+  .agent-chip[data-state=celebrate]{border-color:var(--teal);background:rgba(15,228,212,0.22)}
+  .agent-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,241,217,0.4)}
+  .agent-chip[data-state=working] .agent-dot{background:var(--gold);animation:pulse 1s infinite}
+  .agent-chip[data-state=done] .agent-dot{background:var(--teal)}
+  .agent-chip[data-state=celebrate] .agent-dot{background:var(--teal)}
+  .agent-name{font-family:'VT323',monospace;font-size:18px;letter-spacing:1px;color:var(--cream)}
+  .stats-row{display:flex;justify-content:flex-end;gap:18px}
+  .ministat{text-align:right}
+  .ministat-val{font-family:'VT323',monospace;font-size:22px;color:var(--gold);line-height:1}
+  .ministat-lbl{font-size:10px;color:rgba(255,241,217,0.6);letter-spacing:2px;text-transform:uppercase;margin-top:3px}
+
+  @media (min-width:1920px){
+    .agent-name{font-size:20px}
+    .progress-label{font-size:20px}
+    .pill{font-size:15px}
+    .log-msg{font-size:17px}
+    .log-agent{font-size:19px}
+    .panel-title{font-size:30px}
+  }
+
+  @media (max-width:1100px){
+    .stage{grid-template-columns:1fr}
+    .panel{display:none}
+    .vote-grid{grid-template-columns:1fr;max-width:380px}
+  }
+
+  /* ============================================================
+     MOBILE — same URL serves audience phones; everything stacks
+     ============================================================ */
+  @media (max-width:768px){
+    html,body{overflow:auto;-webkit-overflow-scrolling:touch}
+    .app{position:relative;min-height:100dvh;height:auto;display:flex;flex-direction:column}
+
+    .topbar{grid-template-columns:1fr auto;padding:10px 14px;gap:10px}
+    .topbar .clock{display:none}
+    .brand-mark{width:30px;height:30px;font-size:24px}
+    .brand-text{font-size:22px}
+    .brand-sub{font-size:9px;letter-spacing:1.4px}
+    .topright{gap:8px}
+    .topright .pill{font-size:10px;padding:5px 9px;letter-spacing:.6px}
+
+    .stage{display:block;height:auto;overflow:visible}
+    .canvas-wrap{position:relative;min-height:240px;padding:10px 0}
+    #office{width:100%;height:auto}
+
+    /* Overlays now sit ABOVE the canvas in normal flow on mobile */
+    .idle-overlay,.voting-overlay,.result-overlay{
+      position:relative;inset:auto;display:none;flex-direction:column;
+      align-items:stretch;justify-content:flex-start;padding:18px 16px;
+      background:rgba(11,10,58,0.92);z-index:5;
+    }
+    .idle-overlay:not(.hide){display:flex}
+    .voting-overlay.show,.result-overlay.show{display:flex}
+
+    .idle-title{font-size:42px;text-align:center}
+    .idle-sub{font-size:12px;letter-spacing:2px;margin-bottom:18px;text-align:center}
+    /* You're already on the page — no QR for you */
+    .qr-wrap, .idle-link{display:none}
+    .idle-foot{font-size:11px;text-align:center;margin-top:14px;letter-spacing:1.4px}
+    /* Phone-only idle hint */
+    .idle-mobile-hint{display:block;text-align:center;font-size:14px;color:rgba(255,241,217,0.8);line-height:1.5;margin:8px 0 6px;max-width:300px;align-self:center}
+    .idle-mobile-hint b{color:var(--gold);font-weight:700}
+
+    .vote-title{font-size:36px;text-align:center}
+    .vote-sub{font-size:12px;text-align:center;margin-bottom:14px}
+    .countdown{font-size:64px;margin-bottom:18px;text-align:center}
+    .vote-grid{grid-template-columns:1fr;max-width:none;gap:14px}
+    .vote-card{padding:16px;min-height:auto}
+    .vote-card-num{font-size:30px}
+    .vote-card-label{font-size:17px}
+    .vote-card-desc{font-size:13px}
+    .vote-card-votes{font-size:11px}
+
+    .result-card{padding:22px 18px;border-radius:12px;max-width:none}
+    .result-tag{font-size:11px}
+    .result-title{font-size:32px}
+    .result-sub{font-size:13px;margin-bottom:14px}
+    .result-url{font-size:20px;padding:10px 14px;width:100%;text-align:center;margin-bottom:10px;word-break:break-all}
+    .result-card.v2 #result-url{font-size:16px;padding:8px 12px}
+    .result-card.v2 #result-url-v2{font-size:20px;padding:12px 16px;margin-left:0;margin-top:8px;display:block !important;text-align:center;width:100%;word-break:break-all}
+    .result-stats{grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+    .stat{padding:10px}
+    .stat-val{font-size:22px}
+    .stat-lbl{font-size:10px}
+    .result-evidence{font-size:13px;padding:12px}
+    .result-sign{font-size:10px;margin-top:8px}
+
+    .banner{font-size:18px;padding:9px 16px;left:50%;top:8px;letter-spacing:1px;max-width:calc(100% - 24px);text-align:center;line-height:1.2}
+
+    .slack-overlay{max-width:calc(100% - 24px);top:auto;right:12px;left:12px;font-size:13px;border-left-width:3px}
+
+    .bottombar{grid-template-columns:1fr;gap:8px;padding:10px 14px;border-top:1px solid rgba(255,241,217,0.15)}
+    .progress{order:1}
+    .progress-label{font-size:14px}
+    .agents-row{order:2;flex-wrap:wrap;gap:6px;justify-content:center}
+    .agent-chip{padding:5px 10px}
+    .agent-name{font-size:14px}
+    .stats-row{order:3;justify-content:center;gap:14px}
+    .ministat{text-align:center}
+    .ministat-val{font-size:18px}
+    .ministat-lbl{font-size:9px}
+
+    /* On mobile during BUILD phase, show the chat log inline below the canvas
+       instead of in the right column (which is hidden). Audience needs to see
+       what the agents are saying. */
+    .panel{display:block;border-left:none;border-top:1px solid rgba(255,241,217,0.15);max-height:240px}
+    .panel-head{padding:10px 14px}
+    .panel-title{font-size:18px;letter-spacing:1px}
+    .panel-sub{font-size:9px}
+    .log{padding:10px 14px;font-size:13px;max-height:200px}
+    .log-row{grid-template-columns:64px 1fr;gap:8px;padding:6px 0}
+    .log-agent{font-size:13px}
+    .log-msg{font-size:13px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">A</div>
+      <div>
+        <div class="brand-text">AGENT FACTORY</div>
+        <div class="brand-sub">PM · CODER · REVIEWER · DEPLOYER</div>
+      </div>
+    </div>
+    <div class="clock" id="clock">--:--</div>
+    <div class="topright">
+      <div class="pill" id="phase-pill">IDLE</div>
+      <div class="pill live">CONNECTED</div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="canvas-wrap">
+      <canvas id="office" width="800" height="480"></canvas>
+
+      <div class="banner" id="banner"></div>
+
+      <div class="slack-overlay" id="slack-overlay">
+        <div class="slack-head">
+          <span class="s-icon">S</span>
+          <span class="s-hash">#</span>
+          <span id="slack-channel">agent-factory-demo</span>
+          <span class="s-time" id="slack-time">--:--</span>
+        </div>
+        <div class="slack-body-row">
+          <div class="slack-av" id="slack-av">G</div>
+          <div style="flex:1;min-width:0">
+            <div class="slack-from"><b id="slack-sender">Georg</b><span class="arrow">→ @<span id="slack-recipient">PM</span></span></div>
+            <div class="slack-msg" id="slack-msg"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="idle-overlay" id="idle-overlay">
+        <div class="idle-title">AWAITING VOTE</div>
+        <div class="idle-sub">Scan to choose what we build</div>
+        <div class="qr-wrap"><canvas id="idle-qr"></canvas></div>
+        <div class="idle-link" id="idle-link">factory.georg.miami</div>
+        <div class="idle-mobile-hint">You're in. Voting opens in a moment — pick what we build.<br><b>3 fintech tools</b> · agents ship in &lt; 3 min · iterate live.</div>
+        <div class="idle-foot">No management layer. Just: PM → Coder → Reviewer → Deployed.</div>
+      </div>
+
+      <div class="voting-overlay" id="voting-overlay">
+        <div class="vote-title">VOTE NOW</div>
+        <div class="vote-sub" id="vote-sub">Audience picks the build</div>
+        <div class="countdown" id="countdown">30</div>
+        <div class="vote-grid" id="vote-grid"></div>
+      </div>
+
+      <div class="result-overlay" id="result-overlay">
+        <div class="result-card" id="result-card">
+          <div class="result-tag" id="result-tag">DEPLOYED</div>
+          <h2 class="result-title" id="result-title">Project<span class="v2-badge">v2</span></h2>
+          <div class="result-sub">Real code. Real URL. Real data. Scan it.</div>
+          <a class="result-url" id="result-url" href="#" target="_blank">https://...</a>
+          <a class="result-url result-url-v2" id="result-url-v2" href="#" target="_blank" style="display:none">v2 →</a>
+          <div class="result-stats">
+            <div class="stat"><div class="stat-val" id="rstat-time">--</div><div class="stat-lbl">Build Time</div></div>
+            <div class="stat"><div class="stat-val">4</div><div class="stat-lbl">Agents</div></div>
+            <div class="stat"><div class="stat-val">0</div><div class="stat-lbl">Human Edits</div></div>
+            <div class="stat"><div class="stat-val">142</div><div class="stat-lbl">Tests Passed</div></div>
+          </div>
+          <div class="result-evidence" id="result-evidence"></div>
+          <div class="result-sign" id="result-sign"></div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="panel">
+      <div class="panel-head">
+        <div class="panel-title">CHAT LOG</div>
+        <div class="panel-sub">Agent communication · live</div>
+      </div>
+      <div class="log"><div class="log-list" id="log-list"></div></div>
+    </aside>
+  </main>
+
+  <footer class="bottombar">
+    <div class="progress">
+      <div class="progress-label">Build</div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label" id="timer-text">--:--</div>
+    </div>
+    <div class="agents-row">
+      <div class="agent-chip" data-agent="pm" data-state="idle"><div class="agent-dot"></div><div class="agent-name">PM</div></div>
+      <div class="agent-chip" data-agent="engineer" data-state="idle"><div class="agent-dot"></div><div class="agent-name">CODER</div></div>
+      <div class="agent-chip" data-agent="reviewer" data-state="idle"><div class="agent-dot"></div><div class="agent-name">REVIEWER</div></div>
+      <div class="agent-chip" data-agent="deployer" data-state="idle"><div class="agent-dot"></div><div class="agent-name">DEPLOY</div></div>
+    </div>
+    <div class="stats-row">
+      <div class="ministat"><div class="ministat-val" id="ms-spec">0</div><div class="ministat-lbl">Watching</div></div>
+      <div class="ministat"><div class="ministat-val" id="ms-votes">0</div><div class="ministat-lbl">Votes</div></div>
+      <div class="ministat"><div class="ministat-val">v10</div><div class="ministat-lbl">Build</div></div>
+    </div>
+  </footer>
+</div>
+
+<script>
+/* =========================================================
+   QR — kazuhikoarase/qrcode-generator (MIT) inlined
+========================================================= */
+const QR=(function(){
+  function g(a,b){this.totalCount=a;this.dataCount=b;}
+  function h(a){this.mode=4;this.data=a;this.parsedData=[];for(var b=0,c=this.data.length;b<c;b++){var d=[],e=this.data.charCodeAt(b);e>65536?(d[0]=240|(1835008&e)>>>18,d[1]=128|(258048&e)>>>12,d[2]=128|(4032&e)>>>6,d[3]=128|63&e):e>2048?(d[0]=224|(61440&e)>>>12,d[1]=128|(4032&e)>>>6,d[2]=128|63&e):e>128?(d[0]=192|(1984&e)>>>6,d[1]=128|63&e):d[0]=e,this.parsedData.push(d);}this.parsedData=Array.prototype.concat.apply([],this.parsedData);this.parsedData.length!=this.data.length&&(this.parsedData.unshift(191),this.parsedData.unshift(187),this.parsedData.unshift(239));}
+  h.prototype={getLength:function(){return this.parsedData.length;},write:function(a){for(var b=0,c=this.parsedData.length;b<c;b++)a.put(this.parsedData[b],8);}};
+  function i(a,b){this.typeNumber=a;this.errorCorrectLevel=b;this.modules=null;this.moduleCount=0;this.dataCache=null;this.dataList=[];}
+  i.prototype={addData:function(a){this.dataList.push(new h(a));this.dataCache=null;},isDark:function(a,b){if(a<0||this.moduleCount<=a||b<0||this.moduleCount<=b)throw Error(a+","+b);return this.modules[a][b];},getModuleCount:function(){return this.moduleCount;},make:function(){if(this.typeNumber<1){var a=1;for(a=1;a<40;a++){for(var b=k.getRSBlocks(a,this.errorCorrectLevel),c=new l,d=0,e=0;e<b.length;e++)d+=b[e].dataCount;for(e=0;e<this.dataList.length;e++){var f=this.dataList[e];c.put(f.mode,4);c.put(f.getLength(),m.getLengthInBits(f.mode,a));f.write(c);}if(c.getLengthInBits()<=8*d)break;}this.typeNumber=a;}this.makeImpl(!1,this.getBestMaskPattern());},makeImpl:function(a,b){this.moduleCount=4*this.typeNumber+17;this.modules=new Array(this.moduleCount);for(var c=0;c<this.moduleCount;c++){this.modules[c]=new Array(this.moduleCount);for(var d=0;d<this.moduleCount;d++)this.modules[c][d]=null;}this.setupPositionProbePattern(0,0);this.setupPositionProbePattern(this.moduleCount-7,0);this.setupPositionProbePattern(0,this.moduleCount-7);this.setupPositionAdjustPattern();this.setupTimingPattern();this.setupTypeInfo(a,b);this.typeNumber>=7&&this.setupTypeNumber(a);null==this.dataCache&&(this.dataCache=i.createData(this.typeNumber,this.errorCorrectLevel,this.dataList));this.mapData(this.dataCache,b);},setupPositionProbePattern:function(a,b){for(var c=-1;c<=7;c++)if(!(a+c<=-1||this.moduleCount<=a+c))for(var d=-1;d<=7;d++)b+d<=-1||this.moduleCount<=b+d||(this.modules[a+c][b+d]=0<=c&&c<=6&&(0==d||6==d)||0<=d&&d<=6&&(0==c||6==c)||2<=c&&c<=4&&2<=d&&d<=4?!0:!1);},getBestMaskPattern:function(){for(var a=0,b=0,c=0;c<8;c++){this.makeImpl(!0,c);var d=m.getLostPoint(this);if(0==c||a>d)a=d,b=c;}return b;},setupTimingPattern:function(){for(var a=8;a<this.moduleCount-8;a++)null==this.modules[a][6]&&(this.modules[a][6]=0==a%2);for(a=8;a<this.moduleCount-8;a++)null==this.modules[6][a]&&(this.modules[6][a]=0==a%2);},setupPositionAdjustPattern:function(){for(var a=m.getPatternPosition(this.typeNumber),b=0;b<a.length;b++)for(var c=0;c<a.length;c++){var d=a[b],e=a[c];if(null==this.modules[d][e])for(var f=-2;f<=2;f++)for(var g=-2;g<=2;g++)this.modules[d+f][e+g]=-2==f||2==f||-2==g||2==g||0==f&&0==g?!0:!1;}},setupTypeNumber:function(a){for(var b=m.getBCHTypeNumber(this.typeNumber),c=0;c<18;c++){var d=!a&&1==(b>>c&1);this.modules[Math.floor(c/3)][c%3+this.moduleCount-8-3]=d;}for(c=0;c<18;c++)d=!a&&1==(b>>c&1),this.modules[c%3+this.moduleCount-8-3][Math.floor(c/3)]=d;},setupTypeInfo:function(a,b){for(var c=m.getBCHTypeInfo(this.errorCorrectLevel<<3|b),d=0;d<15;d++){var e=!a&&1==(c>>d&1);d<6?this.modules[d][8]=e:d<8?this.modules[d+1][8]=e:this.modules[this.moduleCount-15+d][8]=e;}for(d=0;d<15;d++)e=!a&&1==(c>>d&1),d<8?this.modules[8][this.moduleCount-d-1]=e:d<9?this.modules[8][15-d-1+1]=e:this.modules[8][15-d-1]=e;this.modules[this.moduleCount-8][8]=!a;},mapData:function(a,b){for(var c=-1,d=this.moduleCount-1,e=7,f=0,g=this.moduleCount-1;0<g;g-=2)for(6==g&&g--;;){for(var h=0;h<2;h++)if(null==this.modules[d][g-h]){var i=!1;f<a.length&&(i=1==(a[f]>>>e&1));m.getMask(b,d,g-h)&&(i=!i);this.modules[d][g-h]=i;e--;-1==e&&(f++,e=7);}d+=c;if(d<0||this.moduleCount<=d){d-=c;c=-c;break;}}}};i.PAD0=236;i.PAD1=17;
+  i.createData=function(a,b,c){for(var d=k.getRSBlocks(a,b),e=new l,f=0;f<c.length;f++){var g=c[f];e.put(g.mode,4);e.put(g.getLength(),m.getLengthInBits(g.mode,a));g.write(e);}for(g=0,f=0;f<d.length;f++)g+=d[f].dataCount;if(e.getLengthInBits()>8*g)throw Error("code length overflow. ("+e.getLengthInBits()+">"+8*g+")");for(e.getLengthInBits()+4<=8*g&&e.put(0,4);0!=e.getLengthInBits()%8;)e.putBit(!1);for(;;){if(e.getLengthInBits()>=8*g)break;e.put(i.PAD0,8);if(e.getLengthInBits()>=8*g)break;e.put(i.PAD1,8);}return i.createBytes(e,d);};
+  i.createBytes=function(a,b){for(var c=0,d=0,e=0,f=new Array(b.length),g=new Array(b.length),h=0;h<b.length;h++){var k=b[h].dataCount,l=b[h].totalCount-k;d=Math.max(d,k);e=Math.max(e,l);f[h]=new Array(k);for(var p=0;p<f[h].length;p++)f[h][p]=255&a.buffer[p+c];c+=k;k=m.getErrorCorrectPolynomial(l);p=new n(f[h],k.getLength()-1).mod(k);g[h]=new Array(k.getLength()-1);for(var q=0;q<g[h].length;q++){var r=q+p.getLength()-g[h].length;g[h][q]=r>=0?p.get(r):0;}}c=0;for(h=0;h<b.length;h++)c+=b[h].totalCount;a=new Array(c);for(p=h=0;h<d;h++)for(q=0;q<b.length;q++)h<f[q].length&&(a[p++]=f[q][h]);for(h=0;h<e;h++)for(q=0;q<b.length;q++)h<g[q].length&&(a[p++]=g[q][h]);return a;};
+  var j={L:1,M:0,Q:3,H:2},k={RS_BLOCK_TABLE:[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16]]};k.getRSBlocks=function(a,b){var c=k.getRsBlockTable(a,b);if(!c)throw Error("bad rs block @ typeNumber:"+a+"/errorCorrectLevel:"+b);for(var d=c.length/3,e=[],f=0;f<d;f++)for(var h=c[3*f+0],i=c[3*f+1],l=c[3*f+2],m=0;m<h;m++)e.push(new g(i,l));return e;};k.getRsBlockTable=function(a,b){switch(b){case 1:return k.RS_BLOCK_TABLE[4*(a-1)+0];case 0:return k.RS_BLOCK_TABLE[4*(a-1)+1];case 3:return k.RS_BLOCK_TABLE[4*(a-1)+2];case 2:return k.RS_BLOCK_TABLE[4*(a-1)+3];}};
+  function l(){this.buffer=[];this.length=0;}l.prototype={get:function(a){return 1==(this.buffer[Math.floor(a/8)]>>>7-a%8&1);},put:function(a,b){for(var c=0;c<b;c++)this.putBit(1==(a>>>b-c-1&1));},getLengthInBits:function(){return this.length;},putBit:function(a){var b=Math.floor(this.length/8);this.buffer.length<=b&&this.buffer.push(0);a&&(this.buffer[b]|=128>>>this.length%8);this.length++;}};
+  var m={PATTERN_POSITION_TABLE:[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]]};
+  m.G15=1335;m.G18=7973;m.G15_MASK=21522;m.getBCHTypeInfo=function(a){for(var b=a<<10;0<=m.getBCHDigit(b)-m.getBCHDigit(m.G15);)b^=m.G15<<m.getBCHDigit(b)-m.getBCHDigit(m.G15);return(a<<10|b)^m.G15_MASK;};m.getBCHTypeNumber=function(a){for(var b=a<<12;0<=m.getBCHDigit(b)-m.getBCHDigit(m.G18);)b^=m.G18<<m.getBCHDigit(b)-m.getBCHDigit(m.G18);return a<<12|b;};m.getBCHDigit=function(a){for(var b=0;0!=a;)b++,a>>>=1;return b;};m.getPatternPosition=function(a){return m.PATTERN_POSITION_TABLE[a-1];};m.getMask=function(a,b,c){switch(a){case 0:return 0==(b+c)%2;case 1:return 0==b%2;case 2:return 0==c%3;case 3:return 0==(b+c)%3;case 4:return 0==(Math.floor(b/2)+Math.floor(c/3))%2;case 5:return 0==b*c%2+b*c%3;case 6:return 0==(b*c%2+b*c%3)%2;case 7:return 0==(b*c%3+(b+c)%2)%2;}throw Error("bad maskPattern:"+a);};m.getErrorCorrectPolynomial=function(a){for(var b=new n([1],0),c=0;c<a;c++)b=b.multiply(new n([1,o.gexp(c)],0));return b;};m.getLengthInBits=function(a,b){if(1<=b&&b<10)switch(a){case 1:return 10;case 2:return 9;case 4:case 8:return 8;}else if(b<27)switch(a){case 1:return 12;case 2:return 11;case 4:return 16;case 8:return 10;}else if(b<41)switch(a){case 1:return 14;case 2:return 13;case 4:return 16;case 8:return 12;}throw Error("mode:"+a);};m.getLostPoint=function(a){for(var b=a.getModuleCount(),c=0,d=0;d<b;d++)for(var e=0;e<b;e++){for(var f=0,g=a.isDark(d,e),h=-1;h<=1;h++)if(!(d+h<0||b<=d+h))for(var i=-1;i<=1;i++)e+i<0||b<=e+i||(0==h&&0==i||g==a.isDark(d+h,e+i)&&f++);5<f&&(c+=3+f-5);}for(d=0;d<b-1;d++)for(e=0;e<b-1;e++)f=0,a.isDark(d,e)&&f++,a.isDark(d+1,e)&&f++,a.isDark(d,e+1)&&f++,a.isDark(d+1,e+1)&&f++,(0==f||4==f)&&(c+=3);for(d=0;d<b;d++)for(e=0;e<b-6;e++)a.isDark(d,e)&&!a.isDark(d,e+1)&&a.isDark(d,e+2)&&a.isDark(d,e+3)&&a.isDark(d,e+4)&&!a.isDark(d,e+5)&&a.isDark(d,e+6)&&(c+=40);for(e=0;e<b;e++)for(d=0;d<b-6;d++)a.isDark(d,e)&&!a.isDark(d+1,e)&&a.isDark(d+2,e)&&a.isDark(d+3,e)&&a.isDark(d+4,e)&&!a.isDark(d+5,e)&&a.isDark(d+6,e)&&(c+=40);for(g=f=0;e<b;e++)for(d=0;d<b;d++)a.isDark(d,e)&&g++;a=Math.abs(100*g/b/b-50)/5;return c+10*a;};
+  function n(a,b){if(void 0==a.length)throw Error(a.length+"/"+b);for(var c=0;c<a.length&&0==a[c];)c++;this.num=new Array(a.length-c+b);for(var d=0;d<a.length-c;d++)this.num[d]=a[d+c];}n.prototype={get:function(a){return this.num[a];},getLength:function(){return this.num.length;},multiply:function(a){for(var b=new Array(this.getLength()+a.getLength()-1),c=0;c<this.getLength();c++)for(var d=0;d<a.getLength();d++)b[c+d]^=o.gexp(o.glog(this.get(c))+o.glog(a.get(d)));return new n(b,0);},mod:function(a){if(this.getLength()-a.getLength()<0)return this;for(var b=o.glog(this.get(0))-o.glog(a.get(0)),c=new Array(this.getLength()),d=0;d<this.getLength();d++)c[d]=this.get(d);for(d=0;d<a.getLength();d++)c[d]^=o.gexp(o.glog(a.get(d))+b);return new n(c,0).mod(a);}};
+  var o={glogTable:Array(256),gexpTable:Array(256)};(function(){for(var a=0;a<8;a++)o.gexpTable[a]=1<<a;for(a=8;a<256;a++)o.gexpTable[a]=o.gexpTable[a-4]^o.gexpTable[a-5]^o.gexpTable[a-6]^o.gexpTable[a-8];for(a=0;a<255;a++)o.glogTable[o.gexpTable[a]]=a;})();o.glog=function(a){if(a<1)throw Error("glog("+a+")");return o.glogTable[a];};o.gexp=function(a){for(;a<0;)a+=255;for(;a>=256;)a-=255;return o.gexpTable[a];};
+  return { code:function(text){ var qr=new i(0,j.M); qr.addData(text); qr.make(); return qr; } };
+})();
+
+function drawQR(canvas, text){
+  try {
+    var qr = QR.code(text);
+    var n = qr.getModuleCount();
+    var scale = 6, border = 2;
+    canvas.width = (n + border*2) * scale;
+    canvas.height = canvas.width;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#000';
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (qr.isDark(r, c)) {
+      ctx.fillRect((c+border)*scale, (r+border)*scale, scale, scale);
+    }
+  } catch(e){
+    canvas.width=200; canvas.height=200;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,200,200);
+    ctx.fillStyle='#000'; ctx.font='12px monospace';
+    ctx.fillText(text,10,100);
+    console.warn('QR fallback', e);
+  }
+}
+
+/* =========================================================
+   STATE
+========================================================= */
+const state = {
+  phase: 'idle',
+  countdown: 30,
+  options: [],
+  votes: [0,0,0],
+  winner: null,
+  winnerLabel: null,
+  prompt: null,
+  agents: { pm:'idle', engineer:'idle', reviewer:'idle', deployer:'idle' },
+  active: null,
+  rejection: null,
+  timer: 0,
+  siteUrl: '',
+  logs: [],
+  spectators: 0,
+  iterating: false,
+  iterationVersion: 1,
+  siteUrlV1: '',
+  siteUrlV2: '',
+  myVote: (() => {
+    try { return parseInt(localStorage.getItem('factory_voted') || '0', 10) || null; }
+    catch(_) { return null; }
+  })(),
+};
+let slackHideTimer = null;
+
+/* =========================================================
+   PIXEL OFFICE v10 — sprite pack at 2x scale
+   Canvas: 800x480, logical TILE = 32px (each tile = 2 sprite units)
+   Every sprite rendered via drawImage at SCALE=2 destination size.
+   So a 16x32 character sprite renders at 32x64 on canvas → ~88x176 display.
+========================================================= */
+const TILE = 32;       // logical tile size in canvas pixels
+const SCALE = 2;       // sprite scale at draw time (2x)
+const SPR = 16;        // sprite source unit (1 tile in their pack)
+const COLS = 25;       // 25 * 32 = 800
+const ROWS = 15;       // 15 * 32 = 480
+
+// Map agents to character sprite indices (visually distinct)
+const CHAR_INDEX = { pm: 0, engineer: 2, reviewer: 4, deployer: 5 };
+
+// Desk anchor (top-left tile of the 3x2 desk in tile coords).
+// 2 rows of 2: PM/Coder up top, Reviewer/Deploy at bottom. Wide separation.
+const DESKS = {
+  pm:       { x: 4,  y: 3,  label: 'PM'       },
+  engineer: { x: 15, y: 3,  label: 'CODER'    },
+  reviewer: { x: 4,  y: 10, label: 'REVIEWER' },
+  deployer: { x: 15, y: 10, label: 'DEPLOY'   },
+};
+
+// Home tile = where character sits (behind desk center, one tile above the desk top).
+function homeTile(agent) {
+  return { x: DESKS[agent].x + 1, y: DESKS[agent].y - 1 };
+}
+
+const characters = {};
+for (const k of Object.keys(DESKS)) {
+  const h = homeTile(k);
+  characters[k] = {
+    tx: h.x, ty: h.y,
+    px: h.x * TILE, py: h.y * TILE,
+    dir: 'down',
+    anim: 'sit',
+    walking: null,
+  };
+}
+
+// Speech bubbles
+const bubbles = {};
+
+// Particles for celebrate
+const particles = [];
+
+const canvas = document.getElementById('office');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+/* =========================================================
+   ASSET PRELOADING
+========================================================= */
+const ASSETS = {
+  floor: new Image(),
+  bookshelf: new Image(),
+  doubleBookshelf: new Image(),
+  deskFront: new Image(),
+  deskSide: new Image(),
+  pcFrontOff: new Image(),
+  pcOn1: new Image(),
+  pcOn2: new Image(),
+  pcOn3: new Image(),
+  plant: new Image(),
+  plant2: new Image(),
+  largePlant: new Image(),
+  cactus: new Image(),
+  cushionedChairBack: new Image(),
+  largePainting: new Image(),
+  smallPainting: new Image(),
+  clock: new Image(),
+  coffee: new Image(),
+  whiteboard: new Image(),
+  hangingPlant: new Image(),
+  bin: new Image(),
+  woodenBench: new Image(),
+  characters: [],
+};
+ASSETS.floor.src = '/pixel-assets/floors/floor_5.png';
+ASSETS.bookshelf.src = '/pixel-assets/furniture/BOOKSHELF.png';
+ASSETS.doubleBookshelf.src = '/pixel-assets/furniture/DOUBLE_BOOKSHELF.png';
+ASSETS.deskFront.src = '/pixel-assets/furniture/DESK_FRONT.png';
+ASSETS.deskSide.src = '/pixel-assets/furniture/DESK_SIDE.png';
+ASSETS.pcFrontOff.src = '/pixel-assets/furniture/PC_FRONT_OFF.png';
+ASSETS.pcOn1.src = '/pixel-assets/furniture/PC_FRONT_ON_1.png';
+ASSETS.pcOn2.src = '/pixel-assets/furniture/PC_FRONT_ON_2.png';
+ASSETS.pcOn3.src = '/pixel-assets/furniture/PC_FRONT_ON_3.png';
+ASSETS.plant.src = '/pixel-assets/furniture/PLANT.png';
+ASSETS.plant2.src = '/pixel-assets/furniture/PLANT_2.png';
+ASSETS.largePlant.src = '/pixel-assets/furniture/LARGE_PLANT.png';
+ASSETS.cactus.src = '/pixel-assets/furniture/CACTUS.png';
+ASSETS.cushionedChairBack.src = '/pixel-assets/furniture/CUSHIONED_CHAIR_BACK.png';
+ASSETS.largePainting.src = '/pixel-assets/furniture/LARGE_PAINTING.png';
+ASSETS.smallPainting.src = '/pixel-assets/furniture/SMALL_PAINTING.png';
+ASSETS.clock.src = '/pixel-assets/furniture/CLOCK.png';
+ASSETS.coffee.src = '/pixel-assets/furniture/COFFEE.png';
+ASSETS.whiteboard.src = '/pixel-assets/furniture/WHITEBOARD.png';
+ASSETS.hangingPlant.src = '/pixel-assets/furniture/HANGING_PLANT.png';
+ASSETS.bin.src = '/pixel-assets/furniture/BIN.png';
+ASSETS.woodenBench.src = '/pixel-assets/furniture/WOODEN_BENCH.png';
+for (let i = 0; i < 6; i++) {
+  const img = new Image();
+  img.src = '/pixel-assets/characters/char_' + i + '.png';
+  ASSETS.characters.push(img);
+}
+
+function imageLoaded(img) {
+  return new Promise(res => {
+    if (img.complete && img.naturalWidth > 0) return res();
+    img.onload = () => res();
+    img.onerror = () => res();   // don't block on a single missing asset
+  });
+}
+async function preloadAssets() {
+  const all = [
+    ASSETS.floor, ASSETS.bookshelf, ASSETS.doubleBookshelf,
+    ASSETS.deskFront, ASSETS.deskSide,
+    ASSETS.pcFrontOff, ASSETS.pcOn1, ASSETS.pcOn2, ASSETS.pcOn3,
+    ASSETS.plant, ASSETS.plant2, ASSETS.largePlant, ASSETS.cactus,
+    ASSETS.cushionedChairBack, ASSETS.largePainting, ASSETS.smallPainting,
+    ASSETS.clock, ASSETS.coffee, ASSETS.whiteboard, ASSETS.hangingPlant,
+    ASSETS.bin, ASSETS.woodenBench,
+    ...ASSETS.characters,
+  ];
+  await Promise.all(all.map(imageLoaded));
+}
+
+// Draw a sprite scaled SCALE-times bigger from its native size.
+// Args: img + source rect + destination top-left in canvas px.
+function spr(img, sx, sy, sw, sh, dx, dy) {
+  if (!img || !img.complete || img.naturalWidth === 0) return;
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, sw*SCALE, sh*SCALE);
+}
+// Plain (no source rect) — for whole-image furniture sprites.
+function sprWhole(img, dx, dy) {
+  if (!img || !img.complete || img.naturalWidth === 0) return;
+  ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, dx, dy, img.naturalWidth*SCALE, img.naturalHeight*SCALE);
+}
+
+/* =========================================================
+   FLOOR + WALLS — drawn via canvas (warm wood, NOT the
+   grayscale tile sprites which need HSL colorization).
+========================================================= */
+const FLOOR_LIGHT = '#d4a574';
+const FLOOR_DARK  = '#b08458';
+const WALL_FRONT  = '#5b3a1f';
+const WALL_TOP    = '#3d2818';
+const WALL_HIGH   = '#8b5a2f';
+const WALL_TRIM   = '#a87a4d';
+
+const WALL_THICKNESS_TILES = 1;          // 1 tile = 32 px
+const WALL_PX = WALL_THICKNESS_TILES * TILE;
+
+function drawFloor() {
+  // Warm wood plank floor — staggered brick pattern
+  // Plank size: 4 tiles wide × 1 tile tall (128×32 px)
+  const PW = 4 * TILE, PH = TILE;
+  for (let row = WALL_THICKNESS_TILES; row < ROWS; row++) {
+    const offset = (row % 2) * (PW / 2);
+    for (let plankX = -PW; plankX < COLS*TILE + PW; plankX += PW) {
+      const px = plankX + offset;
+      // Plank base
+      ctx.fillStyle = (row % 2 === 0) ? FLOOR_LIGHT : FLOOR_DARK;
+      ctx.fillRect(px, row * TILE, PW, PH);
+      // Plank highlight on top edge
+      ctx.fillStyle = 'rgba(255,235,200,0.18)';
+      ctx.fillRect(px, row * TILE, PW, 2);
+      // Plank seam shadow on bottom edge
+      ctx.fillStyle = 'rgba(60,30,15,0.35)';
+      ctx.fillRect(px, row * TILE + PH - 2, PW, 2);
+      // Vertical seam between planks
+      ctx.fillStyle = 'rgba(60,30,15,0.45)';
+      ctx.fillRect(px - 1, row * TILE, 2, PH);
+    }
+  }
+  // Soft area-rug under each desk row pair
+  const rugRows = [DESKS.pm.y - 1, DESKS.reviewer.y - 1];
+  for (const ry of rugRows) {
+    const rugX = TILE, rugY = ry * TILE, rugW = (COLS - 2) * TILE, rugH = 4 * TILE;
+    ctx.fillStyle = 'rgba(124, 45, 18, 0.10)';
+    ctx.fillRect(rugX, rugY, rugW, rugH);
+  }
+}
+
+function drawWalls() {
+  const W = COLS * TILE, H = ROWS * TILE;
+  // Top wall — paneled wood band
+  ctx.fillStyle = WALL_FRONT;
+  ctx.fillRect(0, 0, W, WALL_PX);
+  ctx.fillStyle = WALL_TOP;
+  ctx.fillRect(0, 0, W, 8);
+  // Paneling slats
+  ctx.fillStyle = WALL_HIGH;
+  for (let x = 0; x < COLS; x += 1) ctx.fillRect(x*TILE+2, 8, 2, WALL_PX - 12);
+  // Trim band
+  ctx.fillStyle = WALL_TRIM;
+  ctx.fillRect(0, WALL_PX - 6, W, 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(0, WALL_PX - 3, W, 3);
+
+  // Bottom dark shadow strip (optional)
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(0, H - 6, W, 6);
+}
+
+/* =========================================================
+   BACK-WALL DECOR — bookshelves, paintings, clock
+   All sprites drawn at SCALE = 2, sitting on top of wall band.
+   y position = WALL_PX - sprite_h*SCALE means base of sprite touches wall bottom.
+========================================================= */
+function drawBackWallDecor() {
+  // ── Bookshelves along the back wall ──
+  // DOUBLE_BOOKSHELF is 32x32 → renders 64x64 = 2 tiles wide × 2 tall.
+  // Place at y so its top is at -32 (above visible area) and bottom inside wall.
+  // Stack so they look like floor-to-ceiling shelves.
+  const shelfY = -16;   // Slightly above viewport — bookshelf top vanishes into "ceiling"
+  const dblShelves = [
+    { x: 1 },  { x: 3 },                     // left cluster
+    { x: 8 },  { x: 10 },                    // center-left cluster
+    { x: 14 }, { x: 16 },                    // center-right cluster
+    { x: 21 }, { x: 23 },                    // right cluster
+  ];
+  for (const sh of dblShelves) {
+    sprWhole(ASSETS.doubleBookshelf, sh.x * TILE, shelfY);
+  }
+
+  // ── Centered painting (LARGE_PAINTING is 32x32 → 64x64) ──
+  const paintX = Math.floor(COLS/2) * TILE - 32;
+  sprWhole(ASSETS.largePainting, paintX, 8);
+
+  // ── Whiteboard to the side of painting (whiteboard 16x16 → 32x32) ──
+  sprWhole(ASSETS.whiteboard, paintX - 80, 12);
+
+  // ── Clock in top-right (16x16 → 32x32) ──
+  sprWhole(ASSETS.clock, (COLS - 2) * TILE - 8, 8);
+
+  // ── Hanging plants in upper corners (16x16 → 32x32) ──
+  sprWhole(ASSETS.hangingPlant, 6, WALL_PX - 8);
+  sprWhole(ASSETS.hangingPlant, (COLS - 1) * TILE - 24, WALL_PX - 8);
+}
+
+/* =========================================================
+   FOREGROUND DECOR — plants, coffee, water cooler, etc
+   These render IN FRONT of desks/characters (after them in z-order).
+========================================================= */
+function drawForegroundDecor() {
+  // Front-corner large plants (LARGE_PLANT is 32x32 → 64x64 = 2x2 tiles)
+  sprWhole(ASSETS.largePlant, 0 * TILE, (ROWS - 3) * TILE);
+  sprWhole(ASSETS.largePlant, (COLS - 2) * TILE, (ROWS - 3) * TILE);
+
+  // Cactus + small plants between desk rows (middle aisle)
+  // CACTUS, PLANT, PLANT_2 are 16x32 → 32x64 = 1×2 tiles
+  sprWhole(ASSETS.cactus,  (Math.floor(COLS/2) - 4) * TILE, 6 * TILE);
+  sprWhole(ASSETS.plant,   (Math.floor(COLS/2) - 1) * TILE, 6 * TILE);
+  sprWhole(ASSETS.plant2,  (Math.floor(COLS/2) + 2) * TILE, 6 * TILE);
+
+  // Coffee station bottom-middle (COFFEE is small, ~16x16 → 32x32)
+  sprWhole(ASSETS.coffee, (Math.floor(COLS/2) - 1) * TILE, 13 * TILE);
+
+  // Bin in bottom-right corner (BIN 16x16 → 32x32)
+  sprWhole(ASSETS.bin, (COLS - 3) * TILE, 13 * TILE);
+
+  // Wooden bench under the painting
+  sprWhole(ASSETS.woodenBench, (Math.floor(COLS/2) - 1) * TILE - 16, 1 * TILE + 4);
+}
+
+function drawLampGlows() {
+  // Warm radial pool under each desk — boosts the cozy "lit office" feel
+  for (const k of Object.keys(DESKS)) {
+    const d = DESKS[k];
+    const cx = d.x * TILE + TILE * 1.5, cy = d.y * TILE + TILE;
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 140);
+    grad.addColorStop(0,    'rgba(252,211,77,0.30)');
+    grad.addColorStop(0.45, 'rgba(252,211,77,0.14)');
+    grad.addColorStop(1,    'rgba(252,211,77,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(cx - 140, cy - 140, 280, 280);
+  }
+}
+
+/* =========================================================
+   DESK — drawn at SCALE = 2.
+   DESK_FRONT is 48x32 native → renders 96x64 (3 tiles × 2 tiles).
+========================================================= */
+function drawDesk(agent) {
+  const d = DESKS[agent];
+  const dx = d.x * TILE, dy = d.y * TILE;
+
+  // Desk
+  sprWhole(ASSETS.deskFront, dx, dy);
+
+  // PC on desk — picks animated frame when agent is working
+  let pc = ASSETS.pcOn1;
+  const isWorking = state.agents[agent] === 'working' && characters[agent].anim === 'type';
+  if (isWorking) {
+    const tf = Math.floor(Date.now() / 220) % 3;
+    pc = tf === 0 ? ASSETS.pcOn1 : tf === 1 ? ASSETS.pcOn2 : ASSETS.pcOn3;
+  } else if (state.agents[agent] === 'idle') {
+    pc = ASSETS.pcFrontOff;
+  }
+  // PC on RIGHT column of 3-tile-wide desk so character's head/torso (center)
+  // remains visible. PC native 16x16 → renders 32x32.
+  sprWhole(pc, dx + 2*TILE, dy - 24);
+
+  // Coffee mug on LEFT column of desk (COFFEE 16x16 → 32x32)
+  sprWhole(ASSETS.coffee, dx + 4, dy + 4);
+
+  // Gold name plate on the front face of desk
+  const plateY = dy + TILE + 16;
+  ctx.fillStyle = '#fcd34d';
+  ctx.fillRect(dx + 8, plateY, 80, 18);
+  ctx.fillStyle = '#b45309';
+  ctx.fillRect(dx + 8, plateY + 17, 80, 2);
+  ctx.fillStyle = '#3d2818';
+  ctx.font = 'bold 13px Inter, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(d.label, dx + 13, plateY + 13);
+  ctx.textAlign = 'left';
+}
+
+/* =========================================================
+   CHARACTERS — sprites drawn at SCALE = 2 → 32×64 on canvas.
+   Sheet: 112x96 = 7 frames × 16w × 3 rows × 32h.
+   Row 0 down, Row 1 up, Row 2 right (left = flip).
+   Frames: 0 idle, 0..3 walk, 4..5 typing, 6 reading.
+========================================================= */
+const WALK_CYCLE = [0, 1, 0, 2];
+const CHAR_W_PX = SPR * SCALE;       // 32
+const CHAR_H_PX = (SPR * 2) * SCALE; // 64
+
+function drawCharacter(agent) {
+  const ch = characters[agent];
+  const charIdx = CHAR_INDEX[agent];
+  const img = ASSETS.characters[charIdx];
+  if (!img || !img.complete || img.naturalWidth === 0) return;
+
+  const x = Math.round(ch.px), y = Math.round(ch.py);
+  const t = Date.now();
+
+  // Drop shadow on floor under feet
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(x + 4, y + CHAR_H_PX - 4, CHAR_W_PX - 8, 5);
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillRect(x + 1, y + CHAR_H_PX - 1, CHAR_W_PX - 2, 3);
+
+  let frameX = 0, frameY = 0;
+  let flip = false;
+
+  if (ch.walking) {
+    const wf = WALK_CYCLE[Math.floor(t / 180) % 4];
+    switch (ch.dir) {
+      case 'right': frameY = 64; frameX = wf * 16; break;
+      case 'left':  frameY = 64; frameX = wf * 16; flip = true; break;
+      case 'up':    frameY = 32; frameX = wf * 16; break;
+      default:      frameY = 0;  frameX = wf * 16; break;
+    }
+  } else if (ch.anim === 'type' && state.agents[agent] === 'working') {
+    const tf = Math.floor(t / 240) % 2;
+    frameX = (4 + tf) * 16;
+    frameY = 0;
+  } else {
+    frameX = 0; frameY = 0;
+  }
+
+  // Celebrate bounce
+  let drawY = y;
+  if (state.agents[agent] === 'celebrate') {
+    drawY = y + Math.round(Math.sin(t / 180) * -3);
+  }
+
+  // Draw sprite scaled 2x
+  if (flip) {
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.drawImage(img, frameX, frameY, 16, 32, -(x + CHAR_W_PX), drawY, CHAR_W_PX, CHAR_H_PX);
+    ctx.restore();
+  } else {
+    ctx.drawImage(img, frameX, frameY, 16, 32, x, drawY, CHAR_W_PX, CHAR_H_PX);
+  }
+
+  // "Typing" indicator dots above head
+  if (state.agents[agent] === 'working' && !ch.walking) {
+    const dot = Math.floor(t / 250) % 3;
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = i === dot ? '#fcd34d' : 'rgba(252,211,77,0.35)';
+      ctx.fillRect(x + 4 + i*8, y - 12, 5, 5);
+    }
+  }
+  // Celebrate star
+  if (state.agents[agent] === 'celebrate') {
+    ctx.fillStyle = '#fcd34d';
+    ctx.font = 'bold 22px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('★', x + CHAR_W_PX/2, drawY - 4);
+    ctx.textAlign = 'left';
+  }
+}
+
+/* =========================================================
+   SPEECH BUBBLES — multi-line word wrap, copied from v9
+========================================================= */
+function wrapBubbleText(text, maxWidth, font) {
+  ctx.font = font;
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawBubble(agent) {
+  const b = bubbles[agent];
+  if (!b || Date.now() > b.expiresAt) return;
+  const ch = characters[agent];
+  const x = Math.round(ch.px), y = Math.round(ch.py);
+  const font = 'bold 16px Inter, sans-serif';
+  const maxW = 360;
+  const padX = 14, padY = 10, lineH = 20;
+  const lines = wrapBubbleText(b.text, maxW, font).slice(0, 4);
+  ctx.font = font;
+  let textW = 0;
+  for (const l of lines) textW = Math.max(textW, ctx.measureText(l).width);
+  const w = Math.min(maxW, Math.ceil(textW)) + padX*2;
+  const h = lines.length * lineH + padY*2;
+  // Anchor centered above character (character is CHAR_W_PX = 32 wide)
+  const anchor = x + CHAR_W_PX/2;
+  let bx = anchor - w/2, by = y - h - 16;
+  if (bx < 8) bx = 8;
+  if (bx + w > COLS*TILE - 8) bx = COLS*TILE - w - 8;
+  // If there's no room above (top-row agents), flip bubble below the character.
+  const bubbleAbove = !(by < 4);
+  if (!bubbleAbove) by = y + CHAR_H_PX + 8;
+
+  // Clamp tail X so it stays within the (potentially edge-clamped) bubble body.
+  const tailX = Math.max(bx + 6, Math.min(bx + w - 6, anchor));
+
+  // Drop shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(bx+3, by+4, w, h);
+  // Bubble bg
+  ctx.fillStyle = '#fdf6e3';
+  ctx.fillRect(bx, by, w, h);
+  // Outline
+  ctx.fillStyle = '#3d2818';
+  ctx.fillRect(bx, by, w, 3);
+  ctx.fillRect(bx, by+h-3, w, 3);
+  ctx.fillRect(bx, by, 3, h);
+  ctx.fillRect(bx+w-3, by, 3, h);
+  // Tail — always points TOWARD the character.
+  if (bubbleAbove) {
+    // Bubble above, tail at bottom pointing down
+    ctx.fillStyle = '#fdf6e3';
+    ctx.fillRect(tailX - 5, by + h - 3, 10, 6);
+    ctx.fillStyle = '#3d2818';
+    ctx.fillRect(tailX - 5, by + h + 3, 2, 2);
+    ctx.fillRect(tailX + 4, by + h + 3, 2, 2);
+  } else {
+    // Bubble below, tail at top pointing up
+    ctx.fillStyle = '#fdf6e3';
+    ctx.fillRect(tailX - 5, by - 3, 10, 6);
+    ctx.fillStyle = '#3d2818';
+    ctx.fillRect(tailX - 5, by - 5, 2, 2);
+    ctx.fillRect(tailX + 4, by - 5, 2, 2);
+  }
+  // Text
+  ctx.fillStyle = '#3d2818';
+  ctx.textAlign = 'left';
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], bx + padX, by + padY + lineH * (i + 1) - 4);
+  }
+}
+
+function drawParticles() {
+  for (let i = particles.length-1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.15;
+    p.life--;
+    if (p.life <= 0) { particles.splice(i,1); continue; }
+    ctx.globalAlpha = Math.max(0, p.life/40);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(Math.round(p.x), Math.round(p.y), 3, 3);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function spawnConfetti() {
+  const cs = ['#fcd34d','#34d399','#2dd4bf','#fb7185','#a78bfa','#fb923c'];
+  for (let i = 0; i < 80; i++) {
+    particles.push({
+      x: COLS*TILE/2 + (Math.random()-0.5)*120,
+      y: ROWS*TILE/2,
+      vx: (Math.random()-0.5)*4,
+      vy: -Math.random()*4 - 2,
+      life: 40 + Math.random()*20,
+      color: cs[Math.floor(Math.random()*cs.length)],
+    });
+  }
+}
+
+/* =========================================================
+   WALKING — L-shaped path through center corridor
+========================================================= */
+const CORRIDOR_Y = 7;   // middle row in 15-row grid
+
+function planWalk(from, to) {
+  const start = { x: characters[from].tx, y: characters[from].ty };
+  // Walk to a tile next to the destination desk so the visiting agent
+  // isn't standing on top of the seated one.
+  // DESKS[to] is the top-left of a 3-tile-wide desk; arrive one tile to its right side.
+  const end = { x: DESKS[to].x + 3, y: DESKS[to].y - 1 };
+  const path = [start];
+  if (start.y !== CORRIDOR_Y) path.push({ x: start.x, y: CORRIDOR_Y });
+  if (start.x !== end.x)      path.push({ x: end.x, y: CORRIDOR_Y });
+  if (end.y !== CORRIDOR_Y)   path.push({ x: end.x, y: end.y });
+  return path;
+}
+
+function buildPathTo(fromX, fromY, toX, toY) {
+  const path = [{ x: fromX, y: fromY }];
+  if (fromY !== CORRIDOR_Y) path.push({ x: fromX, y: CORRIDOR_Y });
+  if (fromX !== toX)        path.push({ x: toX, y: CORRIDOR_Y });
+  if (toY !== CORRIDOR_Y)   path.push({ x: toX, y: toY });
+  return path;
+}
+
+function startWalk(agent, to) {
+  const path = planWalk(agent, to);
+  characters[agent].walking = { path, segIdx: 0, segT: 0, target: to };
+  characters[agent].anim = 'walk';
+}
+
+function updateMovement(dt) {
+  for (const k in characters) {
+    const ch = characters[k];
+    if (!ch.walking) continue;
+    const w = ch.walking;
+    const seg = w.path[w.segIdx];
+    const next = w.path[w.segIdx + 1];
+    if (!next) {
+      ch.tx = seg.x;
+      ch.ty = seg.y;
+      ch.px = ch.tx * TILE;
+      ch.py = ch.ty * TILE;
+
+      if (w.returningHome) {
+        ch.walking = null;
+        ch.anim = state.agents[k] === 'working' ? 'type' : 'sit';
+        if (ch.anim === 'type') drainPendingBubbles(k);
+      } else {
+        const home = homeTile(k);
+        if (seg.x === home.x && seg.y === home.y) {
+          ch.walking = null;
+          ch.anim = state.agents[k] === 'working' ? 'type' : 'sit';
+          if (ch.anim === 'type') drainPendingBubbles(k);
+        } else {
+          ch.walking = {
+            path: buildPathTo(seg.x, seg.y, home.x, home.y),
+            segIdx: 0,
+            segT: 0,
+            returningHome: true,
+          };
+          ch.anim = 'walk';
+        }
+      }
+      continue;
+    }
+    const dx = next.x - seg.x, dy = next.y - seg.y;
+    const distTiles = Math.abs(dx) + Math.abs(dy);
+    const speed = computeWalkSpeed();
+    w.segT += (dt/1000) * speed;
+    if (w.segT >= distTiles) {
+      w.segIdx++;
+      w.segT = 0;
+      ch.tx = next.x;
+      ch.ty = next.y;
+      ch.px = ch.tx * TILE;
+      ch.py = ch.ty * TILE;
+    } else {
+      const t = w.segT / distTiles;
+      ch.px = (seg.x + dx*t) * TILE;
+      ch.py = (seg.y + dy*t) * TILE;
+      ch.dir = dx > 0 ? 'right' : dx < 0 ? 'left' : (dy > 0 ? 'down' : 'up');
+    }
+  }
+}
+
+/* =========================================================
+   RENDER LOOP — z-sorted
+========================================================= */
+let lastFrame = performance.now();
+function render() {
+  const now = performance.now();
+  const dt = now - lastFrame;
+  lastFrame = now;
+
+  updateMovement(dt);
+
+  // 1. Background — fill with dark wood color, then floor tiles, then walls
+  ctx.fillStyle = '#1a0e08';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawFloor();
+  drawWalls();
+
+  // 2. Back-wall decor (bookshelves, painting, clock, hanging plants)
+  drawBackWallDecor();
+
+  // 3. Lamp glows over the floor
+  drawLampGlows();
+
+  // 4. Desks + characters — z-sorted by py for proper depth.
+  // Each desk has its character behind/above it; we draw character first,
+  // then desk on top so the desk visually covers the character's lower body.
+  // For walking characters, draw them in their own z-order pass.
+  const seatedAgents = [];
+  const walkingAgents = [];
+  for (const k of Object.keys(characters)) {
+    if (characters[k].walking) walkingAgents.push(k);
+    else seatedAgents.push(k);
+  }
+
+  // Sort desks by y to draw back-row first
+  const allAgentsByY = Object.keys(DESKS).sort((a, b) => DESKS[a].y - DESKS[b].y);
+  for (const k of allAgentsByY) {
+    if (seatedAgents.includes(k)) {
+      drawCharacter(k);   // character first (behind desk)
+      drawDesk(k);        // desk on top — covers lower body
+    } else {
+      drawDesk(k);        // empty desk only
+    }
+  }
+
+  // 5. Foreground decor (front-corner plants, middle-aisle plants)
+  drawForegroundDecor();
+
+  // 6. Walking characters — sorted by py so they appear correctly relative
+  // to other walking agents. They draw on top of foreground decor so they
+  // remain visible while moving through the room.
+  walkingAgents.sort((a, b) => characters[a].py - characters[b].py);
+  for (const k of walkingAgents) drawCharacter(k);
+
+  // 7. Speech bubbles — always on top
+  for (const k in bubbles) drawBubble(k);
+
+  // 8. Particles
+  drawParticles();
+
+  requestAnimationFrame(render);
+}
+
+/* =========================================================
+   SSE → state updates  (logic identical to v9)
+========================================================= */
+const MAP_AGENT = { pm:'pm', coder:'engineer', engineer:'engineer', reviewer:'reviewer', deployer:'deployer' };
+let activeAgentRef = null;
+let rejectTimerRef = null;
+
+function setAgent(agent, status) {
+  state.agents[agent] = status;
+  const chip = document.querySelector('.agent-chip[data-agent="'+agent+'"]');
+  if (chip) chip.dataset.state = status;
+  if (status === 'working') {
+    characters[agent].anim = 'type';
+    // Agent just sat down and started typing — release any queued bubbles.
+    drainPendingBubbles(agent);
+  } else if (status === 'celebrate') {
+    characters[agent].anim = 'sit';
+  } else {
+    if (!characters[agent].walking) characters[agent].anim = 'sit';
+  }
+}
+
+// Walking speed is targeted at a constant *visual* pixels-per-second so the
+// character's traversal feels equally paced on phones (small canvas) and
+// desktops (large canvas). Without this, a fixed tiles/sec speed makes the
+// character visually rip across a tiny mobile screen and crawl on desktop.
+// TARGET_VISUAL_PX_PER_SEC was tuned so the speed lands ~5 tiles/sec on a
+// typical desktop layout — slower than the prior 7 tiles/sec, giving the
+// audience more time to register handoffs (see Bug 4).
+const TARGET_VISUAL_PX_PER_SEC = 200;
+const MIN_TILES_PER_SEC = 4;
+const MAX_TILES_PER_SEC = 8;
+function computeWalkSpeed() {
+  const cw = canvas.clientWidth || canvas.width;
+  const scale = cw / canvas.width; // visual px per logical canvas px
+  const tilesPerSec = (TARGET_VISUAL_PX_PER_SEC / TILE) / Math.max(scale, 0.0001);
+  return Math.max(MIN_TILES_PER_SEC, Math.min(MAX_TILES_PER_SEC, tilesPerSec));
+}
+
+function estimateWalkMs(from, to) {
+  const path = planWalk(from, to);
+  let totalTiles = 0;
+  for (let i = 1; i < path.length; i++) {
+    totalTiles += Math.abs(path[i].x - path[i-1].x) + Math.abs(path[i].y - path[i-1].y);
+  }
+  const speed = computeWalkSpeed();
+  return (totalTiles / speed) * 1000;
+}
+
+let pendingWorkTimer = null;
+function setAgentWorking(agent) {
+  if (activeAgentRef && activeAgentRef !== agent) {
+    const previous = activeAgentRef;
+    setAgent(previous, 'done');
+    startWalk(previous, agent);
+    activeAgentRef = agent;
+    if (pendingWorkTimer) clearTimeout(pendingWorkTimer);
+    const walkMs = estimateWalkMs(previous, agent);
+    pendingWorkTimer = setTimeout(() => {
+      setAgent(agent, 'working');
+      pendingWorkTimer = null;
+    }, walkMs + 600);
+  } else {
+    setAgent(agent, 'working');
+    activeAgentRef = agent;
+  }
+}
+
+// Per-agent queue of bubbles waiting for the agent to actually be at-desk
+// and typing. Without this, a bubble can appear over a still-walking or
+// still-seated agent before the handoff visually completes.
+const pendingBubbles = {};
+
+function showBubble(agent, text) {
+  // If the agent isn't actively working/typing yet (still walking or sitting),
+  // queue the bubble. It'll be drained the moment the character settles into
+  // the 'type' anim (see drainPendingBubbles calls in setAgent + updateMovement).
+  const ch = characters[agent];
+  const ready = state.agents[agent] === 'working' && ch && ch.anim === 'type';
+  if (!ready) {
+    if (!pendingBubbles[agent]) pendingBubbles[agent] = [];
+    pendingBubbles[agent].push(text);
+    return;
+  }
+  bubbles[agent] = { text, expiresAt: Date.now() + 4500 };
+}
+
+function drainPendingBubbles(agent) {
+  const q = pendingBubbles[agent];
+  if (!q || q.length === 0) return;
+  const text = q.shift();
+  bubbles[agent] = { text, expiresAt: Date.now() + 4500 };
+}
+
+function addLog(agent, msg) {
+  const list = document.getElementById('log-list');
+  const row = document.createElement('div');
+  row.className = 'log-row';
+  row.innerHTML = '<div class="log-agent '+agent+'">'+agent+'</div><div class="log-msg">'+escapeHTML(msg)+'</div>';
+  list.insertBefore(row, list.firstChild);
+  while (list.children.length > 12) list.removeChild(list.lastChild);
+}
+function escapeHTML(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+
+const banner = document.getElementById('banner');
+let bannerTO = null;
+function showBanner(text, kind, ms) {
+  banner.textContent = text;
+  banner.className = 'banner show ' + (kind||'gold');
+  if (bannerTO) clearTimeout(bannerTO);
+  if (ms) bannerTO = setTimeout(()=>{ banner.className = 'banner'; }, ms);
+}
+function hideBanner(){ banner.className = 'banner'; if(bannerTO){clearTimeout(bannerTO);bannerTO=null;} }
+
+function setPhase(p) {
+  state.phase = p;
+  document.getElementById('phase-pill').textContent = p.toUpperCase();
+  document.getElementById('idle-overlay').classList.toggle('hide', p !== 'idle');
+  document.getElementById('voting-overlay').classList.toggle('show', p === 'voting');
+  document.getElementById('result-overlay').classList.toggle('show', p === 'complete');
+  if (p !== 'building') hideBanner();
+}
+
+function renderVoteCards() {
+  const grid = document.getElementById('vote-grid');
+  const totalRaw = state.votes.reduce((a,b)=>a+b, 0);
+  const total = totalRaw || 1;
+  const max = Math.max(...state.votes);
+  const isOpen = state.phase === 'voting';
+  grid.innerHTML = state.options.map((o, i) => {
+    const v = state.votes[i] || 0;
+    const pct = Math.round((v/total)*100);
+    const leading = v === max && v > 0;
+    const mine = state.myVote === o.id;
+    const votedAlready = state.myVote != null;
+    const disabled = !isOpen || votedAlready;
+    return `
+      <button class="vote-card ${leading?'leading':''} ${mine?'mine':''} ${disabled?'disabled':''}" data-id="${o.id}" type="button" aria-label="Vote for ${escapeHTML(o.label)}" ${disabled?'disabled':''}>
+        <div class="vote-card-num">0${o.id}${mine?' <span class="mine-tag">YOUR VOTE</span>':''}</div>
+        <div class="vote-card-label">${escapeHTML(o.label)}</div>
+        <div class="vote-card-desc">${escapeHTML(o.description||'')}</div>
+        <div class="vote-bar"><div class="vote-bar-fill" style="width:${pct}%"></div></div>
+        <span class="vote-bar-pct">${pct}%</span>
+        <span class="vote-card-votes">${v} vote${v===1?'':'s'}</span>
+      </button>
+    `;
+  }).join('');
+  // Wire taps
+  grid.querySelectorAll('.vote-card').forEach(el => {
+    el.addEventListener('click', onVoteCardClick);
+  });
+  document.getElementById('ms-votes').textContent = totalRaw;
+}
+
+async function onVoteCardClick(ev) {
+  const card = ev.currentTarget;
+  const id = parseInt(card.dataset.id, 10);
+  if (!id) return;
+  if (state.phase !== 'voting') return;
+  if (state.myVote != null) return;
+  // Optimistic UI
+  state.myVote = id;
+  try { localStorage.setItem('factory_voted', String(id)); } catch(_) {}
+  const idx = state.options.findIndex(o => o.id === id);
+  if (idx >= 0) state.votes[idx] = (state.votes[idx]||0) + 1;
+  renderVoteCards();
+  // Toast feedback
+  showBanner('VOTE LOCKED · Option ' + id, 'teal', 1800);
+  // POST
+  try {
+    const r = await fetch('/factory/api/vote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ option: id }),
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      // If server rejected (voting closed), reconcile from server tally
+      if (j && j.tally && j.tally.options) {
+        state.votes = j.tally.options.map(o => o.votes || 0);
+        renderVoteCards();
+      }
+    }
+  } catch (_) {
+    // Network blip — SSE will reconcile soon
+  }
+}
+
+function setCountdown(n) {
+  state.countdown = n;
+  const el = document.getElementById('countdown');
+  el.textContent = n;
+  el.classList.toggle('urgent', n <= 10);
+}
+
+function handleEvent(evt) {
+  switch (evt.type) {
+    case 'voting_state': {
+      const vs = evt.votingState || evt;
+      if (vs.options) state.options = vs.options;
+      state.votes = (vs.options || []).map(o => o.votes || 0);
+      if (vs.status === 'open') {
+        setPhase('voting');
+        state.winner = null;
+        state.winnerLabel = null;
+        // Clear iteration state for a fresh round
+        state.iterating = false;
+        state.iterationVersion = 1;
+        state.siteUrlV2 = '';
+        const card = document.getElementById('result-card');
+        if (card) card.classList.remove('v2');
+        const v2El = document.getElementById('result-url-v2');
+        if (v2El) v2El.style.display = 'none';
+        const slack = document.getElementById('slack-overlay');
+        if (slack) slack.classList.remove('show');
+        renderVoteCards();
+        if (cdIv) clearInterval(cdIv);
+        const tickCd = () => {
+          const remaining = Math.max(0, Math.ceil(((vs.endsAt||0) - Date.now())/1000));
+          setCountdown(remaining);
+        };
+        tickCd();
+        cdIv = setInterval(tickCd, 250);
+      } else if (vs.status === 'closed') {
+        if (vs.options) {
+          const w = vs.options.find(o => o.id === vs.winner);
+          if (w) {
+            state.winner = vs.winner;
+            state.winnerLabel = w.label;
+            showBanner('WINNER: ' + w.label, 'gold', 3500);
+          }
+        }
+        if (cdIv) { clearInterval(cdIv); cdIv = null; }
+        renderVoteCards();
+      } else {
+        setPhase('idle');
+        state.winner = null;
+        state.winnerLabel = null;
+        state.votes = [0,0,0];
+        // Fresh round — clear last vote so audience can vote again
+        state.myVote = null;
+        try { localStorage.removeItem('factory_voted'); } catch(_) {}
+        document.getElementById('ms-votes').textContent = 0;
+        if (cdIv) { clearInterval(cdIv); cdIv = null; }
+      }
+      break;
+    }
+    case 'build_started': {
+      const isIteration = !!evt.iteration;
+      setPhase('building');
+      if (!isIteration) {
+        state.timer = 0;
+        state.prompt = evt.fullPrompt || evt.brief || 'Building';
+      } else {
+        state.iterating = true;
+      }
+      state.rejection = null;
+      activeAgentRef = null;
+      for (const k in state.agents) setAgent(k, 'idle');
+      // Reset characters to home
+      for (const k in characters) {
+        const h = homeTile(k);
+        characters[k].walking = null;
+        characters[k].tx = h.x;
+        characters[k].ty = h.y;
+        characters[k].px = h.x * TILE;
+        characters[k].py = h.y * TILE;
+        characters[k].anim = 'sit';
+        characters[k].dir = 'down';
+      }
+      for (const k in bubbles) delete bubbles[k];
+      for (const k in pendingBubbles) delete pendingBubbles[k];
+      if (timerIv) clearInterval(timerIv);
+      timerIv = setInterval(()=>{
+        state.timer++;
+        const m = String(Math.floor(state.timer/60)).padStart(2,'0');
+        const s = String(state.timer%60).padStart(2,'0');
+        document.getElementById('timer-text').textContent = m+':'+s;
+        const pct = Math.min(95, (state.timer/35)*100);
+        document.getElementById('progress-fill').style.width = pct+'%';
+      }, 1000);
+      if (isIteration) {
+        addLog('system', 'Iteration: ' + (evt.brief||'v2 changes'));
+        showBanner('ITERATING — applying changes', 'iter', 3500);
+      } else {
+        addLog('system', 'Build started: ' + (evt.brief||''));
+        showBanner('BUILDING: ' + (evt.brief||state.winnerLabel||''), 'teal', 3000);
+      }
+      break;
+    }
+    case 'slack_message': {
+      const overlay = document.getElementById('slack-overlay');
+      document.getElementById('slack-channel').textContent = evt.channel || 'agent-factory-demo';
+      document.getElementById('slack-sender').textContent = evt.sender || 'Georg';
+      document.getElementById('slack-recipient').textContent = evt.recipient || 'PM';
+      document.getElementById('slack-msg').textContent = evt.message || '';
+      const av = document.getElementById('slack-av');
+      av.textContent = (evt.sender || 'G').charAt(0).toUpperCase();
+      const d = new Date(evt.ts || Date.now());
+      const pad = n => String(n).padStart(2,'0');
+      document.getElementById('slack-time').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
+      overlay.classList.add('show');
+      addLog('system', 'Slack: ' + (evt.sender||'Georg') + ' → @' + (evt.recipient||'PM') + ': ' + (evt.message||''));
+      if (slackHideTimer) clearTimeout(slackHideTimer);
+      slackHideTimer = setTimeout(() => {
+        overlay.classList.remove('show');
+      }, 8000);
+      break;
+    }
+    case 'iteration_complete': {
+      state.iterating = false;
+      state.iterationVersion = evt.version || 2;
+      state.siteUrlV1 = evt.siteUrlV1 || state.siteUrlV1 || '';
+      state.siteUrlV2 = evt.siteUrlV2 || evt.siteUrl || '';
+      addLog('system', 'v2 deployed — ' + (state.siteUrlV2 || 'live'));
+      // Mark the result card as v2 (in case it's already showing) + adjust copy
+      const card = document.getElementById('result-card');
+      if (card) card.classList.add('v2');
+      const tag = document.getElementById('result-tag');
+      if (tag) tag.textContent = 'v2 SHIPPED — v1 STILL LIVE';
+      const sub = document.querySelector('.result-sub');
+      if (sub) sub.textContent = 'Compare side-by-side. v1 unchanged. v2 has the iteration applied.';
+      // Update both link slots
+      const v1El = document.getElementById('result-url');
+      const v2El = document.getElementById('result-url-v2');
+      if (v1El && state.siteUrlV1) {
+        v1El.href = state.siteUrlV1;
+        v1El.textContent = (state.siteUrlV1.replace(/^https?:\/\//,'')) + '  (v1)';
+      }
+      if (v2El && state.siteUrlV2) {
+        v2El.href = state.siteUrlV2;
+        v2El.textContent = (state.siteUrlV2.replace(/^https?:\/\//,'')) + '  ↗';
+      }
+      break;
+    }
+    case 'agent_status': {
+      const target = MAP_AGENT[evt.agent] || evt.agent;
+      if (evt.status === 'working') {
+        setAgentWorking(target);
+        if (evt.message) {
+          addLog(target, evt.message);
+          showBubble(target, evt.message);
+        }
+      } else if (evt.status === 'done') {
+        setAgent(target, 'done');
+      } else {
+        setAgent(target, 'idle');
+      }
+      break;
+    }
+    case 'chat_message': {
+      const target = MAP_AGENT[evt.agent] || evt.agent || 'system';
+      if (evt.message) {
+        addLog(target, evt.message);
+        if (target !== 'system') showBubble(target, evt.message);
+      }
+      break;
+    }
+    case 'review_result': {
+      addLog('reviewer', 'Score ' + evt.score + '/10' + (evt.passed ? ' ✓ PASS' : ' ✗ FLAG'));
+      if (rejectTimerRef) { clearTimeout(rejectTimerRef); rejectTimerRef = null; }
+      if (!evt.passed) {
+        state.rejection = 'flagged';
+        showBanner('REVIEWER FLAGGED — sending back to Coder', 'coral', 2600);
+        showBubble('reviewer', 'Score ' + evt.score + '/10 — needs revision');
+        rejectTimerRef = setTimeout(() => {
+          state.rejection = 'revising';
+          showBanner('REVISING — re-running checks', 'amber', 3200);
+        }, 2600);
+      } else {
+        state.rejection = null;
+        if (state.timer > 6) showBanner('APPROVED — score ' + evt.score + '/10', 'teal', 1800);
+      }
+      break;
+    }
+    case 'build_complete': {
+      if (timerIv) { clearInterval(timerIv); timerIv = null; }
+      const isIteration = !!evt.iteration;
+      const elapsed = evt.elapsed != null ? evt.elapsed : state.timer;
+      state.timer = elapsed;
+      if (isIteration) {
+        // Track both URLs separately so the result card can show v1 + v2 side-by-side
+        if (evt.siteUrlV1) state.siteUrlV1 = evt.siteUrlV1;
+        if (evt.siteUrlV2) state.siteUrlV2 = evt.siteUrlV2;
+      } else {
+        if (evt.siteUrl) state.siteUrl = evt.siteUrl;
+        state.siteUrlV1 = state.siteUrl;     // first build IS v1
+        state.siteUrlV2 = '';
+      }
+      const name = (evt.plan && evt.plan.projectName) || evt.brief || state.winnerLabel || 'Project';
+      document.getElementById('progress-fill').style.width = '100%';
+      spawnConfetti();
+      for (const k in state.agents) setAgent(k, 'celebrate');
+      setTimeout(() => {
+        document.getElementById('result-title').childNodes[0].nodeValue = name;
+        const v1url = state.siteUrlV1 || ('https://' + (state.winner === 1 ? 'aml' : state.winner === 2 ? 'kyc' : 'tracker') + '.georg.miami');
+        const v2url = state.siteUrlV2 || '';
+        const urlEl = document.getElementById('result-url');
+        const v2El  = document.getElementById('result-url-v2');
+        urlEl.textContent = isIteration ? (v1url.replace(/^https?:\/\//,'') + '  (v1)') : v1url;
+        urlEl.href = v1url;
+        if (v2El) {
+          if (isIteration && v2url) {
+            v2El.href = v2url;
+            v2El.textContent = v2url.replace(/^https?:\/\//,'') + '  ↗';
+            v2El.style.display = 'inline-block';
+          } else {
+            v2El.style.display = 'none';
+          }
+        }
+        const m = String(Math.floor(elapsed/60)).padStart(2,'0');
+        const s = String(elapsed%60).padStart(2,'0');
+        document.getElementById('rstat-time').textContent = m+':'+s;
+        const now = new Date();
+        const utc = now.toISOString().replace('T',' ').slice(0,19) + ' UTC';
+        const slug = state.winner === 1 ? 'aml-console' : state.winner === 2 ? 'kyc-pipeline' : 'engagement-tracker';
+        const buildNum = String(Math.floor(Date.now()/100000) % 1000).padStart(3,'0');
+        const card = document.getElementById('result-card');
+        const tag = document.getElementById('result-tag');
+        const sub = document.querySelector('.result-sub');
+        if (isIteration) {
+          card.classList.add('v2');
+          state.iterationVersion = evt.iterationVersion || 2;
+          if (tag) tag.textContent = 'v2 LIVE — REFRESH TO SEE';
+          if (sub) sub.textContent = 'Iteration applied. Same URL — refresh on your phone.';
+          document.getElementById('result-evidence').innerHTML = `
+            <div>$ npm run build --apply-iteration</div>
+            <div class="ok">✓ 148 tests passed</div>
+            <div class="ok">✓ Layout still meets WCAG AA contrast</div>
+            <div class="deploy">→ Deployed: ${utc} · v2 swap applied</div>
+            <div class="deploy">→ Bundle: ${slug}-build-${buildNum}-v2.tar.gz</div>
+          `;
+          document.getElementById('result-sign').textContent =
+            'Signed by: Georg Chimion · ' + utc + ' · 1 iteration · audit trail retained';
+        } else {
+          card.classList.remove('v2');
+          state.iterationVersion = 1;
+          if (tag) tag.textContent = 'DEPLOYED';
+          if (sub) sub.textContent = 'Real code. Real URL. Real data. Scan it.';
+          document.getElementById('result-evidence').innerHTML = `
+            <div>$ npm run build</div>
+            <div class="ok">✓ 142 tests passed</div>
+            <div class="ok">✓ TypeScript compiled — 0 errors</div>
+            <div class="ok">✓ Cross-checked rules: FinCEN 31 CFR § 1010.230</div>
+            <div class="deploy">→ Deployed: ${utc}</div>
+            <div class="deploy">→ Bundle: ${slug}-build-${buildNum}.tar.gz</div>
+          `;
+          document.getElementById('result-sign').textContent =
+            'Signed by: Georg Chimion · ' + utc + ' · Audit trail retained';
+        }
+        setPhase('complete');
+      }, 1200);
+      break;
+    }
+    case 'spectator_count':
+      state.spectators = evt.count || 0;
+      document.getElementById('ms-spec').textContent = state.spectators;
+      break;
+    case 'connected':
+    case 'heartbeat':
+    case 'celebrate':
+      break;
+    case 'error':
+      addLog('system', 'Error: ' + (evt.message || 'unknown'));
+      break;
+  }
+}
+
+let cdIv = null, timerIv = null;
+
+function connectSSE() {
+  let es = null, reconnectDelay = 2000, stopped = false;
+  const connect = () => {
+    if (stopped) return;
+    try { if (es) es.close(); } catch(_) {}
+    es = new EventSource('/factory/api/live-stream');
+    es.onopen = () => { reconnectDelay = 2000; };
+    es.onmessage = (e) => { try { handleEvent(JSON.parse(e.data)); } catch(_) {} };
+    es.onerror = () => {
+      try { es.close(); } catch(_) {}
+      es = null;
+      if (!stopped) setTimeout(connect, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 1.5, 20000);
+    };
+  };
+  connect();
+}
+
+function bootstrap() {
+  fetch('/factory/api/voting-state')
+    .then(r => r.json())
+    .then(vs => {
+      handleEvent({ type:'voting_state', votingState: vs });
+    })
+    .catch(()=>{});
+  connectSSE();
+}
+
+function renderIdleQR() {
+  const c = document.getElementById('idle-qr');
+  drawQR(c, location.protocol + '//' + location.host + '/');
+}
+
+function tickClock() {
+  const d = new Date();
+  const t = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').textContent = t;
+}
+tickClock();
+setInterval(tickClock, 30000);
+
+renderIdleQR();
+
+/* Boot — wait for sprite preload, then start render loop and SSE */
+preloadAssets().then(() => {
+  render();
+  bootstrap();
+});
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#F6F4EE" />
+<meta name="theme-color" content="#ff2d7b" />
 <title>Beacon Compliance — Intake Pipeline</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,9 +21,13 @@
     --ink-4:     #9CA0A8;
     --rule:      #E4DFD2;            /* hairline */
     --rule-2:    #D8D2C2;
-    --accent:    #0F766E;            /* deep teal */
-    --accent-ink:#0A4F4A;
-    --accent-soft:#E2EFEC;
+    --accent:    #ff2d7b;            /* miami pink */
+    --accent-ink:#b1247a;
+    --accent-soft:#FFE0EC;
+    --miami-1:   #1f1466;
+    --miami-2:   #b1247a;
+    --miami-3:   #ff8a5c;
+    --miami-teal:#0fe4d4;
     --ok:        #2F7D5C;
     --ok-soft:   #E1EEE6;
     --warn:      #B7791F;
@@ -88,12 +92,13 @@
   .ribbon {
     display: flex; align-items: center; justify-content: space-between;
     padding: 8px 28px;
-    background: var(--ink);
-    color: #DCD6C5;
+    background: linear-gradient(135deg, #1f1466 0%, #b1247a 55%, #ff8a5c 100%);
+    color: #fff;
     font-family: var(--mono);
     font-size: 11px;
     letter-spacing: 0.04em;
-    border-bottom: 1px solid #000;
+    border-bottom: 1px solid rgba(255,255,255,.18);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.35);
   }
   .ribbon .left { display: flex; gap: 18px; align-items: center; }
   .ribbon .pulse { width: 6px; height: 6px; background: #6BD3B0; border-radius: 50%; box-shadow: 0 0 0 0 rgba(107,211,176,0.6); animation: pulse 2.4s infinite; }
@@ -188,7 +193,7 @@
   }
   .operator .avatar {
     width: 26px; height: 26px; border-radius: 50%;
-    background: linear-gradient(135deg, #0F766E 0%, #144842 100%);
+    background: linear-gradient(135deg, #ff2d7b 0%, #b1247a 100%);
     color: #fff;
     display: grid; place-items: center;
     font-family: var(--mono); font-weight: 600; font-size: 11px;
@@ -365,8 +370,8 @@
     animation: ringPulse 2.6s ease-in-out infinite;
   }
   @keyframes ringPulse {
-    0%, 100% { box-shadow: 0 0 0 4px rgba(15,118,110,0.18); }
-    50%      { box-shadow: 0 0 0 8px rgba(15,118,110,0.05); }
+    0%, 100% { box-shadow: 0 0 0 4px rgba(255,45,123,0.18); }
+    50%      { box-shadow: 0 0 0 8px rgba(255,45,123,0.05); }
   }
   .step .meta {
     margin-top: 14px;
@@ -693,7 +698,7 @@
     align-items: center;
     padding: 14px 16px;
     background:
-      linear-gradient(to right, transparent 0, transparent 70%, rgba(15,118,110,0.06) 100%);
+      linear-gradient(to right, transparent 0, transparent 70%, rgba(255,45,123,0.06) 100%);
     border-bottom: 1px solid var(--rule);
   }
   .risk-h > div:first-child { min-width: 0; }
@@ -760,7 +765,7 @@
   }
   .btn.primary {
     background: var(--accent); color: #fff; border-color: var(--accent);
-    box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 4px 10px -4px rgba(15,118,110,0.4);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 4px 10px -4px rgba(255,45,123,0.4);
   }
   .btn.primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); transform: translateY(-1px); }
   .btn.ghost {
@@ -835,8 +840,8 @@
     animation: dotIn 1.6s ease;
   }
   @keyframes dotIn {
-    0% { box-shadow: 0 0 0 0 rgba(15,118,110,0.5); }
-    60% { box-shadow: 0 0 0 8px rgba(15,118,110,0); }
+    0% { box-shadow: 0 0 0 0 rgba(255,45,123,0.5); }
+    60% { box-shadow: 0 0 0 8px rgba(255,45,123,0); }
     100% { box-shadow: 0 0 0 4px var(--accent-soft); }
   }
   .log-entry .text { padding-left: 6px; min-width: 0; }
@@ -1071,7 +1076,7 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
-  .search:focus-within { box-shadow: 0 0 0 3px rgba(15,118,110,0.18); border-color: var(--accent); }
+  .search:focus-within { box-shadow: 0 0 0 3px rgba(255,45,123,0.18); border-color: var(--accent); }
 
   .btn:active, .chip:active, .doc-add:active, .queue-item:active, .doc:active, .screen-row:active, .step:active {
     transform: scale(0.98);
@@ -1122,7 +1127,7 @@
   }
 
   /* ---------- Document expansion ---------- */
-  /* Override the original .doc grid (line 583) — actual children are now .doc-row + .doc-detail
+  /* Override the original .doc grid (line ~587) — actual children are now .doc-row + .doc-detail
      which need to stack vertically. The .doc-row keeps its own internal 3-col grid below. */
   .doc {
     display: flex;
@@ -1167,7 +1172,7 @@
   .doc.expanded { background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
   /* ---------- Sanctions row expansion ---------- */
-  /* Override the original .screen-row grid (line 661) — actual children are now
+  /* Override the original .screen-row grid (line ~666) — actual children are now
      .row-head + .row-detail which need to stack vertically. */
   .screen-row {
     display: flex;
@@ -1653,10 +1658,6 @@
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
       Risk Models
     </button>
-    <button data-view="audit" role="tab" aria-selected="false">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-      Audit Log
-    </button>
   </nav>
 
   <!-- ============================================================
@@ -1699,25 +1700,25 @@
       <div class="h"><span class="label">Cases this week</span></div>
       <div class="v">214</div>
       <div class="delta up">▲ 18 <span style="color:var(--ink-3)">vs last week</span></div>
-      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,20 10,18 20,16 30,17 40,12 50,10 60,12 70,7 80,4" fill="none" stroke="#0F766E" stroke-width="1.5"/><polyline points="0,20 10,18 20,16 30,17 40,12 50,10 60,12 70,7 80,4 80,28 0,28" fill="rgba(15,118,110,0.08)" stroke="none"/></svg>
+      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,20 10,18 20,16 30,17 40,12 50,10 60,12 70,7 80,4" fill="none" stroke="#ff2d7b" stroke-width="1.5"/><polyline points="0,20 10,18 20,16 30,17 40,12 50,10 60,12 70,7 80,4 80,28 0,28" fill="rgba(255,45,123,0.08)" stroke="none"/></svg>
     </div>
     <div class="kpi">
       <div class="h"><span class="label">Avg. time to decision</span></div>
       <div class="v">2.4<small>h</small></div>
       <div class="delta up">▼ 0.6h <span style="color:var(--ink-3)">vs SLA 4.0h</span></div>
-      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,4 10,9 20,7 30,12 40,10 50,14 60,16 70,18 80,20" fill="none" stroke="#0F766E" stroke-width="1.5"/></svg>
+      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,4 10,9 20,7 30,12 40,10 50,14 60,16 70,18 80,20" fill="none" stroke="#ff2d7b" stroke-width="1.5"/></svg>
     </div>
     <div class="kpi">
       <div class="h"><span class="label">Approval rate</span></div>
       <div class="v">87.2<small>%</small></div>
       <div class="delta flat">— 4.1% rejected, 8.7% in EDD</div>
-      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,12 10,11 20,13 30,10 40,9 50,11 60,8 70,9 80,8" fill="none" stroke="#0F766E" stroke-width="1.5"/></svg>
+      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,12 10,11 20,13 30,10 40,9 50,11 60,8 70,9 80,8" fill="none" stroke="#ff2d7b" stroke-width="1.5"/></svg>
     </div>
     <div class="kpi">
       <div class="h"><span class="label">Cases in EDD</span></div>
       <div class="v">19</div>
       <div class="delta warn">▲ 3 <span style="color:var(--ink-3)">PEP-flagged: 4</span></div>
-      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,18 10,16 20,18 30,14 40,15 50,12 60,10 70,11 80,7" fill="none" stroke="#0F766E" stroke-width="1.5"/></svg>
+      <svg class="spark" viewBox="0 0 80 28" preserveAspectRatio="none"><polyline points="0,18 10,16 20,18 30,14 40,15 50,12 60,10 70,11 80,7" fill="none" stroke="#ff2d7b" stroke-width="1.5"/></svg>
     </div>
   </section>
 
@@ -2059,45 +2060,6 @@
     </div>
   </section>
 
-  <!-- ============================================================
-       VIEW: AUDIT LOG — chronological event stream across all cases
-       ============================================================ -->
-  <section class="view-section" data-view="audit">
-    <div class="section-h">
-      <h2>Audit log <span class="num-tag">SOC 2 · IMMUTABLE · SHA-256 SIGNED</span></h2>
-      <span class="mono" style="font-size:10.5px;color:var(--ink-3)">Live feed · 142,318 entries (30d) · retention 7y</span>
-    </div>
-
-    <div class="panel scroll-x">
-      <div class="panel-h">
-        <h3>System-wide audit stream</h3>
-        <div class="subfilter" id="auditFilters">
-          <span class="label-tiny">Event</span>
-          <button class="chip active" data-audit-ev="all">All</button>
-          <button class="chip" data-audit-ev="DOC">Document</button>
-          <button class="chip" data-audit-ev="OCR">OCR</button>
-          <button class="chip" data-audit-ev="OFAC">OFAC</button>
-          <button class="chip" data-audit-ev="REVIEW">Operator review</button>
-          <button class="chip" data-audit-ev="TIER">Tier change</button>
-          <button class="chip" data-audit-ev="DECISION">Decision</button>
-        </div>
-        <span class="count" id="auditViewCount">22 events</span>
-      </div>
-      <table class="feed-table" id="auditTable">
-        <thead>
-          <tr>
-            <th>Timestamp</th>
-            <th>Actor</th>
-            <th>Case ID</th>
-            <th>Event</th>
-            <th>Signed-by</th>
-          </tr>
-        </thead>
-        <tbody id="auditBody"></tbody>
-      </table>
-    </div>
-  </section>
-
   <footer class="legal">
     <div class="left">
       <span>© 2026 Beacon Compliance Systems, Inc.</span>
@@ -2112,7 +2074,7 @@
   </footer>
 </div>
 
-<div id="demoToast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(120%);transition:transform .3s;background:#0F766E;color:#fff;padding:12px 20px;border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:9999;pointer-events:none;"></div>
+<div id="demoToast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(120%);transition:transform .3s;background:#ff2d7b;color:#fff;padding:12px 20px;border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:9999;pointer-events:none;"></div>
 
 <script>
 (() => {
